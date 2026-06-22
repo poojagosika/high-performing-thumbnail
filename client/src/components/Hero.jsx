@@ -1,3 +1,4 @@
+import { Link } from "react-router";
 import { motion } from "framer-motion";
 import { ArrowRight, TrendingUp, Eye, MousePointerClick } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -193,10 +194,12 @@ function Hero() {
           transition={stagger(3)}
           className="mt-8 flex items-center justify-center gap-3"
         >
-          <Button className="h-9 px-5 text-[13px] bg-white text-[#0a0a0f] hover:bg-white/90 font-medium group">
-            Get Started
-            <ArrowRight className="w-3.5 h-3.5 ml-1 transition-transform group-hover:translate-x-0.5" />
-          </Button>
+          <Link to="/signup">
+            <Button className="h-9 px-5 text-[13px] bg-white text-[#0a0a0f] hover:bg-white/90 font-medium group">
+              Get Started
+              <ArrowRight className="w-3.5 h-3.5 ml-1 transition-transform group-hover:translate-x-0.5" />
+            </Button>
+          </Link>
           <Button
             variant="outline"
             className="h-9 px-5 text-[13px] border-white/8 text-[#737380] hover:text-white hover:border-white/12 bg-transparent font-medium"

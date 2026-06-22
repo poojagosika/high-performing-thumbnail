@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
@@ -31,11 +32,11 @@ function Navbar() {
       }`}
     >
       <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
-        <a href="/" className="flex items-center gap-2">
+        <Link to="/" className="flex items-center gap-2">
           <span className="font-heading text-[15px] font-semibold text-white tracking-tight">
             ThumbCraft
           </span>
-        </a>
+        </Link>
 
         <div className="hidden md:flex items-center gap-6">
           {navLinks.map((link) => (
@@ -50,19 +51,23 @@ function Navbar() {
         </div>
 
         <div className="hidden md:flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-[13px] text-[#737380] hover:text-white hover:bg-transparent"
-          >
-            Log in
-          </Button>
-          <Button
-            size="sm"
-            className="text-[13px] bg-white text-[#0a0a0f] hover:bg-white/90 font-medium h-8 px-4"
-          >
-            Get Started
-          </Button>
+          <Link to="/login">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-[13px] text-[#737380] hover:text-white hover:bg-transparent"
+            >
+              Log in
+            </Button>
+          </Link>
+          <Link to="/signup">
+            <Button
+              size="sm"
+              className="text-[13px] bg-white text-[#0a0a0f] hover:bg-white/90 font-medium h-8 px-4"
+            >
+              Get Started
+            </Button>
+          </Link>
         </div>
 
         <button
@@ -91,19 +96,23 @@ function Navbar() {
             </a>
           ))}
           <div className="flex flex-col gap-2 mt-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="justify-start text-[#737380]"
-            >
-              Log in
-            </Button>
-            <Button
-              size="sm"
-              className="bg-white text-[#0a0a0f] hover:bg-white/90 font-medium"
-            >
-              Get Started
-            </Button>
+            <Link to="/login" onClick={() => setMenuOpen(false)}>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full justify-start text-[#737380]"
+              >
+                Log in
+              </Button>
+            </Link>
+            <Link to="/signup" onClick={() => setMenuOpen(false)}>
+              <Button
+                size="sm"
+                className="w-full bg-white text-[#0a0a0f] hover:bg-white/90 font-medium"
+              >
+                Get Started
+              </Button>
+            </Link>
           </div>
         </motion.div>
       )}

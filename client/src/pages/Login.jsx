@@ -1,0 +1,161 @@
+import { useState } from "react";
+import { Link } from "react-router";
+import { motion } from "framer-motion";
+import { ArrowLeft, Eye, EyeOff } from "lucide-react";
+import { Button } from "@/components/ui/button";
+
+const stagger = (i) => ({ duration: 0.4, delay: i * 0.06, ease: "easeOut" });
+
+function Login() {
+  const [showPassword, setShowPassword] = useState(false);
+
+  return (
+    <div className="min-h-screen flex">
+      {/* Left — form */}
+      <div className="flex-1 flex items-center justify-center px-6 py-12">
+        <div className="w-full max-w-sm">
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={stagger(0)}
+          >
+            <Link
+              to="/"
+              className="inline-flex items-center gap-1.5 text-[13px] text-[#737380] hover:text-white transition-colors mb-8"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              Back
+            </Link>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={stagger(1)}
+          >
+            <h1 className="font-heading text-2xl font-semibold text-white tracking-[-0.01em]">
+              Welcome back
+            </h1>
+            <p className="text-[14px] text-[#737380] mt-1.5">
+              Log in to your ThumbCraft account.
+            </p>
+          </motion.div>
+
+          <motion.form
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={stagger(2)}
+            className="mt-8 flex flex-col gap-4"
+            onSubmit={(e) => e.preventDefault()}
+          >
+            {/* Email */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[13px] text-[#737380]">Email</label>
+              <input
+                type="email"
+                placeholder="you@example.com"
+                className="h-9 px-3 rounded-lg border border-white/8 bg-white/3 text-[14px] text-white placeholder:text-[#4a4a54] outline-none focus:border-white/16 transition-colors"
+              />
+            </div>
+
+            {/* Password */}
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-[13px] text-[#737380]">Password</label>
+                <a
+                  href="#"
+                  className="text-[12px] text-[#737380] hover:text-white transition-colors"
+                >
+                  Forgot password?
+                </a>
+              </div>
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  placeholder="••••••••"
+                  className="w-full h-9 px-3 pr-9 rounded-lg border border-white/8 bg-white/3 text-[14px] text-white placeholder:text-[#4a4a54] outline-none focus:border-white/16 transition-colors"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#737380] hover:text-white transition-colors"
+                >
+                  {showPassword ? (
+                    <EyeOff className="w-3.5 h-3.5" />
+                  ) : (
+                    <Eye className="w-3.5 h-3.5" />
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Submit */}
+            <Button
+              type="submit"
+              className="w-full h-9 mt-1 text-[13px] bg-white text-[#0a0a0f] hover:bg-white/90 font-medium"
+            >
+              Log in
+            </Button>
+          </motion.form>
+
+          {/* Divider */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={stagger(3)}
+            className="flex items-center gap-3 my-6"
+          >
+            <div className="flex-1 h-px bg-white/6" />
+            <span className="text-[12px] text-[#4a4a54]">or</span>
+            <div className="flex-1 h-px bg-white/6" />
+          </motion.div>
+
+          {/* Google */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={stagger(4)}
+          >
+            <Button
+              variant="outline"
+              className="w-full h-9 text-[13px] border-white/8 text-[#737380] hover:text-white hover:border-white/12 bg-transparent font-medium"
+            >
+              Continue with Google
+            </Button>
+          </motion.div>
+
+          {/* Sign up link */}
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={stagger(5)}
+            className="text-[13px] text-[#737380] text-center mt-6"
+          >
+            Don&apos;t have an account?{" "}
+            <Link
+              to="/signup"
+              className="text-white hover:underline underline-offset-2"
+            >
+              Sign up
+            </Link>
+          </motion.p>
+        </div>
+      </div>
+
+      {/* Right — decorative panel */}
+      <div className="hidden lg:flex flex-1 items-center justify-center bg-[#111118] border-l border-white/6">
+        <div className="max-w-xs text-center">
+          <div className="font-heading text-lg font-semibold text-white mb-2">
+            ThumbCraft
+          </div>
+          <p className="text-[14px] text-[#737380] leading-relaxed">
+            Thumbnails that drive clicks. Analyze, test, and create designs that
+            actually convert.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default Login;
