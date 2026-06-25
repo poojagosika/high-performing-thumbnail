@@ -19,6 +19,9 @@ app.use(express.urlencoded({ extended: true }));
 // Connect to MongoDB
 connectDB();
 
+// Routes
+app.use("/api/auth", require("./routes/auth"));
+
 // Health check route
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok", message: "Server is running" });
