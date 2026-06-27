@@ -1,5 +1,6 @@
 const express = require("express");
 const cors = require("cors");
+const path = require("path");
 const dotenv = require("dotenv");
 const connectDB = require("./config/db");
 
@@ -19,8 +20,12 @@ app.use(express.urlencoded({ extended: true }));
 // Connect to MongoDB
 connectDB();
 
+// Static files
+app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
+
 // Routes
 app.use("/api/auth", require("./routes/auth"));
+app.use("/api/thumbnails", require("./routes/thumbnails"));
 
 // Health check route
 app.get("/api/health", (req, res) => {
