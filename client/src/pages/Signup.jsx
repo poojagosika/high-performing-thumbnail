@@ -1,13 +1,37 @@
 import { useState } from "react";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { motion } from "framer-motion";
-import { ArrowLeft, Eye, EyeOff } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "../context/AuthContext";
 
 const stagger = (i) => ({ duration: 0.4, delay: i * 0.06, ease: "easeOut" });
 
 function Signup() {
+  const navigate = useNavigate();
+  const { register } = useAuth();
+
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+    setSubmitting(true);
+
+    try {
+      await register(name, email, password);
+      navigate("/");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <div className="min-h-screen flex">
@@ -46,14 +70,23 @@ function Signup() {
             animate={{ opacity: 1, y: 0 }}
             transition={stagger(2)}
             className="mt-8 flex flex-col gap-4"
-            onSubmit={(e) => e.preventDefault()}
+            onSubmit={handleSubmit}
           >
+            {error && (
+              <div className="text-[13px] text-red-400 bg-red-400/10 border border-red-400/10 rounded-lg px-3 py-2">
+                {error}
+              </div>
+            )}
+
             {/* Name */}
             <div className="flex flex-col gap-1.5">
               <label className="text-[13px] text-[#737380]">Name</label>
               <input
                 type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
                 placeholder="Your name"
+                required
                 className="h-9 px-3 rounded-lg border border-white/8 bg-white/3 text-[14px] text-white placeholder:text-[#4a4a54] outline-none focus:border-white/16 transition-colors"
               />
             </div>
@@ -63,7 +96,10 @@ function Signup() {
               <label className="text-[13px] text-[#737380]">Email</label>
               <input
                 type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
+                required
                 className="h-9 px-3 rounded-lg border border-white/8 bg-white/3 text-[14px] text-white placeholder:text-[#4a4a54] outline-none focus:border-white/16 transition-colors"
               />
             </div>
@@ -74,7 +110,11 @@ function Signup() {
               <div className="relative">
                 <input
                   type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   placeholder="Min. 8 characters"
+                  required
+                  minLength={8}
                   className="w-full h-9 px-3 pr-9 rounded-lg border border-white/8 bg-white/3 text-[14px] text-white placeholder:text-[#4a4a54] outline-none focus:border-white/16 transition-colors"
                 />
                 <button
@@ -94,9 +134,14 @@ function Signup() {
             {/* Submit */}
             <Button
               type="submit"
+              disabled={submitting}
               className="w-full h-9 mt-1 text-[13px] bg-white text-[#0a0a0f] hover:bg-white/90 font-medium"
             >
-              Create account
+              {submitting ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                "Create account"
+              )}
             </Button>
           </motion.form>
 
