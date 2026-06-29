@@ -25,7 +25,7 @@ function Signup() {
 
     try {
       await register(name, email, password);
-      navigate("/");
+      navigate("/dashboard");
     } catch (err) {
       setError(err.message);
     } finally {
