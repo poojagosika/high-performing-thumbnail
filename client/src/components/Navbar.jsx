@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Menu, X } from "lucide-react";
+import { Menu, X, LogOut } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
 
 const navLinks = [
   { label: "Features", href: "#features" },
@@ -11,8 +12,15 @@ const navLinks = [
 ];
 
 function Navbar() {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+
+  const handleLogout = () => {
+    logout();
+    navigate("/");
+  };
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 10);
@@ -51,23 +59,46 @@ function Navbar() {
         </div>
 
         <div className="hidden md:flex items-center gap-2">
-          <Link to="/login">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-[13px] text-[#737380] hover:text-white hover:bg-transparent"
-            >
-              Log in
-            </Button>
-          </Link>
-          <Link to="/signup">
-            <Button
-              size="sm"
-              className="text-[13px] bg-white text-[#0a0a0f] hover:bg-white/90 font-medium h-8 px-4"
-            >
-              Get Started
-            </Button>
-          </Link>
+          {user ? (
+            <>
+              <Link to="/dashboard">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-[13px] text-[#737380] hover:text-white hover:bg-transparent"
+                >
+                  Dashboard
+                </Button>
+              </Link>
+              <span className="text-[13px] text-[#737380]">{user.name}</span>
+              <button
+                onClick={handleLogout}
+                className="text-[#737380] hover:text-white transition-colors p-1"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+              </button>
+            </>
+          ) : (
+            <>
+              <Link to="/login">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-[13px] text-[#737380] hover:text-white hover:bg-transparent"
+                >
+                  Log in
+                </Button>
+              </Link>
+              <Link to="/signup">
+                <Button
+                  size="sm"
+                  className="text-[13px] bg-white text-[#0a0a0f] hover:bg-white/90 font-medium h-8 px-4"
+                >
+                  Get Started
+                </Button>
+              </Link>
+            </>
+          )}
         </div>
 
         <button
@@ -96,23 +127,51 @@ function Navbar() {
             </a>
           ))}
           <div className="flex flex-col gap-2 mt-2">
-            <Link to="/login" onClick={() => setMenuOpen(false)}>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="w-full justify-start text-[#737380]"
-              >
-                Log in
-              </Button>
-            </Link>
-            <Link to="/signup" onClick={() => setMenuOpen(false)}>
-              <Button
-                size="sm"
-                className="w-full bg-white text-[#0a0a0f] hover:bg-white/90 font-medium"
-              >
-                Get Started
-              </Button>
-            </Link>
+            {user ? (
+              <>
+                <Link to="/dashboard" onClick={() => setMenuOpen(false)}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full justify-start text-[#737380]"
+                  >
+                    Dashboard
+                  </Button>
+                </Link>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full justify-start text-[#737380] gap-1.5"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    handleLogout();
+                  }}
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  Log out
+                </Button>
+              </>
+            ) : (
+              <>
+                <Link to="/login" onClick={() => setMenuOpen(false)}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full justify-start text-[#737380]"
+                  >
+                    Log in
+                  </Button>
+                </Link>
+                <Link to="/signup" onClick={() => setMenuOpen(false)}>
+                  <Button
+                    size="sm"
+                    className="w-full bg-white text-[#0a0a0f] hover:bg-white/90 font-medium"
+                  >
+                    Get Started
+                  </Button>
+                </Link>
+              </>
+            )}
           </div>
         </motion.div>
       )}
