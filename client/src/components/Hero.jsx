@@ -2,6 +2,7 @@ import { Link } from "react-router";
 import { motion } from "framer-motion";
 import { ArrowRight, TrendingUp, Eye, MousePointerClick } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "../context/AuthContext";
 import HeroBackground from "./HeroBackground";
 
 const stagger = (i) => ({ duration: 0.5, delay: i * 0.08, ease: "easeOut" });
@@ -144,6 +145,8 @@ function DashboardPreview() {
 }
 
 function Hero() {
+  const { user } = useAuth();
+
   return (
     <section className="relative min-h-screen flex flex-col items-center px-6 pt-32 pb-20 overflow-hidden">
       <HeroBackground />
@@ -194,9 +197,9 @@ function Hero() {
           transition={stagger(3)}
           className="mt-8 flex items-center justify-center gap-3"
         >
-          <Link to="/signup">
+          <Link to={user ? "/dashboard" : "/signup"}>
             <Button className="h-9 px-5 text-[13px] bg-white text-[#0a0a0f] hover:bg-white/90 font-medium group">
-              Get Started
+              {user ? "Go to Dashboard" : "Get Started"}
               <ArrowRight className="w-3.5 h-3.5 ml-1 transition-transform group-hover:translate-x-0.5" />
             </Button>
           </Link>
