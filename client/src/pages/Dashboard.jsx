@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { motion } from "framer-motion";
 import { ImagePlus, LogOut, Loader2, Image } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -10,8 +10,14 @@ const stagger = (i) => ({ duration: 0.4, delay: i * 0.06, ease: "easeOut" });
 
 function Dashboard() {
   const { user, token, logout } = useAuth();
+  const navigate = useNavigate();
   const [thumbnails, setThumbnails] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  const handleLogout = () => {
+    logout();
+    navigate("/");
+  };
 
   useEffect(() => {
     api("/thumbnails", { token })
@@ -35,7 +41,7 @@ function Dashboard() {
           <div className="flex items-center gap-3">
             <span className="text-[13px] text-[#737380]">{user?.name}</span>
             <button
-              onClick={logout}
+              onClick={handleLogout}
               className="text-[#737380] hover:text-white transition-colors"
             >
               <LogOut className="w-4 h-4" />
