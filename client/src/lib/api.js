@@ -19,4 +19,23 @@ async function api(endpoint, { method = "GET", body, token } = {}) {
   return data;
 }
 
+export async function uploadFile(endpoint, formData, token) {
+  const headers = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const res = await fetch(`${API_URL}${endpoint}`, {
+    method: "POST",
+    headers,
+    body: formData,
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(data.message || "Something went wrong");
+  }
+
+  return data;
+}
+
 export default api;

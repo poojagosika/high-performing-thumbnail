@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { ImagePlus, LogOut, Loader2, Image } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "../context/AuthContext";
+import UploadModal from "../components/UploadModal";
 import api from "../lib/api";
 
 const stagger = (i) => ({ duration: 0.4, delay: i * 0.06, ease: "easeOut" });
@@ -13,6 +14,7 @@ function Dashboard() {
   const navigate = useNavigate();
   const [thumbnails, setThumbnails] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [uploadOpen, setUploadOpen] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -67,7 +69,10 @@ function Dashboard() {
             </p>
           </div>
 
-          <Button className="h-9 text-[13px] bg-white text-[#0a0a0f] hover:bg-white/90 font-medium gap-1.5">
+          <Button
+            onClick={() => setUploadOpen(true)}
+            className="h-9 text-[13px] bg-white text-[#0a0a0f] hover:bg-white/90 font-medium gap-1.5"
+          >
             <ImagePlus className="w-3.5 h-3.5" />
             Upload
           </Button>
@@ -94,7 +99,10 @@ function Dashboard() {
               Upload your first thumbnail to start analyzing and optimizing your
               click-through rate.
             </p>
-            <Button className="h-9 text-[13px] bg-white text-[#0a0a0f] hover:bg-white/90 font-medium gap-1.5">
+            <Button
+              onClick={() => setUploadOpen(true)}
+              className="h-9 text-[13px] bg-white text-[#0a0a0f] hover:bg-white/90 font-medium gap-1.5"
+            >
               <ImagePlus className="w-3.5 h-3.5" />
               Upload Thumbnail
             </Button>
@@ -150,6 +158,12 @@ function Dashboard() {
           </motion.div>
         )}
       </main>
+
+      <UploadModal
+        open={uploadOpen}
+        onClose={() => setUploadOpen(false)}
+        onUploaded={(thumb) => setThumbnails((prev) => [thumb, ...prev])}
+      />
     </div>
   );
 }
