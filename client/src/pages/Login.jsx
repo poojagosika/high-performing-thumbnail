@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import { motion } from "framer-motion";
 import { ArrowLeft, Eye, EyeOff, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,9 @@ const stagger = (i) => ({ duration: 0.4, delay: i * 0.06, ease: "easeOut" });
 
 function Login() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { login } = useAuth();
+  const expired = searchParams.get("expired") === "true";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -71,6 +73,12 @@ function Login() {
             className="mt-8 flex flex-col gap-4"
             onSubmit={handleSubmit}
           >
+            {expired && !error && (
+              <div className="text-[13px] text-yellow-400 bg-yellow-400/10 border border-yellow-400/10 rounded-lg px-3 py-2">
+                Your session has expired. Please log in again.
+              </div>
+            )}
+
             {error && (
               <div className="text-[13px] text-red-400 bg-red-400/10 border border-red-400/10 rounded-lg px-3 py-2">
                 {error}
