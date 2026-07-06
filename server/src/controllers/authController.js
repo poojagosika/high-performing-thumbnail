@@ -8,6 +8,13 @@ const generateToken = (userId) => {
   });
 };
 
+const cookieOptions = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production",
+  sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+};
+
 const register = async (req, res) => {
   try {
     const { name, email, password } = req.body;
@@ -37,15 +44,17 @@ const register = async (req, res) => {
 
     const token = generateToken(user._id);
 
-    res.status(201).json({
-      token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        plan: user.plan,
-      },
-    });
+    res
+      .cookie("token", token, cookieOptions)
+      .status(201)
+      .json({
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          plan: user.plan,
+        },
+      });
   } catch (error) {
     res.status(500).json({ message: "Server error" });
   }
@@ -71,8 +80,7 @@ const login = async (req, res) => {
 
     const token = generateToken(user._id);
 
-    res.json({
-      token,
+    res.cookie("token", token, cookieOptions).json({
       user: {
         id: user._id,
         name: user.name,
@@ -96,4 +104,14 @@ const getMe = async (req, res) => {
   });
 };
 
-module.exports = { register, login, getMe };
+const logout = (req, res) => {
+  res
+    .clearCookie("token", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+    })
+    .json({ message: "Logged out" });
+};
+
+module.exports = { register, login, getMe, logout };

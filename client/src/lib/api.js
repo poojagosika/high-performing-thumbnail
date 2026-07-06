@@ -1,12 +1,12 @@
 const API_URL = "http://localhost:5000/api";
 
-async function api(endpoint, { method = "GET", body, token } = {}) {
+async function api(endpoint, { method = "GET", body } = {}) {
   const headers = { "Content-Type": "application/json" };
-  if (token) headers.Authorization = `Bearer ${token}`;
 
   const res = await fetch(`${API_URL}${endpoint}`, {
     method,
     headers,
+    credentials: "include",
     body: body ? JSON.stringify(body) : undefined,
   });
 
@@ -19,13 +19,10 @@ async function api(endpoint, { method = "GET", body, token } = {}) {
   return data;
 }
 
-export async function uploadFile(endpoint, formData, token) {
-  const headers = {};
-  if (token) headers.Authorization = `Bearer ${token}`;
-
+export async function uploadFile(endpoint, formData) {
   const res = await fetch(`${API_URL}${endpoint}`, {
     method: "POST",
-    headers,
+    credentials: "include",
     body: formData,
   });
 

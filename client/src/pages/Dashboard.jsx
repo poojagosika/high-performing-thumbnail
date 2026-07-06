@@ -10,7 +10,7 @@ import api from "../lib/api";
 const stagger = (i) => ({ duration: 0.4, delay: i * 0.06, ease: "easeOut" });
 
 function Dashboard() {
-  const { user, token, logout } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [thumbnails, setThumbnails] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -22,11 +22,11 @@ function Dashboard() {
   };
 
   useEffect(() => {
-    api("/thumbnails", { token })
+    api("/thumbnails")
       .then((data) => setThumbnails(data))
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [token]);
+  }, []);
 
   return (
     <div className="min-h-screen">

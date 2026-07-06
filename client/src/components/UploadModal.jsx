@@ -2,11 +2,9 @@ import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Upload, ImagePlus, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "../context/AuthContext";
 import { uploadFile } from "../lib/api";
 
 function UploadModal({ open, onClose, onUploaded }) {
-  const { token } = useAuth();
   const fileRef = useRef(null);
 
   const [file, setFile] = useState(null);
@@ -44,7 +42,7 @@ function UploadModal({ open, onClose, onUploaded }) {
       if (title.trim()) formData.append("title", title.trim());
       if (tags.trim()) formData.append("tags", tags.trim());
 
-      const thumbnail = await uploadFile("/thumbnails", formData, token);
+      const thumbnail = await uploadFile("/thumbnails", formData);
       onUploaded(thumbnail);
       handleClose();
     } catch (err) {
