@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router";
 import { motion } from "framer-motion";
-import { ImagePlus, LogOut, Loader2, Image } from "lucide-react";
+import { ImagePlus, LogOut, Image } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "../context/AuthContext";
 import UploadModal from "../components/UploadModal";
@@ -79,8 +79,19 @@ function Dashboard() {
         </motion.div>
 
         {loading ? (
-          <div className="flex items-center justify-center py-32">
-            <Loader2 className="w-5 h-5 text-[#737380] animate-spin" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[...Array(6)].map((_, i) => (
+              <div
+                key={i}
+                className="rounded-xl border border-white/6 bg-[#111118] overflow-hidden animate-pulse"
+              >
+                <div className="aspect-video bg-white/4" />
+                <div className="p-4 space-y-2.5">
+                  <div className="h-3.5 w-3/4 rounded bg-white/4" />
+                  <div className="h-3 w-1/2 rounded bg-white/4" />
+                </div>
+              </div>
+            ))}
           </div>
         ) : thumbnails.length === 0 ? (
           <motion.div
