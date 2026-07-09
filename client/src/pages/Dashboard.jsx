@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router";
 import { motion } from "framer-motion";
 import {
@@ -6,6 +6,7 @@ import {
   LogOut,
   Image,
   Trash2,
+  Pencil,
   Mail,
   CreditCard,
 } from "lucide-react";
@@ -22,6 +23,35 @@ function Dashboard() {
   const [thumbnails, setThumbnails] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [editTitle, setEditTitle] = useState("");
+  const editRef = useRef(null);
+
+  const handleRename = async (id) => {
+    const trimmed = editTitle.trim();
+    if (!trimmed) {
+      setEditingId(null);
+      return;
+    }
+    try {
+      await api(`/thumbnails/${id}`, {
+        method: "PATCH",
+        body: { title: trimmed },
+      });
+      setThumbnails((prev) =>
+        prev.map((t) => (t._id === id ? { ...t, title: trimmed } : t)),
+      );
+    } catch {
+      // ignore
+    }
+    setEditingId(null);
+  };
+
+  const startEditing = (thumb) => {
+    setEditingId(thumb._id);
+    setEditTitle(thumb.title);
+    setTimeout(() => editRef.current?.focus(), 0);
+  };
 
   const handleLogout = () => {
     logout();
@@ -189,15 +219,44 @@ function Dashboard() {
                 </div>
                 <div className="p-4">
                   <div className="flex items-start justify-between gap-2">
-                    <h3 className="text-[14px] font-medium text-white truncate">
-                      {thumb.title}
-                    </h3>
-                    <button
-                      onClick={() => handleDelete(thumb._id)}
-                      className="text-[#4a4a54] hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 shrink-0"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    {editingId === thumb._id ? (
+                      <input
+                        ref={editRef}
+                        type="text"
+                        value={editTitle}
+                        onChange={(e) => setEditTitle(e.target.value)}
+                        onBlur={() => handleRename(thumb._id)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleRename(thumb._id);
+                          if (e.key === "Escape") setEditingId(null);
+                        }}
+                        className="flex-1 min-w-0 h-6 px-1.5 -ml-1.5 rounded bg-white/4 border border-white/10 text-[14px] font-medium text-white outline-none focus:border-white/20 transition-colors"
+                      />
+                    ) : (
+                      <h3
+                        className="text-[14px] font-medium text-white truncate cursor-pointer hover:text-white/80 transition-colors"
+                        onClick={() => startEditing(thumb)}
+                        title="Click to rename"
+                      >
+                        {thumb.title}
+                      </h3>
+                    )}
+                    <div className="flex items-center gap-1.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                      {editingId !== thumb._id && (
+                        <button
+                          onClick={() => startEditing(thumb)}
+                          className="text-[#4a4a54] hover:text-white transition-colors"
+                        >
+                          <Pencil className="w-3 h-3" />
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleDelete(thumb._id)}
+                        className="text-[#4a4a54] hover:text-red-400 transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
                   <div className="flex items-center gap-3 mt-2">
                     {thumb.score > 0 && (
