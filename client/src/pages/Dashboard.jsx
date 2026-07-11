@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "../context/AuthContext";
+import { useToast } from "../context/ToastContext";
 import UploadModal from "../components/UploadModal";
 import api from "../lib/api";
 
@@ -19,6 +20,7 @@ const stagger = (i) => ({ duration: 0.4, delay: i * 0.06, ease: "easeOut" });
 
 function Dashboard() {
   const { user, logout } = useAuth();
+  const toast = useToast();
   const navigate = useNavigate();
   const [thumbnails, setThumbnails] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -43,8 +45,9 @@ function Dashboard() {
       setThumbnails((prev) =>
         prev.map((t) => (t._id === id ? { ...t, title: trimmed } : t)),
       );
+      toast.success("Title updated");
     } catch {
-      // ignore
+      toast.error("Failed to update title");
     }
     setEditingId(null);
   };
@@ -66,8 +69,9 @@ function Dashboard() {
     try {
       await api(`/thumbnails/${deleteId}`, { method: "DELETE" });
       setThumbnails((prev) => prev.filter((t) => t._id !== deleteId));
+      toast.success("Thumbnail deleted");
     } catch {
-      // ignore
+      toast.error("Failed to delete thumbnail");
     } finally {
       setDeleting(false);
       setDeleteId(null);
@@ -294,7 +298,10 @@ function Dashboard() {
       <UploadModal
         open={uploadOpen}
         onClose={() => setUploadOpen(false)}
-        onUploaded={(thumb) => setThumbnails((prev) => [thumb, ...prev])}
+        onUploaded={(thumb) => {
+          setThumbnails((prev) => [thumb, ...prev]);
+          toast.success("Thumbnail uploaded");
+        }}
       />
 
       {/* Confirm delete modal */}

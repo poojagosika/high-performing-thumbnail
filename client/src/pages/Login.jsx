@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { ArrowLeft, Eye, EyeOff, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "../context/AuthContext";
+import { useToast } from "../context/ToastContext";
 
 const stagger = (i) => ({ duration: 0.4, delay: i * 0.06, ease: "easeOut" });
 
@@ -11,6 +12,7 @@ function Login() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { login } = useAuth();
+  const toast = useToast();
   const expired = searchParams.get("expired") === "true";
 
   const [email, setEmail] = useState("");
@@ -26,6 +28,7 @@ function Login() {
 
     try {
       await login(email, password);
+      toast.success("Welcome back!");
       navigate("/dashboard");
     } catch (err) {
       setError(err.message);

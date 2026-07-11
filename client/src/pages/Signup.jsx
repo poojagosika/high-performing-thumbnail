@@ -4,12 +4,14 @@ import { motion } from "framer-motion";
 import { ArrowLeft, Eye, EyeOff, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "../context/AuthContext";
+import { useToast } from "../context/ToastContext";
 
 const stagger = (i) => ({ duration: 0.4, delay: i * 0.06, ease: "easeOut" });
 
 function Signup() {
   const navigate = useNavigate();
   const { register } = useAuth();
+  const toast = useToast();
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -25,6 +27,7 @@ function Signup() {
 
     try {
       await register(name, email, password);
+      toast.success("Account created!");
       navigate("/dashboard");
     } catch (err) {
       setError(err.message);
