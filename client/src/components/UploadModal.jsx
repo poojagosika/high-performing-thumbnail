@@ -13,17 +13,36 @@ function UploadModal({ open, onClose, onUploaded }) {
   const [tags, setTags] = useState("");
   const [error, setError] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [dragging, setDragging] = useState(false);
 
-  const handleFileChange = (e) => {
-    const selected = e.target.files[0];
-    if (!selected) return;
+  const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
+  const selectFile = (selected) => {
+    if (!ALLOWED_TYPES.includes(selected.type)) {
+      setError("Only JPEG, PNG, and WebP images are allowed");
+      return;
+    }
+    if (selected.size > 5 * 1024 * 1024) {
+      setError("File must be under 5MB");
+      return;
+    }
     setFile(selected);
     setError("");
-
     const reader = new FileReader();
     reader.onload = (ev) => setPreview(ev.target.result);
     reader.readAsDataURL(selected);
+  };
+
+  const handleFileChange = (e) => {
+    const selected = e.target.files[0];
+    if (selected) selectFile(selected);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setDragging(false);
+    const dropped = e.dataTransfer.files[0];
+    if (dropped) selectFile(dropped);
   };
 
   const handleSubmit = async (e) => {
@@ -58,6 +77,7 @@ function UploadModal({ open, onClose, onUploaded }) {
     setTitle("");
     setTags("");
     setError("");
+    setDragging(false);
     onClose();
   };
 
@@ -107,7 +127,17 @@ function UploadModal({ open, onClose, onUploaded }) {
               <button
                 type="button"
                 onClick={() => fileRef.current?.click()}
-                className="relative aspect-video rounded-lg border border-dashed border-white/10 bg-white/2 hover:border-white/20 hover:bg-white/4 transition-colors flex flex-col items-center justify-center gap-2 overflow-hidden"
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setDragging(true);
+                }}
+                onDragLeave={() => setDragging(false)}
+                onDrop={handleDrop}
+                className={`relative aspect-video rounded-lg border border-dashed transition-colors flex flex-col items-center justify-center gap-2 overflow-hidden ${
+                  dragging
+                    ? "border-white/30 bg-white/6"
+                    : "border-white/10 bg-white/2 hover:border-white/20 hover:bg-white/4"
+                }`}
               >
                 {preview ? (
                   <img
@@ -117,9 +147,15 @@ function UploadModal({ open, onClose, onUploaded }) {
                   />
                 ) : (
                   <>
-                    <Upload className="w-5 h-5 text-[#737380]" />
-                    <span className="text-[13px] text-[#737380]">
-                      Click to select image
+                    <Upload
+                      className={`w-5 h-5 transition-colors ${dragging ? "text-white" : "text-[#737380]"}`}
+                    />
+                    <span
+                      className={`text-[13px] transition-colors ${dragging ? "text-white" : "text-[#737380]"}`}
+                    >
+                      {dragging
+                        ? "Drop image here"
+                        : "Click or drag image here"}
                     </span>
                     <span className="text-[11px] text-[#4a4a54]">
                       JPEG, PNG, or WebP — max 5MB
