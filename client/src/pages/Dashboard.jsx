@@ -9,6 +9,7 @@ import {
   Pencil,
   Mail,
   CreditCard,
+  Search,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "../context/AuthContext";
@@ -29,6 +30,7 @@ function Dashboard() {
   const [deleting, setDeleting] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editTitle, setEditTitle] = useState("");
+  const [search, setSearch] = useState("");
   const editRef = useRef(null);
 
   const handleRename = async (id) => {
@@ -77,6 +79,15 @@ function Dashboard() {
       setDeleteId(null);
     }
   };
+
+  const filtered = thumbnails.filter((t) => {
+    if (!search.trim()) return true;
+    const q = search.toLowerCase();
+    return (
+      t.title.toLowerCase().includes(q) ||
+      t.tags?.some((tag) => tag.toLowerCase().includes(q))
+    );
+  });
 
   useEffect(() => {
     api("/thumbnails")
@@ -166,6 +177,26 @@ function Dashboard() {
           </Button>
         </motion.div>
 
+        {!loading && thumbnails.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={stagger(2)}
+            className="mb-6"
+          >
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#4a4a54]" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search by title or tag..."
+                className="w-full h-9 pl-9 pr-3 rounded-lg border border-white/8 bg-white/3 text-[14px] text-white placeholder:text-[#4a4a54] outline-none focus:border-white/16 transition-colors"
+              />
+            </div>
+          </motion.div>
+        )}
+
         {loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {[...Array(6)].map((_, i) => (
@@ -206,6 +237,13 @@ function Dashboard() {
               Upload Thumbnail
             </Button>
           </motion.div>
+        ) : filtered.length === 0 && search.trim() ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <Search className="w-5 h-5 text-[#4a4a54] mb-3" />
+            <p className="text-[14px] text-[#737380]">
+              No thumbnails matching &ldquo;{search}&rdquo;
+            </p>
+          </div>
         ) : (
           <motion.div
             initial={{ opacity: 0 }}
@@ -213,7 +251,7 @@ function Dashboard() {
             transition={stagger(2)}
             className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
           >
-            {thumbnails.map((thumb, i) => (
+            {filtered.map((thumb, i) => (
               <motion.div
                 key={thumb._id}
                 initial={{ opacity: 0, y: 10 }}
