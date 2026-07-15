@@ -6,6 +6,7 @@ import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Dashboard from "./pages/Dashboard";
+import ThumbnailDetail from "./pages/ThumbnailDetail";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ScrollToTop from "./components/ScrollToTop";
@@ -47,6 +48,16 @@ function AppRoutes() {
             <ProtectedRoute>
               <PageTransition>
                 <Dashboard />
+              </PageTransition>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/thumbnail/:id"
+          element={
+            <ProtectedRoute>
+              <PageTransition>
+                <ThumbnailDetail />
               </PageTransition>
             </ProtectedRoute>
           }

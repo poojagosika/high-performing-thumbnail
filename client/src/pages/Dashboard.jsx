@@ -259,13 +259,16 @@ function Dashboard() {
                 transition={stagger(i + 2)}
                 className="group rounded-xl border border-white/6 bg-[#111118] hover:bg-[#0e0e16] transition-colors overflow-hidden"
               >
-                <div className="aspect-video bg-[#1a1a24] overflow-hidden">
+                <Link
+                  to={`/thumbnail/${thumb._id}`}
+                  className="block aspect-video bg-[#1a1a24] overflow-hidden"
+                >
                   <img
                     src={`http://localhost:5000${thumb.imageUrl}`}
                     alt={thumb.title}
                     className="w-full h-full object-cover"
                   />
-                </div>
+                </Link>
                 <div className="p-4">
                   <div className="flex items-start justify-between gap-2">
                     {editingId === thumb._id ? (
