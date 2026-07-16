@@ -15,6 +15,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import DashboardNav from "../components/DashboardNav";
 import { useToast } from "../context/ToastContext";
 import api from "../lib/api";
 
@@ -67,17 +68,7 @@ function ThumbnailDetail() {
 
   return (
     <div className="min-h-screen">
-      {/* Top bar */}
-      <nav className="border-b border-white/6 bg-[#0a0a0f]">
-        <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
-          <Link
-            to="/"
-            className="font-heading text-[15px] font-semibold text-white tracking-tight"
-          >
-            ThumbCraft
-          </Link>
-        </div>
-      </nav>
+      <DashboardNav />
 
       <main className="max-w-4xl mx-auto px-6 py-10">
         <motion.div

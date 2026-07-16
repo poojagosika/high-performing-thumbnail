@@ -1,9 +1,8 @@
 import { useState, useEffect, useRef } from "react";
-import { Link, useNavigate } from "react-router";
+import { Link } from "react-router";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ImagePlus,
-  LogOut,
   Image,
   Trash2,
   Pencil,
@@ -14,15 +13,15 @@ import {
 import { Button } from "@/components/ui/button";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
+import DashboardNav from "../components/DashboardNav";
 import UploadModal from "../components/UploadModal";
 import api from "../lib/api";
 
 const stagger = (i) => ({ duration: 0.4, delay: i * 0.06, ease: "easeOut" });
 
 function Dashboard() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const toast = useToast();
-  const navigate = useNavigate();
   const [thumbnails, setThumbnails] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploadOpen, setUploadOpen] = useState(false);
@@ -60,11 +59,6 @@ function Dashboard() {
     setTimeout(() => editRef.current?.focus(), 0);
   };
 
-  const handleLogout = () => {
-    logout();
-    navigate("/");
-  };
-
   const handleDelete = async () => {
     if (!deleteId) return;
     setDeleting(true);
@@ -98,27 +92,7 @@ function Dashboard() {
 
   return (
     <div className="min-h-screen">
-      {/* Top bar */}
-      <nav className="border-b border-white/6 bg-[#0a0a0f]">
-        <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
-          <Link
-            to="/"
-            className="font-heading text-[15px] font-semibold text-white tracking-tight"
-          >
-            ThumbCraft
-          </Link>
-
-          <div className="flex items-center gap-3">
-            <span className="text-[13px] text-[#737380]">{user?.name}</span>
-            <button
-              onClick={handleLogout}
-              className="text-[#737380] hover:text-white transition-colors"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      </nav>
+      <DashboardNav />
 
       {/* Main content */}
       <main className="max-w-6xl mx-auto px-6 py-10">
