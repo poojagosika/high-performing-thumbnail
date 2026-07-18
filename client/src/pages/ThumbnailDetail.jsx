@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Link, useParams, useNavigate } from "react-router";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
   Calendar,
@@ -34,6 +34,18 @@ function ThumbnailDetail() {
   const toast = useToast();
   const [thumb, setThumb] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [zoomed, setZoomed] = useState(false);
+
+  const closeZoom = useCallback(() => setZoomed(false), []);
+
+  useEffect(() => {
+    if (!zoomed) return;
+    const onKey = (e) => {
+      if (e.key === "Escape") closeZoom();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [zoomed, closeZoom]);
 
   useEffect(() => {
     api(`/thumbnails/${id}`)
@@ -93,13 +105,19 @@ function ThumbnailDetail() {
             transition={stagger(1)}
             className="lg:col-span-3"
           >
-            <div className="rounded-xl border border-white/6 bg-[#111118] overflow-hidden">
+            <div
+              className="rounded-xl border border-white/6 bg-[#111118] overflow-hidden cursor-zoom-in"
+              onClick={() => setZoomed(true)}
+            >
               <img
                 src={`http://localhost:5000${thumb.imageUrl}`}
                 alt={thumb.title}
                 className="w-full aspect-video object-cover"
               />
             </div>
+            <p className="text-[11px] text-[#4a4a54] mt-2 text-center">
+              Click image to zoom
+            </p>
           </motion.div>
 
           {/* Info panel */}
@@ -211,6 +229,30 @@ function ThumbnailDetail() {
           </motion.div>
         </div>
       </main>
+
+      {/* Zoom overlay */}
+      <AnimatePresence>
+        {zoomed && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm cursor-zoom-out p-6"
+            onClick={closeZoom}
+          >
+            <motion.img
+              initial={{ scale: 0.9 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.9 }}
+              transition={{ duration: 0.2 }}
+              src={`http://localhost:5000${thumb.imageUrl}`}
+              alt={thumb.title}
+              className="max-w-full max-h-full object-contain rounded-lg"
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
