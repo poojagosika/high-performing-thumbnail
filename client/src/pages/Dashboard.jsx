@@ -9,6 +9,7 @@ import {
   Mail,
   CreditCard,
   Search,
+  ArrowUpDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "../context/AuthContext";
@@ -30,6 +31,7 @@ function Dashboard() {
   const [editingId, setEditingId] = useState(null);
   const [editTitle, setEditTitle] = useState("");
   const [search, setSearch] = useState("");
+  const [sort, setSort] = useState("newest");
   const editRef = useRef(null);
 
   const handleRename = async (id) => {
@@ -74,14 +76,27 @@ function Dashboard() {
     }
   };
 
-  const filtered = thumbnails.filter((t) => {
-    if (!search.trim()) return true;
-    const q = search.toLowerCase();
-    return (
-      t.title.toLowerCase().includes(q) ||
-      t.tags?.some((tag) => tag.toLowerCase().includes(q))
-    );
-  });
+  const filtered = thumbnails
+    .filter((t) => {
+      if (!search.trim()) return true;
+      const q = search.toLowerCase();
+      return (
+        t.title.toLowerCase().includes(q) ||
+        t.tags?.some((tag) => tag.toLowerCase().includes(q))
+      );
+    })
+    .sort((a, b) => {
+      switch (sort) {
+        case "oldest":
+          return new Date(a.createdAt) - new Date(b.createdAt);
+        case "title":
+          return a.title.localeCompare(b.title);
+        case "score":
+          return (b.score ?? -1) - (a.score ?? -1);
+        default:
+          return new Date(b.createdAt) - new Date(a.createdAt);
+      }
+    });
 
   useEffect(() => {
     api("/thumbnails")
@@ -156,9 +171,9 @@ function Dashboard() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={stagger(2)}
-            className="mb-6"
+            className="mb-6 flex items-center gap-3"
           >
-            <div className="relative">
+            <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#4a4a54]" />
               <input
                 type="text"
@@ -167,6 +182,19 @@ function Dashboard() {
                 placeholder="Search by title or tag..."
                 className="w-full h-9 pl-9 pr-3 rounded-lg border border-white/8 bg-white/3 text-[14px] text-white placeholder:text-[#4a4a54] outline-none focus:border-white/16 transition-colors"
               />
+            </div>
+            <div className="relative shrink-0">
+              <ArrowUpDown className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#4a4a54] pointer-events-none" />
+              <select
+                value={sort}
+                onChange={(e) => setSort(e.target.value)}
+                className="h-9 pl-9 pr-3 rounded-lg border border-white/8 bg-white/3 text-[13px] text-[#737380] outline-none focus:border-white/16 transition-colors appearance-none cursor-pointer"
+              >
+                <option value="newest">Newest</option>
+                <option value="oldest">Oldest</option>
+                <option value="title">Title</option>
+                <option value="score">Score</option>
+              </select>
             </div>
           </motion.div>
         )}
