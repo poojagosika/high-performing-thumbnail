@@ -3,13 +3,16 @@ import { Link, useNavigate } from "react-router";
 import { motion } from "framer-motion";
 import { LogOut, Menu, X, LayoutDashboard, Home } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import LogoutModal from "./LogoutModal";
 
 function DashboardNav() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [logoutOpen, setLogoutOpen] = useState(false);
 
   const handleLogout = () => {
+    setLogoutOpen(false);
     logout();
     navigate("/");
   };
@@ -34,7 +37,7 @@ function DashboardNav() {
           </Link>
           <span className="text-[13px] text-[#737380]">{user?.name}</span>
           <button
-            onClick={handleLogout}
+            onClick={() => setLogoutOpen(true)}
             className="text-[#737380] hover:text-white transition-colors"
           >
             <LogOut className="w-4 h-4" />
@@ -80,7 +83,7 @@ function DashboardNav() {
           <button
             onClick={() => {
               setMenuOpen(false);
-              handleLogout();
+              setLogoutOpen(true);
             }}
             className="flex items-center gap-2 text-[13px] text-[#737380] hover:text-white py-1.5 transition-colors text-left"
           >
@@ -89,6 +92,12 @@ function DashboardNav() {
           </button>
         </motion.div>
       )}
+
+      <LogoutModal
+        open={logoutOpen}
+        onClose={() => setLogoutOpen(false)}
+        onConfirm={handleLogout}
+      />
     </nav>
   );
 }

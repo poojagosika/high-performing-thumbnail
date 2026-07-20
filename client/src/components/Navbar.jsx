@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Menu, X, LogOut } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import LogoutModal from "./LogoutModal";
 
 const navLinks = [
   { label: "Features", href: "#features" },
@@ -16,8 +17,10 @@ function Navbar() {
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [logoutOpen, setLogoutOpen] = useState(false);
 
   const handleLogout = () => {
+    setLogoutOpen(false);
     logout();
     navigate("/");
   };
@@ -72,7 +75,7 @@ function Navbar() {
               </Link>
               <span className="text-[13px] text-[#737380]">{user.name}</span>
               <button
-                onClick={handleLogout}
+                onClick={() => setLogoutOpen(true)}
                 className="text-[#737380] hover:text-white transition-colors p-1"
               >
                 <LogOut className="w-3.5 h-3.5" />
@@ -144,7 +147,7 @@ function Navbar() {
                   className="w-full justify-start text-[#737380] gap-1.5"
                   onClick={() => {
                     setMenuOpen(false);
-                    handleLogout();
+                    setLogoutOpen(true);
                   }}
                 >
                   <LogOut className="w-3.5 h-3.5" />
@@ -175,6 +178,11 @@ function Navbar() {
           </div>
         </motion.div>
       )}
+      <LogoutModal
+        open={logoutOpen}
+        onClose={() => setLogoutOpen(false)}
+        onConfirm={handleLogout}
+      />
     </motion.nav>
   );
 }
