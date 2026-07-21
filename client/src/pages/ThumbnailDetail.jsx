@@ -13,6 +13,8 @@ import {
   Layout,
   Trash2,
   Loader2,
+  Pencil,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import DashboardNav from "../components/DashboardNav";
@@ -35,6 +37,8 @@ function ThumbnailDetail() {
   const [thumb, setThumb] = useState(null);
   const [loading, setLoading] = useState(true);
   const [zoomed, setZoomed] = useState(false);
+  const [editingTags, setEditingTags] = useState(false);
+  const [tagInput, setTagInput] = useState("");
 
   const closeZoom = useCallback(() => setZoomed(false), []);
 
@@ -62,6 +66,29 @@ function ThumbnailDetail() {
     } catch {
       toast.error("Failed to delete thumbnail");
     }
+  };
+
+  const startEditingTags = () => {
+    setTagInput(thumb?.tags?.join(", ") || "");
+    setEditingTags(true);
+  };
+
+  const saveTags = async () => {
+    try {
+      await api(`/thumbnails/${id}`, {
+        method: "PATCH",
+        body: { tags: tagInput },
+      });
+      const newTags = tagInput
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean);
+      setThumb((prev) => ({ ...prev, tags: newTags }));
+      toast.success("Tags updated");
+    } catch {
+      toast.error("Failed to update tags");
+    }
+    setEditingTags(false);
   };
 
   if (loading) {
@@ -141,19 +168,61 @@ function ThumbnailDetail() {
                 })}
               </div>
 
-              {thumb.tags?.length > 0 && (
-                <div className="flex items-center gap-1.5 mt-3 flex-wrap">
-                  <Tag className="w-3 h-3 text-[#4a4a54]" />
-                  {thumb.tags.map((tag) => (
-                    <span
-                      key={tag}
-                      className="text-[11px] text-[#737380] bg-white/4 rounded-full px-2 py-0.5"
+              <div className="mt-3">
+                {editingTags ? (
+                  <div className="flex items-center gap-2">
+                    <Tag className="w-3 h-3 text-[#4a4a54] shrink-0" />
+                    <input
+                      type="text"
+                      value={tagInput}
+                      onChange={(e) => setTagInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") saveTags();
+                        if (e.key === "Escape") setEditingTags(false);
+                      }}
+                      autoFocus
+                      placeholder="gaming, tutorial, vlog"
+                      className="flex-1 h-7 px-2 rounded border border-white/10 bg-white/4 text-[12px] text-white placeholder:text-[#4a4a54] outline-none focus:border-white/20 transition-colors"
+                    />
+                    <button
+                      onClick={saveTags}
+                      className="text-[11px] text-emerald-400 hover:text-emerald-300 transition-colors"
                     >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              )}
+                      Save
+                    </button>
+                    <button
+                      onClick={() => setEditingTags(false)}
+                      className="text-[#4a4a54] hover:text-white transition-colors"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="group/tags flex items-center gap-1.5 flex-wrap">
+                    <Tag className="w-3 h-3 text-[#4a4a54]" />
+                    {thumb.tags?.length > 0 ? (
+                      thumb.tags.map((tag) => (
+                        <span
+                          key={tag}
+                          className="text-[11px] text-[#737380] bg-white/4 rounded-full px-2 py-0.5"
+                        >
+                          {tag}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-[11px] text-[#4a4a54]">
+                        No tags
+                      </span>
+                    )}
+                    <button
+                      onClick={startEditingTags}
+                      className="text-[#4a4a54] hover:text-white transition-colors opacity-0 group-hover/tags:opacity-100"
+                    >
+                      <Pencil className="w-3 h-3" />
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Score & CTR */}
