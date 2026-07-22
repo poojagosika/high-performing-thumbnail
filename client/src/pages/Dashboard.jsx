@@ -10,6 +10,7 @@ import {
   CreditCard,
   Search,
   ArrowUpDown,
+  ZoomIn,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "../context/AuthContext";
@@ -32,6 +33,7 @@ function Dashboard() {
   const [editTitle, setEditTitle] = useState("");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("newest");
+  const [zoomUrl, setZoomUrl] = useState(null);
   const editRef = useRef(null);
 
   const handleRename = async (id) => {
@@ -261,16 +263,26 @@ function Dashboard() {
                 transition={stagger(i + 2)}
                 className="group rounded-xl border border-white/6 bg-[#111118] hover:bg-[#0e0e16] transition-colors overflow-hidden"
               >
-                <Link
-                  to={`/thumbnail/${thumb._id}`}
-                  className="block aspect-video bg-[#1a1a24] overflow-hidden"
-                >
-                  <img
-                    src={`http://localhost:5000${thumb.imageUrl}`}
-                    alt={thumb.title}
-                    className="w-full h-full object-cover"
-                  />
-                </Link>
+                <div className="relative aspect-video bg-[#1a1a24] overflow-hidden">
+                  <Link
+                    to={`/thumbnail/${thumb._id}`}
+                    className="block w-full h-full"
+                  >
+                    <img
+                      src={`http://localhost:5000${thumb.imageUrl}`}
+                      alt={thumb.title}
+                      className="w-full h-full object-cover"
+                    />
+                  </Link>
+                  <button
+                    onClick={() =>
+                      setZoomUrl(`http://localhost:5000${thumb.imageUrl}`)
+                    }
+                    className="absolute top-2 right-2 p-1.5 rounded-md bg-black/50 text-white/70 hover:text-white hover:bg-black/70 opacity-0 group-hover:opacity-100 transition-all"
+                  >
+                    <ZoomIn className="w-3.5 h-3.5" />
+                  </button>
+                </div>
                 <div className="p-4">
                   <div className="flex items-start justify-between gap-2">
                     {editingId === thumb._id ? (
@@ -390,6 +402,30 @@ function Dashboard() {
               </div>
             </motion.div>
           </div>
+        )}
+      </AnimatePresence>
+
+      {/* Zoom overlay */}
+      <AnimatePresence>
+        {zoomUrl && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm cursor-zoom-out p-6"
+            onClick={() => setZoomUrl(null)}
+          >
+            <motion.img
+              initial={{ scale: 0.9 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.9 }}
+              transition={{ duration: 0.2 }}
+              src={zoomUrl}
+              alt="Zoom"
+              className="max-w-full max-h-full object-contain rounded-lg"
+            />
+          </motion.div>
         )}
       </AnimatePresence>
     </div>
