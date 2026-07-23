@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ImagePlus,
@@ -11,6 +11,9 @@ import {
   Search,
   ArrowUpDown,
   ZoomIn,
+  GitCompareArrows,
+  X,
+  Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "../context/AuthContext";
@@ -24,6 +27,7 @@ const stagger = (i) => ({ duration: 0.4, delay: i * 0.06, ease: "easeOut" });
 function Dashboard() {
   const { user } = useAuth();
   const toast = useToast();
+  const navigate = useNavigate();
   const [thumbnails, setThumbnails] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploadOpen, setUploadOpen] = useState(false);
@@ -34,7 +38,24 @@ function Dashboard() {
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("newest");
   const [zoomUrl, setZoomUrl] = useState(null);
+  const [compareMode, setCompareMode] = useState(false);
+  const [compareIds, setCompareIds] = useState([]);
   const editRef = useRef(null);
+
+  const toggleCompare = (id) => {
+    setCompareIds((prev) =>
+      prev.includes(id)
+        ? prev.filter((x) => x !== id)
+        : prev.length < 2
+          ? [...prev, id]
+          : prev,
+    );
+  };
+
+  const exitCompare = () => {
+    setCompareMode(false);
+    setCompareIds([]);
+  };
 
   const handleRename = async (id) => {
     const trimmed = editTitle.trim();
@@ -159,14 +180,47 @@ function Dashboard() {
             </p>
           </div>
 
-          <Button
-            onClick={() => setUploadOpen(true)}
-            className="h-9 text-[13px] bg-white text-[#0a0a0f] hover:bg-white/90 font-medium gap-1.5"
-          >
-            <ImagePlus className="w-3.5 h-3.5" />
-            Upload
-          </Button>
+          <div className="flex items-center gap-2">
+            {!loading && thumbnails.length >= 2 && (
+              <Button
+                onClick={compareMode ? exitCompare : () => setCompareMode(true)}
+                variant="outline"
+                className={`h-9 text-[13px] font-medium gap-1.5 ${compareMode ? "border-emerald-500/30 text-emerald-400 hover:text-emerald-300 hover:border-emerald-500/40 bg-emerald-500/5" : "border-white/8 text-[#737380] hover:text-white hover:border-white/12 bg-transparent"}`}
+              >
+                {compareMode ? (
+                  <>
+                    <X className="w-3.5 h-3.5" />
+                    Cancel
+                  </>
+                ) : (
+                  <>
+                    <GitCompareArrows className="w-3.5 h-3.5" />
+                    Compare
+                  </>
+                )}
+              </Button>
+            )}
+            <Button
+              onClick={() => setUploadOpen(true)}
+              className="h-9 text-[13px] bg-white text-[#0a0a0f] hover:bg-white/90 font-medium gap-1.5"
+            >
+              <ImagePlus className="w-3.5 h-3.5" />
+              Upload
+            </Button>
+          </div>
         </motion.div>
+
+        {compareMode && (
+          <motion.div
+            initial={{ opacity: 0, y: -5 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-4 rounded-lg border border-emerald-500/10 bg-emerald-500/5 px-4 py-2.5"
+          >
+            <p className="text-[13px] text-emerald-400">
+              Select 2 thumbnails to compare — {compareIds.length}/2 selected
+            </p>
+          </motion.div>
+        )}
 
         {!loading && thumbnails.length > 0 && (
           <motion.div
@@ -263,25 +317,50 @@ function Dashboard() {
                 transition={stagger(i + 2)}
                 className="group rounded-xl border border-white/6 bg-[#111118] hover:bg-[#0e0e16] transition-colors overflow-hidden"
               >
-                <div className="relative aspect-video bg-[#1a1a24] overflow-hidden">
-                  <Link
-                    to={`/thumbnail/${thumb._id}`}
-                    className="block w-full h-full"
-                  >
+                <div
+                  className="relative aspect-video bg-[#1a1a24] overflow-hidden"
+                  onClick={
+                    compareMode ? () => toggleCompare(thumb._id) : undefined
+                  }
+                >
+                  {compareMode ? (
                     <img
                       src={`http://localhost:5000${thumb.imageUrl}`}
                       alt={thumb.title}
-                      className="w-full h-full object-cover"
+                      className={`w-full h-full object-cover cursor-pointer transition-opacity ${compareIds.includes(thumb._id) ? "opacity-100" : "opacity-60"}`}
                     />
-                  </Link>
-                  <button
-                    onClick={() =>
-                      setZoomUrl(`http://localhost:5000${thumb.imageUrl}`)
-                    }
-                    className="absolute top-2 right-2 p-1.5 rounded-md bg-black/50 text-white/70 hover:text-white hover:bg-black/70 opacity-0 group-hover:opacity-100 transition-all"
-                  >
-                    <ZoomIn className="w-3.5 h-3.5" />
-                  </button>
+                  ) : (
+                    <Link
+                      to={`/thumbnail/${thumb._id}`}
+                      className="block w-full h-full"
+                    >
+                      <img
+                        src={`http://localhost:5000${thumb.imageUrl}`}
+                        alt={thumb.title}
+                        className="w-full h-full object-cover"
+                      />
+                    </Link>
+                  )}
+                  {compareMode && compareIds.includes(thumb._id) && (
+                    <div className="absolute top-2 left-2 w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center">
+                      <Check className="w-3 h-3 text-white" />
+                    </div>
+                  )}
+                  {compareMode &&
+                    !compareIds.includes(thumb._id) &&
+                    compareIds.length < 2 && (
+                      <div className="absolute top-2 left-2 w-5 h-5 rounded-full border-2 border-white/30 bg-black/30" />
+                    )}
+                  {!compareMode && (
+                    <button
+                      onClick={() =>
+                        setZoomUrl(`http://localhost:5000${thumb.imageUrl}`)
+                      }
+                      className="absolute top-2 right-2 p-1.5 rounded-md bg-black/50 text-white/70 hover:text-white hover:bg-black/70 opacity-0 group-hover:opacity-100 transition-all"
+                    >
+                      <ZoomIn className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
                 <div className="p-4">
                   <div className="flex items-start justify-between gap-2">
@@ -402,6 +481,32 @@ function Dashboard() {
               </div>
             </motion.div>
           </div>
+        )}
+      </AnimatePresence>
+
+      {/* Compare bar */}
+      <AnimatePresence>
+        {compareMode && compareIds.length === 2 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            transition={{ duration: 0.2 }}
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 bg-[#111118] border border-white/8 rounded-xl px-5 py-3 shadow-2xl"
+          >
+            <span className="text-[13px] text-[#737380]">
+              2 thumbnails selected
+            </span>
+            <Button
+              onClick={() =>
+                navigate(`/compare?a=${compareIds[0]}&b=${compareIds[1]}`)
+              }
+              className="h-8 text-[13px] bg-white text-[#0a0a0f] hover:bg-white/90 font-medium gap-1.5"
+            >
+              <GitCompareArrows className="w-3.5 h-3.5" />
+              Compare
+            </Button>
+          </motion.div>
         )}
       </AnimatePresence>
 
