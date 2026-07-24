@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { motion } from "framer-motion";
-import { LogOut, Menu, X, LayoutDashboard, Home } from "lucide-react";
+import { LogOut, Menu, X, LayoutDashboard, Home, Settings } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import LogoutModal from "./LogoutModal";
 
@@ -34,6 +34,12 @@ function DashboardNav() {
             className="text-[13px] text-[#737380] hover:text-white transition-colors"
           >
             Dashboard
+          </Link>
+          <Link
+            to="/settings"
+            className="text-[13px] text-[#737380] hover:text-white transition-colors"
+          >
+            Settings
           </Link>
           <span className="text-[13px] text-[#737380]">{user?.name}</span>
           <button
@@ -79,6 +85,14 @@ function DashboardNav() {
           >
             <LayoutDashboard className="w-3.5 h-3.5" />
             Dashboard
+          </Link>
+          <Link
+            to="/settings"
+            onClick={() => setMenuOpen(false)}
+            className="flex items-center gap-2 text-[13px] text-[#737380] hover:text-white py-1.5 transition-colors"
+          >
+            <Settings className="w-3.5 h-3.5" />
+            Settings
           </Link>
           <button
             onClick={() => {

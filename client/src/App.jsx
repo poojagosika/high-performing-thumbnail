@@ -8,6 +8,7 @@ import Signup from "./pages/Signup";
 import Dashboard from "./pages/Dashboard";
 import ThumbnailDetail from "./pages/ThumbnailDetail";
 import Compare from "./pages/Compare";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ScrollToTop from "./components/ScrollToTop";
@@ -69,6 +70,16 @@ function AppRoutes() {
             <ProtectedRoute>
               <PageTransition>
                 <Compare />
+              </PageTransition>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <ProtectedRoute>
+              <PageTransition>
+                <Settings />
               </PageTransition>
             </ProtectedRoute>
           }
