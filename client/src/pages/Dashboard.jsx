@@ -14,6 +14,8 @@ import {
   GitCompareArrows,
   X,
   Check,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "../context/AuthContext";
@@ -23,6 +25,7 @@ import UploadModal from "../components/UploadModal";
 import api from "../lib/api";
 
 const stagger = (i) => ({ duration: 0.4, delay: i * 0.06, ease: "easeOut" });
+const PER_PAGE = 9;
 
 function Dashboard() {
   const { user } = useAuth();
@@ -40,6 +43,7 @@ function Dashboard() {
   const [zoomUrl, setZoomUrl] = useState(null);
   const [compareMode, setCompareMode] = useState(false);
   const [compareIds, setCompareIds] = useState([]);
+  const [page, setPage] = useState(1);
   const editRef = useRef(null);
 
   const toggleCompare = (id) => {
@@ -120,6 +124,17 @@ function Dashboard() {
           return new Date(b.createdAt) - new Date(a.createdAt);
       }
     });
+
+  const totalPages = Math.ceil(filtered.length / PER_PAGE);
+  const safePage = Math.min(page, totalPages || 1);
+  const paginated = filtered.slice(
+    (safePage - 1) * PER_PAGE,
+    safePage * PER_PAGE,
+  );
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, sort]);
 
   useEffect(() => {
     api("/thumbnails")
@@ -309,7 +324,7 @@ function Dashboard() {
             transition={stagger(2)}
             className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
           >
-            {filtered.map((thumb, i) => (
+            {paginated.map((thumb, i) => (
               <motion.div
                 key={thumb._id}
                 initial={{ opacity: 0, y: 10 }}
@@ -425,6 +440,44 @@ function Dashboard() {
                 </div>
               </motion.div>
             ))}
+          </motion.div>
+        )}
+
+        {/* Pagination */}
+        {!loading && totalPages > 1 && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={stagger(4)}
+            className="flex items-center justify-center gap-2 mt-8"
+          >
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={safePage <= 1}
+              className="h-8 w-8 rounded-lg border border-white/8 bg-white/3 flex items-center justify-center text-[#737380] hover:text-white hover:border-white/12 transition-colors disabled:opacity-30 disabled:pointer-events-none"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" />
+            </button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+              <button
+                key={p}
+                onClick={() => setPage(p)}
+                className={`h-8 w-8 rounded-lg text-[13px] font-medium transition-colors ${
+                  p === safePage
+                    ? "bg-white text-[#0a0a0f]"
+                    : "border border-white/8 bg-white/3 text-[#737380] hover:text-white hover:border-white/12"
+                }`}
+              >
+                {p}
+              </button>
+            ))}
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={safePage >= totalPages}
+              className="h-8 w-8 rounded-lg border border-white/8 bg-white/3 flex items-center justify-center text-[#737380] hover:text-white hover:border-white/12 transition-colors disabled:opacity-30 disabled:pointer-events-none"
+            >
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
           </motion.div>
         )}
       </main>
