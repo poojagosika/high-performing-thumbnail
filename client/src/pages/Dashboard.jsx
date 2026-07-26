@@ -16,6 +16,7 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "../context/AuthContext";
@@ -59,6 +60,23 @@ function Dashboard() {
   const exitCompare = () => {
     setCompareMode(false);
     setCompareIds([]);
+  };
+
+  const handleDownload = async (thumb) => {
+    try {
+      const res = await fetch(`http://localhost:5000${thumb.imageUrl}`);
+      const blob = await res.blob();
+      const ext = thumb.imageUrl.split(".").pop();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${thumb.title}.${ext}`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Download started");
+    } catch {
+      toast.error("Failed to download");
+    }
   };
 
   const handleRename = async (id) => {
@@ -367,14 +385,22 @@ function Dashboard() {
                       <div className="absolute top-2 left-2 w-5 h-5 rounded-full border-2 border-white/30 bg-black/30" />
                     )}
                   {!compareMode && (
-                    <button
-                      onClick={() =>
-                        setZoomUrl(`http://localhost:5000${thumb.imageUrl}`)
-                      }
-                      className="absolute top-2 right-2 p-1.5 rounded-md bg-black/50 text-white/70 hover:text-white hover:bg-black/70 opacity-0 group-hover:opacity-100 transition-all"
-                    >
-                      <ZoomIn className="w-3.5 h-3.5" />
-                    </button>
+                    <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                      <button
+                        onClick={() => handleDownload(thumb)}
+                        className="p-1.5 rounded-md bg-black/50 text-white/70 hover:text-white hover:bg-black/70 transition-all"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() =>
+                          setZoomUrl(`http://localhost:5000${thumb.imageUrl}`)
+                        }
+                        className="p-1.5 rounded-md bg-black/50 text-white/70 hover:text-white hover:bg-black/70 transition-all"
+                      >
+                        <ZoomIn className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   )}
                 </div>
                 <div className="p-4">

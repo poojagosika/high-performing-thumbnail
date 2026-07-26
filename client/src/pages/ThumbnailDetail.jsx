@@ -15,6 +15,7 @@ import {
   Loader2,
   Pencil,
   X,
+  Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import DashboardNav from "../components/DashboardNav";
@@ -89,6 +90,23 @@ function ThumbnailDetail() {
       toast.error("Failed to update tags");
     }
     setEditingTags(false);
+  };
+
+  const handleDownload = async () => {
+    try {
+      const res = await fetch(`http://localhost:5000${thumb.imageUrl}`);
+      const blob = await res.blob();
+      const ext = thumb.imageUrl.split(".").pop();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${thumb.title}.${ext}`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Download started");
+    } catch {
+      toast.error("Failed to download");
+    }
   };
 
   if (loading) {
@@ -286,15 +304,25 @@ function ThumbnailDetail() {
               </div>
             )}
 
-            {/* Delete */}
-            <Button
-              variant="outline"
-              onClick={handleDelete}
-              className="h-9 text-[13px] border-red-500/20 text-red-400 hover:text-red-300 hover:border-red-500/30 bg-transparent font-medium gap-1.5"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              Delete Thumbnail
-            </Button>
+            {/* Actions */}
+            <div className="flex items-center gap-3">
+              <Button
+                variant="outline"
+                onClick={handleDownload}
+                className="flex-1 h-9 text-[13px] border-white/8 text-[#737380] hover:text-white hover:border-white/12 bg-transparent font-medium gap-1.5"
+              >
+                <Download className="w-3.5 h-3.5" />
+                Download
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleDelete}
+                className="flex-1 h-9 text-[13px] border-red-500/20 text-red-400 hover:text-red-300 hover:border-red-500/30 bg-transparent font-medium gap-1.5"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                Delete
+              </Button>
+            </div>
           </motion.div>
         </div>
       </main>
