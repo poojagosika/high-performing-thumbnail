@@ -17,6 +17,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Download,
+  CheckSquare,
+  Tag,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "../context/AuthContext";
@@ -44,6 +46,13 @@ function Dashboard() {
   const [zoomUrl, setZoomUrl] = useState(null);
   const [compareMode, setCompareMode] = useState(false);
   const [compareIds, setCompareIds] = useState([]);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkTagOpen, setBulkTagOpen] = useState(false);
+  const [bulkTagInput, setBulkTagInput] = useState("");
+  const [bulkTagging, setBulkTagging] = useState(false);
   const [page, setPage] = useState(1);
   const editRef = useRef(null);
 
@@ -60,6 +69,60 @@ function Dashboard() {
   const exitCompare = () => {
     setCompareMode(false);
     setCompareIds([]);
+  };
+
+  const toggleSelect = (id) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
+  };
+
+  const exitSelect = () => {
+    setSelectMode(false);
+    setSelectedIds([]);
+  };
+
+  const handleBulkDelete = async () => {
+    setBulkDeleting(true);
+    try {
+      await api("/thumbnails/bulk-delete", {
+        method: "POST",
+        body: { ids: selectedIds },
+      });
+      setThumbnails((prev) => prev.filter((t) => !selectedIds.includes(t._id)));
+      toast.success(`${selectedIds.length} thumbnails deleted`);
+      exitSelect();
+    } catch {
+      toast.error("Failed to delete thumbnails");
+    } finally {
+      setBulkDeleting(false);
+      setBulkDeleteOpen(false);
+    }
+  };
+
+  const handleBulkTag = async () => {
+    if (!bulkTagInput.trim()) return;
+    setBulkTagging(true);
+    try {
+      const updated = await api("/thumbnails/bulk-tag", {
+        method: "POST",
+        body: { ids: selectedIds, tags: bulkTagInput },
+      });
+      setThumbnails((prev) =>
+        prev.map((t) => {
+          const match = updated.find((u) => u._id === t._id);
+          return match ? match : t;
+        }),
+      );
+      toast.success(`Tags added to ${selectedIds.length} thumbnails`);
+      setBulkTagOpen(false);
+      setBulkTagInput("");
+      exitSelect();
+    } catch {
+      toast.error("Failed to update tags");
+    } finally {
+      setBulkTagging(false);
+    }
   };
 
   const handleDownload = async (thumb) => {
@@ -214,7 +277,7 @@ function Dashboard() {
           </div>
 
           <div className="flex items-center gap-2">
-            {!loading && thumbnails.length >= 2 && (
+            {!loading && thumbnails.length >= 2 && !selectMode && (
               <Button
                 onClick={compareMode ? exitCompare : () => setCompareMode(true)}
                 variant="outline"
@@ -229,6 +292,25 @@ function Dashboard() {
                   <>
                     <GitCompareArrows className="w-3.5 h-3.5" />
                     Compare
+                  </>
+                )}
+              </Button>
+            )}
+            {!loading && thumbnails.length > 0 && !compareMode && (
+              <Button
+                onClick={selectMode ? exitSelect : () => setSelectMode(true)}
+                variant="outline"
+                className={`h-9 text-[13px] font-medium gap-1.5 ${selectMode ? "border-blue-500/30 text-blue-400 hover:text-blue-300 hover:border-blue-500/40 bg-blue-500/5" : "border-white/8 text-[#737380] hover:text-white hover:border-white/12 bg-transparent"}`}
+              >
+                {selectMode ? (
+                  <>
+                    <X className="w-3.5 h-3.5" />
+                    Cancel
+                  </>
+                ) : (
+                  <>
+                    <CheckSquare className="w-3.5 h-3.5" />
+                    Select
                   </>
                 )}
               </Button>
@@ -251,6 +333,18 @@ function Dashboard() {
           >
             <p className="text-[13px] text-emerald-400">
               Select 2 thumbnails to compare — {compareIds.length}/2 selected
+            </p>
+          </motion.div>
+        )}
+
+        {selectMode && (
+          <motion.div
+            initial={{ opacity: 0, y: -5 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-4 rounded-lg border border-blue-500/10 bg-blue-500/5 px-4 py-2.5"
+          >
+            <p className="text-[13px] text-blue-400">
+              Select thumbnails for bulk actions — {selectedIds.length} selected
             </p>
           </motion.div>
         )}
@@ -353,14 +447,26 @@ function Dashboard() {
                 <div
                   className="relative aspect-video bg-[#1a1a24] overflow-hidden"
                   onClick={
-                    compareMode ? () => toggleCompare(thumb._id) : undefined
+                    compareMode
+                      ? () => toggleCompare(thumb._id)
+                      : selectMode
+                        ? () => toggleSelect(thumb._id)
+                        : undefined
                   }
                 >
-                  {compareMode ? (
+                  {compareMode || selectMode ? (
                     <img
                       src={`http://localhost:5000${thumb.imageUrl}`}
                       alt={thumb.title}
-                      className={`w-full h-full object-cover cursor-pointer transition-opacity ${compareIds.includes(thumb._id) ? "opacity-100" : "opacity-60"}`}
+                      className={`w-full h-full object-cover cursor-pointer transition-opacity ${
+                        compareMode
+                          ? compareIds.includes(thumb._id)
+                            ? "opacity-100"
+                            : "opacity-60"
+                          : selectedIds.includes(thumb._id)
+                            ? "opacity-100"
+                            : "opacity-60"
+                      }`}
                     />
                   ) : (
                     <Link
@@ -384,7 +490,15 @@ function Dashboard() {
                     compareIds.length < 2 && (
                       <div className="absolute top-2 left-2 w-5 h-5 rounded-full border-2 border-white/30 bg-black/30" />
                     )}
-                  {!compareMode && (
+                  {selectMode && selectedIds.includes(thumb._id) && (
+                    <div className="absolute top-2 left-2 w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center">
+                      <Check className="w-3 h-3 text-white" />
+                    </div>
+                  )}
+                  {selectMode && !selectedIds.includes(thumb._id) && (
+                    <div className="absolute top-2 left-2 w-5 h-5 rounded-full border-2 border-white/30 bg-black/30" />
+                  )}
+                  {!compareMode && !selectMode && (
                     <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
                       <button
                         onClick={() => handleDownload(thumb)}
@@ -586,6 +700,144 @@ function Dashboard() {
               Compare
             </Button>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Select bar */}
+      <AnimatePresence>
+        {selectMode && selectedIds.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            transition={{ duration: 0.2 }}
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 bg-[#111118] border border-white/8 rounded-xl px-5 py-3 shadow-2xl"
+          >
+            <span className="text-[13px] text-[#737380]">
+              {selectedIds.length} selected
+            </span>
+            <Button
+              onClick={() => {
+                setBulkTagInput("");
+                setBulkTagOpen(true);
+              }}
+              variant="outline"
+              className="h-8 text-[13px] border-white/8 text-[#737380] hover:text-white hover:border-white/12 bg-transparent font-medium gap-1.5"
+            >
+              <Tag className="w-3.5 h-3.5" />
+              Tag
+            </Button>
+            <Button
+              onClick={() => setBulkDeleteOpen(true)}
+              className="h-8 text-[13px] bg-red-500 text-white hover:bg-red-600 font-medium gap-1.5"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              Delete
+            </Button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Bulk delete modal */}
+      <AnimatePresence>
+        {bulkDeleteOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => setBulkDeleteOpen(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 10 }}
+              transition={{ duration: 0.2 }}
+              className="relative w-full max-w-sm rounded-xl border border-white/6 bg-[#111118] shadow-2xl p-5"
+            >
+              <h2 className="font-heading text-[15px] font-semibold text-white">
+                Delete {selectedIds.length} thumbnails?
+              </h2>
+              <p className="text-[13px] text-[#737380] mt-1.5">
+                This action cannot be undone. All selected thumbnails will be
+                permanently removed.
+              </p>
+              <div className="flex items-center justify-end gap-2 mt-5">
+                <Button
+                  variant="outline"
+                  onClick={() => setBulkDeleteOpen(false)}
+                  className="h-8 text-[13px] border-white/8 text-[#737380] hover:text-white hover:border-white/12 bg-transparent font-medium"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleBulkDelete}
+                  disabled={bulkDeleting}
+                  className="h-8 text-[13px] bg-red-500 text-white hover:bg-red-600 font-medium"
+                >
+                  {bulkDeleting ? "Deleting..." : "Delete All"}
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Bulk tag modal */}
+      <AnimatePresence>
+        {bulkTagOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => setBulkTagOpen(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 10 }}
+              transition={{ duration: 0.2 }}
+              className="relative w-full max-w-sm rounded-xl border border-white/6 bg-[#111118] shadow-2xl p-5"
+            >
+              <h2 className="font-heading text-[15px] font-semibold text-white">
+                Add tags to {selectedIds.length} thumbnails
+              </h2>
+              <p className="text-[13px] text-[#737380] mt-1.5">
+                Tags will be added to all selected thumbnails. Separate with
+                commas.
+              </p>
+              <input
+                type="text"
+                value={bulkTagInput}
+                onChange={(e) => setBulkTagInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleBulkTag();
+                }}
+                autoFocus
+                placeholder="gaming, tutorial, vlog"
+                className="w-full h-9 px-3 mt-3 rounded-lg border border-white/8 bg-white/3 text-[14px] text-white placeholder:text-[#4a4a54] outline-none focus:border-white/16 transition-colors"
+              />
+              <div className="flex items-center justify-end gap-2 mt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setBulkTagOpen(false)}
+                  className="h-8 text-[13px] border-white/8 text-[#737380] hover:text-white hover:border-white/12 bg-transparent font-medium"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleBulkTag}
+                  disabled={bulkTagging || !bulkTagInput.trim()}
+                  className="h-8 text-[13px] bg-white text-[#0a0a0f] hover:bg-white/90 font-medium"
+                >
+                  {bulkTagging ? "Saving..." : "Add Tags"}
+                </Button>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
 

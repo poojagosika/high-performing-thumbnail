@@ -97,10 +97,76 @@ const deleteThumbnail = async (req, res) => {
   }
 };
 
+const bulkDelete = async (req, res) => {
+  try {
+    const { ids } = req.body;
+
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: "No thumbnails selected" });
+    }
+
+    const thumbnails = await Thumbnail.find({
+      _id: { $in: ids },
+      user: req.user._id,
+    });
+
+    for (const thumb of thumbnails) {
+      const filePath = path.join(__dirname, "../../", thumb.imageUrl);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    }
+
+    await Thumbnail.deleteMany({
+      _id: { $in: ids },
+      user: req.user._id,
+    });
+
+    res.json({ message: `${thumbnails.length} thumbnails deleted` });
+  } catch (error) {
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+const bulkTag = async (req, res) => {
+  try {
+    const { ids, tags } = req.body;
+
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: "No thumbnails selected" });
+    }
+
+    if (tags === undefined) {
+      return res.status(400).json({ message: "Tags are required" });
+    }
+
+    const newTags = tags
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean);
+
+    await Thumbnail.updateMany(
+      { _id: { $in: ids }, user: req.user._id },
+      { $addToSet: { tags: { $each: newTags } } },
+    );
+
+    const updated = await Thumbnail.find({
+      _id: { $in: ids },
+      user: req.user._id,
+    });
+
+    res.json(updated);
+  } catch (error) {
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 module.exports = {
   createThumbnail,
   getThumbnails,
   getThumbnail,
   updateThumbnail,
   deleteThumbnail,
+  bulkDelete,
+  bulkTag,
 };
