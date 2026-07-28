@@ -25,6 +25,7 @@ import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import DashboardNav from "../components/DashboardNav";
 import UploadModal from "../components/UploadModal";
+import ScoreChart from "../components/ScoreChart";
 import api from "../lib/api";
 
 const stagger = (i) => ({ duration: 0.4, delay: i * 0.06, ease: "easeOut" });
@@ -260,6 +261,8 @@ function Dashboard() {
             </div>
           </div>
         </motion.div>
+
+        {!loading && <ScoreChart thumbnails={thumbnails} />}
 
         <motion.div
           initial={{ opacity: 0, y: 10 }}
