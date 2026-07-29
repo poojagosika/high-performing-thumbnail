@@ -19,6 +19,7 @@ import {
   Download,
   CheckSquare,
   Tag,
+  GripVertical,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "../context/AuthContext";
@@ -55,6 +56,8 @@ function Dashboard() {
   const [bulkTagInput, setBulkTagInput] = useState("");
   const [bulkTagging, setBulkTagging] = useState(false);
   const [page, setPage] = useState(1);
+  const [dragId, setDragId] = useState(null);
+  const [dragOverId, setDragOverId] = useState(null);
   const editRef = useRef(null);
 
   const toggleCompare = (id) => {
@@ -123,6 +126,46 @@ function Dashboard() {
       toast.error("Failed to update tags");
     } finally {
       setBulkTagging(false);
+    }
+  };
+
+  const canDrag =
+    sort === "custom" && !compareMode && !selectMode && !search.trim();
+
+  const handleDrop = async (targetId) => {
+    if (!dragId || dragId === targetId) {
+      setDragId(null);
+      setDragOverId(null);
+      return;
+    }
+
+    const ids = filtered.map((t) => t._id);
+    const fromIdx = ids.indexOf(dragId);
+    const toIdx = ids.indexOf(targetId);
+    if (fromIdx === -1 || toIdx === -1) return;
+
+    ids.splice(fromIdx, 1);
+    ids.splice(toIdx, 0, dragId);
+
+    // Update local state immediately
+    const reordered = ids.map((id, i) => {
+      const t = thumbnails.find((th) => th._id === id);
+      return { ...t, order: i };
+    });
+    setThumbnails((prev) =>
+      prev.map((t) => {
+        const match = reordered.find((r) => r._id === t._id);
+        return match || t;
+      }),
+    );
+
+    setDragId(null);
+    setDragOverId(null);
+
+    try {
+      await api("/thumbnails/reorder", { method: "POST", body: { ids } });
+    } catch {
+      toast.error("Failed to save order");
     }
   };
 
@@ -202,6 +245,8 @@ function Dashboard() {
           return a.title.localeCompare(b.title);
         case "score":
           return (b.score ?? -1) - (a.score ?? -1);
+        case "custom":
+          return (a.order ?? 0) - (b.order ?? 0);
         default:
           return new Date(b.createdAt) - new Date(a.createdAt);
       }
@@ -380,6 +425,7 @@ function Dashboard() {
                 <option value="oldest">Oldest</option>
                 <option value="title">Title</option>
                 <option value="score">Score</option>
+                <option value="custom">Custom</option>
               </select>
             </div>
           </motion.div>
@@ -445,7 +491,28 @@ function Dashboard() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={stagger(i + 2)}
-                className="group rounded-xl border border-white/6 bg-[#111118] hover:bg-[#0e0e16] transition-colors overflow-hidden"
+                draggable={canDrag}
+                onDragStart={() => setDragId(thumb._id)}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  if (canDrag) setDragOverId(thumb._id);
+                }}
+                onDragLeave={() => setDragOverId(null)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  handleDrop(thumb._id);
+                }}
+                onDragEnd={() => {
+                  setDragId(null);
+                  setDragOverId(null);
+                }}
+                className={`group rounded-xl border bg-[#111118] hover:bg-[#0e0e16] transition-all overflow-hidden ${
+                  dragOverId === thumb._id && dragId !== thumb._id
+                    ? "border-white/20 scale-[1.02]"
+                    : dragId === thumb._id
+                      ? "border-white/10 opacity-50"
+                      : "border-white/6"
+                } ${canDrag ? "cursor-grab active:cursor-grabbing" : ""}`}
               >
                 <div
                   className="relative aspect-video bg-[#1a1a24] overflow-hidden"
@@ -503,6 +570,11 @@ function Dashboard() {
                   )}
                   {!compareMode && !selectMode && (
                     <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                      {canDrag && (
+                        <div className="p-1.5 rounded-md bg-black/50 text-white/70">
+                          <GripVertical className="w-3.5 h-3.5" />
+                        </div>
+                      )}
                       <button
                         onClick={() => handleDownload(thumb)}
                         className="p-1.5 rounded-md bg-black/50 text-white/70 hover:text-white hover:bg-black/70 transition-all"

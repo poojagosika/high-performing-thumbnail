@@ -8,11 +8,17 @@ const createThumbnail = async (req, res) => {
       return res.status(400).json({ message: "Image file is required" });
     }
 
+    const maxOrder = await Thumbnail.findOne({ user: req.user._id })
+      .sort({ order: -1 })
+      .select("order")
+      .lean();
+
     const thumbnail = await Thumbnail.create({
       user: req.user._id,
       title: req.body.title || "Untitled",
       imageUrl: `/uploads/${req.file.filename}`,
       tags: req.body.tags ? req.body.tags.split(",").map((t) => t.trim()) : [],
+      order: (maxOrder?.order ?? -1) + 1,
     });
 
     res.status(201).json(thumbnail);
@@ -161,6 +167,29 @@ const bulkTag = async (req, res) => {
   }
 };
 
+const reorder = async (req, res) => {
+  try {
+    const { ids } = req.body;
+
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: "No thumbnails provided" });
+    }
+
+    const ops = ids.map((id, i) => ({
+      updateOne: {
+        filter: { _id: id, user: req.user._id },
+        update: { order: i },
+      },
+    }));
+
+    await Thumbnail.bulkWrite(ops);
+
+    res.json({ message: "Order updated" });
+  } catch (error) {
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 module.exports = {
   createThumbnail,
   getThumbnails,
@@ -169,4 +198,5 @@ module.exports = {
   deleteThumbnail,
   bulkDelete,
   bulkTag,
+  reorder,
 };

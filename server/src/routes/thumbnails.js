@@ -9,6 +9,7 @@ const {
   deleteThumbnail,
   bulkDelete,
   bulkTag,
+  reorder,
 } = require("../controllers/thumbnailController");
 
 const router = express.Router();
@@ -18,6 +19,7 @@ router.use(auth);
 router.post("/", upload.single("image"), createThumbnail);
 router.post("/bulk-delete", bulkDelete);
 router.post("/bulk-tag", bulkTag);
+router.post("/reorder", reorder);
 router.get("/", getThumbnails);
 router.get("/:id", getThumbnail);
 router.patch("/:id", updateThumbnail);
