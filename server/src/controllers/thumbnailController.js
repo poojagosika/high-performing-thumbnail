@@ -167,6 +167,47 @@ const bulkTag = async (req, res) => {
   }
 };
 
+const duplicateThumbnail = async (req, res) => {
+  try {
+    const original = await Thumbnail.findOne({
+      _id: req.params.id,
+      user: req.user._id,
+    });
+
+    if (!original) {
+      return res.status(404).json({ message: "Thumbnail not found" });
+    }
+
+    // Copy the image file
+    const origPath = path.join(__dirname, "../../", original.imageUrl);
+    const ext = path.extname(original.imageUrl);
+    const newFilename = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+    const newPath = path.join(__dirname, "../../uploads", newFilename);
+
+    fs.copyFileSync(origPath, newPath);
+
+    const maxOrder = await Thumbnail.findOne({ user: req.user._id })
+      .sort({ order: -1 })
+      .select("order")
+      .lean();
+
+    const duplicate = await Thumbnail.create({
+      user: req.user._id,
+      title: `${original.title} (copy)`,
+      imageUrl: `/uploads/${newFilename}`,
+      score: original.score,
+      ctr: original.ctr,
+      analysis: original.analysis,
+      tags: [...(original.tags || [])],
+      order: (maxOrder?.order ?? -1) + 1,
+    });
+
+    res.status(201).json(duplicate);
+  } catch (error) {
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 const reorder = async (req, res) => {
   try {
     const { ids } = req.body;
@@ -199,4 +240,5 @@ module.exports = {
   bulkDelete,
   bulkTag,
   reorder,
+  duplicateThumbnail,
 };

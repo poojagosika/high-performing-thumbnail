@@ -20,6 +20,7 @@ import {
   CheckSquare,
   Tag,
   GripVertical,
+  Copy,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "../context/AuthContext";
@@ -166,6 +167,18 @@ function Dashboard() {
       await api("/thumbnails/reorder", { method: "POST", body: { ids } });
     } catch {
       toast.error("Failed to save order");
+    }
+  };
+
+  const handleDuplicate = async (thumb) => {
+    try {
+      const copy = await api(`/thumbnails/${thumb._id}/duplicate`, {
+        method: "POST",
+      });
+      setThumbnails((prev) => [copy, ...prev]);
+      toast.success("Thumbnail duplicated");
+    } catch {
+      toast.error("Failed to duplicate");
     }
   };
 
@@ -575,6 +588,12 @@ function Dashboard() {
                           <GripVertical className="w-3.5 h-3.5" />
                         </div>
                       )}
+                      <button
+                        onClick={() => handleDuplicate(thumb)}
+                        className="p-1.5 rounded-md bg-black/50 text-white/70 hover:text-white hover:bg-black/70 transition-all"
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                      </button>
                       <button
                         onClick={() => handleDownload(thumb)}
                         className="p-1.5 rounded-md bg-black/50 text-white/70 hover:text-white hover:bg-black/70 transition-all"

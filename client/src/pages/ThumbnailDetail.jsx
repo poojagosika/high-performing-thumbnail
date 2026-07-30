@@ -16,6 +16,7 @@ import {
   Pencil,
   X,
   Download,
+  Copy,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import DashboardNav from "../components/DashboardNav";
@@ -106,6 +107,16 @@ function ThumbnailDetail() {
       toast.success("Download started");
     } catch {
       toast.error("Failed to download");
+    }
+  };
+
+  const handleDuplicate = async () => {
+    try {
+      const copy = await api(`/thumbnails/${id}/duplicate`, { method: "POST" });
+      toast.success("Thumbnail duplicated");
+      navigate(`/thumbnail/${copy._id}`);
+    } catch {
+      toast.error("Failed to duplicate");
     }
   };
 
@@ -305,19 +316,27 @@ function ThumbnailDetail() {
             )}
 
             {/* Actions */}
-            <div className="flex items-center gap-3">
+            <div className="grid grid-cols-3 gap-2">
               <Button
                 variant="outline"
                 onClick={handleDownload}
-                className="flex-1 h-9 text-[13px] border-white/8 text-[#737380] hover:text-white hover:border-white/12 bg-transparent font-medium gap-1.5"
+                className="h-9 text-[13px] border-white/8 text-[#737380] hover:text-white hover:border-white/12 bg-transparent font-medium gap-1.5"
               >
                 <Download className="w-3.5 h-3.5" />
                 Download
               </Button>
               <Button
                 variant="outline"
+                onClick={handleDuplicate}
+                className="h-9 text-[13px] border-white/8 text-[#737380] hover:text-white hover:border-white/12 bg-transparent font-medium gap-1.5"
+              >
+                <Copy className="w-3.5 h-3.5" />
+                Duplicate
+              </Button>
+              <Button
+                variant="outline"
                 onClick={handleDelete}
-                className="flex-1 h-9 text-[13px] border-red-500/20 text-red-400 hover:text-red-300 hover:border-red-500/30 bg-transparent font-medium gap-1.5"
+                className="h-9 text-[13px] border-red-500/20 text-red-400 hover:text-red-300 hover:border-red-500/30 bg-transparent font-medium gap-1.5"
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 Delete
