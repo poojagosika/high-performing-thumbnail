@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Link, useNavigate } from "react-router";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -28,7 +28,17 @@ import { useToast } from "../context/ToastContext";
 import DashboardNav from "../components/DashboardNav";
 import UploadModal from "../components/UploadModal";
 import ScoreChart from "../components/ScoreChart";
+import ShortcutsModal from "../components/ShortcutsModal";
 import api from "../lib/api";
+
+const dashboardShortcuts = [
+  { key: "/", label: "Focus search" },
+  { key: "u", label: "Upload thumbnail" },
+  { key: "c", label: "Toggle compare mode" },
+  { key: "s", label: "Toggle select mode" },
+  { key: "Esc", label: "Close modal / exit mode" },
+  { key: "?", label: "Show shortcuts" },
+];
 
 const stagger = (i) => ({ duration: 0.4, delay: i * 0.06, ease: "easeOut" });
 const PER_PAGE = 9;
@@ -59,7 +69,9 @@ function Dashboard() {
   const [page, setPage] = useState(1);
   const [dragId, setDragId] = useState(null);
   const [dragOverId, setDragOverId] = useState(null);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const editRef = useRef(null);
+  const searchRef = useRef(null);
 
   const toggleCompare = (id) => {
     setCompareIds((prev) =>
@@ -272,6 +284,61 @@ function Dashboard() {
     safePage * PER_PAGE,
   );
 
+  const handleKeyDown = useCallback(
+    (e) => {
+      const tag = e.target.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+
+      switch (e.key) {
+        case "?":
+          setShortcutsOpen((v) => !v);
+          break;
+        case "/":
+          e.preventDefault();
+          searchRef.current?.focus();
+          break;
+        case "u":
+          setUploadOpen(true);
+          break;
+        case "c":
+          if (!selectMode) {
+            compareMode ? exitCompare() : setCompareMode(true);
+          }
+          break;
+        case "s":
+          if (!compareMode) {
+            selectMode ? exitSelect() : setSelectMode(true);
+          }
+          break;
+        case "Escape":
+          if (shortcutsOpen) setShortcutsOpen(false);
+          else if (zoomUrl) setZoomUrl(null);
+          else if (deleteId) setDeleteId(null);
+          else if (bulkDeleteOpen) setBulkDeleteOpen(false);
+          else if (bulkTagOpen) setBulkTagOpen(false);
+          else if (uploadOpen) setUploadOpen(false);
+          else if (compareMode) exitCompare();
+          else if (selectMode) exitSelect();
+          break;
+      }
+    },
+    [
+      compareMode,
+      selectMode,
+      shortcutsOpen,
+      zoomUrl,
+      deleteId,
+      bulkDeleteOpen,
+      bulkTagOpen,
+      uploadOpen,
+    ],
+  );
+
+  useEffect(() => {
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleKeyDown]);
+
   useEffect(() => {
     setPage(1);
   }, [search, sort]);
@@ -420,6 +487,7 @@ function Dashboard() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#4a4a54]" />
               <input
+                ref={searchRef}
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -958,6 +1026,12 @@ function Dashboard() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <ShortcutsModal
+        open={shortcutsOpen}
+        onClose={() => setShortcutsOpen(false)}
+        shortcuts={dashboardShortcuts}
+      />
     </div>
   );
 }

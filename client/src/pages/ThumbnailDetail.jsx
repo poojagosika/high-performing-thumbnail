@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Link, useParams, useNavigate } from "react-router";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -20,8 +20,17 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import DashboardNav from "../components/DashboardNav";
+import ShortcutsModal from "../components/ShortcutsModal";
 import { useToast } from "../context/ToastContext";
 import api from "../lib/api";
+
+const detailShortcuts = [
+  { key: "d", label: "Download thumbnail" },
+  { key: "z", label: "Toggle zoom" },
+  { key: "Esc", label: "Close zoom" },
+  { key: "←", label: "Back to dashboard" },
+  { key: "?", label: "Show shortcuts" },
+];
 
 const stagger = (i) => ({ duration: 0.4, delay: i * 0.06, ease: "easeOut" });
 
@@ -41,17 +50,8 @@ function ThumbnailDetail() {
   const [zoomed, setZoomed] = useState(false);
   const [editingTags, setEditingTags] = useState(false);
   const [tagInput, setTagInput] = useState("");
-
-  const closeZoom = useCallback(() => setZoomed(false), []);
-
-  useEffect(() => {
-    if (!zoomed) return;
-    const onKey = (e) => {
-      if (e.key === "Escape") closeZoom();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [zoomed, closeZoom]);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const downloadRef = useRef(null);
 
   useEffect(() => {
     api(`/thumbnails/${id}`)
@@ -119,6 +119,41 @@ function ThumbnailDetail() {
       toast.error("Failed to duplicate");
     }
   };
+
+  // Store handleDownload in ref so keyboard handler always has latest
+  downloadRef.current = handleDownload;
+
+  const handleKeyDown = useCallback(
+    (e) => {
+      const tag = e.target.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+
+      switch (e.key) {
+        case "?":
+          setShortcutsOpen((v) => !v);
+          break;
+        case "Escape":
+          if (shortcutsOpen) setShortcutsOpen(false);
+          else if (zoomed) setZoomed(false);
+          break;
+        case "z":
+          setZoomed((v) => !v);
+          break;
+        case "d":
+          downloadRef.current?.();
+          break;
+        case "Backspace":
+          navigate("/dashboard");
+          break;
+      }
+    },
+    [zoomed, shortcutsOpen, navigate],
+  );
+
+  useEffect(() => {
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleKeyDown]);
 
   if (loading) {
     return (
@@ -355,7 +390,7 @@ function ThumbnailDetail() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm cursor-zoom-out p-6"
-            onClick={closeZoom}
+            onClick={() => setZoomed(false)}
           >
             <motion.img
               initial={{ scale: 0.9 }}
@@ -369,6 +404,12 @@ function ThumbnailDetail() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <ShortcutsModal
+        open={shortcutsOpen}
+        onClose={() => setShortcutsOpen(false)}
+        shortcuts={detailShortcuts}
+      />
     </div>
   );
 }
