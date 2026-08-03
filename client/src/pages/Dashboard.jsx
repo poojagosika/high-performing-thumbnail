@@ -70,6 +70,7 @@ function Dashboard() {
   const [dragId, setDragId] = useState(null);
   const [dragOverId, setDragOverId] = useState(null);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [activeTags, setActiveTags] = useState([]);
   const editRef = useRef(null);
   const searchRef = useRef(null);
 
@@ -253,14 +254,28 @@ function Dashboard() {
     }
   };
 
+  const allTags = [...new Set(thumbnails.flatMap((t) => t.tags || []))].sort();
+
+  const toggleTag = (tag) => {
+    setActiveTags((prev) =>
+      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag],
+    );
+  };
+
   const filtered = thumbnails
     .filter((t) => {
-      if (!search.trim()) return true;
-      const q = search.toLowerCase();
-      return (
-        t.title.toLowerCase().includes(q) ||
-        t.tags?.some((tag) => tag.toLowerCase().includes(q))
-      );
+      if (search.trim()) {
+        const q = search.toLowerCase();
+        if (
+          !t.title.toLowerCase().includes(q) &&
+          !t.tags?.some((tag) => tag.toLowerCase().includes(q))
+        )
+          return false;
+      }
+      if (activeTags.length > 0) {
+        if (!t.tags?.some((tag) => activeTags.includes(tag))) return false;
+      }
+      return true;
     })
     .sort((a, b) => {
       switch (sort) {
@@ -341,7 +356,7 @@ function Dashboard() {
 
   useEffect(() => {
     setPage(1);
-  }, [search, sort]);
+  }, [search, sort, activeTags]);
 
   useEffect(() => {
     api("/thumbnails")
@@ -512,6 +527,41 @@ function Dashboard() {
           </motion.div>
         )}
 
+        {!loading && allTags.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={stagger(3)}
+            className="mb-6 flex items-center gap-2 overflow-x-auto scrollbar-none"
+          >
+            <span className="text-[12px] text-[#4a4a54] shrink-0">Tags</span>
+            <div className="flex items-center gap-1.5">
+              {allTags.map((tag) => (
+                <button
+                  key={tag}
+                  onClick={() => toggleTag(tag)}
+                  className={`shrink-0 rounded-full px-2.5 py-1 text-[12px] font-medium transition-all ${
+                    activeTags.includes(tag)
+                      ? "bg-white text-[#0a0a0f]"
+                      : "bg-white/4 text-[#737380] hover:text-white hover:bg-white/8"
+                  }`}
+                >
+                  {tag}
+                </button>
+              ))}
+              {activeTags.length > 0 && (
+                <button
+                  onClick={() => setActiveTags([])}
+                  className="shrink-0 flex items-center gap-1 rounded-full px-2.5 py-1 text-[12px] text-[#737380] hover:text-white transition-colors"
+                >
+                  <X className="w-3 h-3" />
+                  Clear
+                </button>
+              )}
+            </div>
+          </motion.div>
+        )}
+
         {loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {[...Array(6)].map((_, i) => (
@@ -552,12 +602,23 @@ function Dashboard() {
               Upload Thumbnail
             </Button>
           </motion.div>
-        ) : filtered.length === 0 && search.trim() ? (
+        ) : filtered.length === 0 &&
+          (search.trim() || activeTags.length > 0) ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <Search className="w-5 h-5 text-[#4a4a54] mb-3" />
             <p className="text-[14px] text-[#737380]">
-              No thumbnails matching &ldquo;{search}&rdquo;
+              {search.trim()
+                ? `No thumbnails matching "${search}"`
+                : `No thumbnails with selected tags`}
             </p>
+            {activeTags.length > 0 && (
+              <button
+                onClick={() => setActiveTags([])}
+                className="text-[13px] text-[#737380] hover:text-white mt-2 transition-colors"
+              >
+                Clear tag filters
+              </button>
+            )}
           </div>
         ) : (
           <motion.div
@@ -729,12 +790,17 @@ function Dashboard() {
                     {thumb.tags?.length > 0 && (
                       <div className="flex gap-1.5">
                         {thumb.tags.slice(0, 3).map((tag) => (
-                          <span
+                          <button
                             key={tag}
-                            className="text-[11px] text-[#4a4a54] bg-white/4 rounded-full px-2 py-0.5"
+                            onClick={() => toggleTag(tag)}
+                            className={`text-[11px] rounded-full px-2 py-0.5 transition-colors ${
+                              activeTags.includes(tag)
+                                ? "bg-white/12 text-white"
+                                : "bg-white/4 text-[#4a4a54] hover:text-[#737380]"
+                            }`}
                           >
                             {tag}
-                          </span>
+                          </button>
                         ))}
                       </div>
                     )}
