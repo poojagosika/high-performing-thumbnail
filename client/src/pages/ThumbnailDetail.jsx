@@ -12,7 +12,6 @@ import {
   Heart,
   Layout,
   Trash2,
-  Loader2,
   Pencil,
   X,
   Download,
@@ -157,8 +156,59 @@ function ThumbnailDetail() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-5 h-5 text-[#737380] animate-spin" />
+      <div className="min-h-screen">
+        <DashboardNav />
+        <main className="max-w-4xl mx-auto px-6 py-10">
+          <div className="h-4 w-32 rounded bg-white/4 animate-pulse mb-6" />
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+            <div className="lg:col-span-3">
+              <div className="rounded-xl border border-white/6 bg-[#111118] overflow-hidden">
+                <div className="aspect-video bg-white/4 animate-pulse" />
+              </div>
+            </div>
+            <div className="lg:col-span-2 flex flex-col gap-4">
+              <div className="rounded-xl border border-white/6 bg-[#111118] p-5 space-y-3">
+                <div className="h-5 w-3/4 rounded bg-white/4 animate-pulse" />
+                <div className="h-3 w-1/3 rounded bg-white/4 animate-pulse" />
+                <div className="flex gap-1.5">
+                  <div className="h-5 w-14 rounded-full bg-white/4 animate-pulse" />
+                  <div className="h-5 w-16 rounded-full bg-white/4 animate-pulse" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                {[0, 1].map((i) => (
+                  <div
+                    key={i}
+                    className="rounded-xl border border-white/6 bg-[#111118] p-4 space-y-2"
+                  >
+                    <div className="h-3 w-12 rounded bg-white/4 animate-pulse" />
+                    <div className="h-7 w-16 rounded bg-white/4 animate-pulse" />
+                  </div>
+                ))}
+              </div>
+              <div className="rounded-xl border border-white/6 bg-[#111118] p-5 space-y-3">
+                <div className="h-3 w-16 rounded bg-white/4 animate-pulse" />
+                {[0, 1, 2, 3].map((i) => (
+                  <div key={i} className="space-y-1.5">
+                    <div className="flex justify-between">
+                      <div className="h-3 w-24 rounded bg-white/4 animate-pulse" />
+                      <div className="h-3 w-6 rounded bg-white/4 animate-pulse" />
+                    </div>
+                    <div className="h-1 rounded-full bg-white/4 animate-pulse" />
+                  </div>
+                ))}
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {[0, 1, 2].map((i) => (
+                  <div
+                    key={i}
+                    className="h-9 rounded-lg border border-white/6 bg-white/3 animate-pulse"
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        </main>
       </div>
     );
   }

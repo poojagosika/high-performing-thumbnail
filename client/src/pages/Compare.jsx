@@ -10,7 +10,6 @@ import {
   Type,
   Heart,
   Trophy,
-  Loader2,
 } from "lucide-react";
 import DashboardNav from "../components/DashboardNav";
 import api from "../lib/api";
@@ -131,8 +130,55 @@ function Compare() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-5 h-5 text-[#737380] animate-spin" />
+      <div className="min-h-screen">
+        <DashboardNav />
+        <main className="max-w-5xl mx-auto px-6 py-10">
+          <div className="h-4 w-32 rounded bg-white/4 animate-pulse mb-6" />
+          <div className="mb-8 space-y-2">
+            <div className="h-6 w-40 rounded bg-white/4 animate-pulse" />
+            <div className="h-4 w-64 rounded bg-white/4 animate-pulse" />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            {[0, 1].map((i) => (
+              <div key={i}>
+                <div className="rounded-xl border border-white/6 bg-[#111118] overflow-hidden">
+                  <div className="aspect-video bg-white/4 animate-pulse" />
+                </div>
+                <div className="h-4 w-2/3 rounded bg-white/4 animate-pulse mt-3" />
+                <div className="flex gap-1.5 mt-1.5">
+                  <div className="h-5 w-14 rounded-full bg-white/4 animate-pulse" />
+                  <div className="h-5 w-16 rounded-full bg-white/4 animate-pulse" />
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+            {[0, 1].map((i) => (
+              <div
+                key={i}
+                className="rounded-xl border border-white/6 bg-[#111118] p-4 space-y-3"
+              >
+                <div className="h-3 w-12 rounded bg-white/4 animate-pulse" />
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="h-6 w-16 mx-auto rounded bg-white/4 animate-pulse" />
+                  <div className="h-6 w-16 mx-auto rounded bg-white/4 animate-pulse" />
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="rounded-xl border border-white/6 bg-[#111118] p-5 space-y-4">
+            <div className="h-3 w-32 rounded bg-white/4 animate-pulse" />
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className="space-y-2">
+                <div className="h-3 w-24 rounded bg-white/4 animate-pulse" />
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="h-1.5 rounded-full bg-white/4 animate-pulse" />
+                  <div className="h-1.5 rounded-full bg-white/4 animate-pulse" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </main>
       </div>
     );
   }
