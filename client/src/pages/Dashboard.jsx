@@ -29,6 +29,7 @@ import DashboardNav from "../components/DashboardNav";
 import UploadModal from "../components/UploadModal";
 import ScoreChart from "../components/ScoreChart";
 import ShortcutsModal from "../components/ShortcutsModal";
+import EditModal from "../components/EditModal";
 import api from "../lib/api";
 
 const dashboardShortcuts = [
@@ -52,8 +53,6 @@ function Dashboard() {
   const [uploadOpen, setUploadOpen] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
   const [deleting, setDeleting] = useState(false);
-  const [editingId, setEditingId] = useState(null);
-  const [editTitle, setEditTitle] = useState("");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("newest");
   const [zoomUrl, setZoomUrl] = useState(null);
@@ -71,7 +70,7 @@ function Dashboard() {
   const [dragOverId, setDragOverId] = useState(null);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [activeTags, setActiveTags] = useState([]);
-  const editRef = useRef(null);
+  const [editThumb, setEditThumb] = useState(null);
   const searchRef = useRef(null);
 
   const toggleCompare = (id) => {
@@ -212,33 +211,6 @@ function Dashboard() {
     }
   };
 
-  const handleRename = async (id) => {
-    const trimmed = editTitle.trim();
-    if (!trimmed) {
-      setEditingId(null);
-      return;
-    }
-    try {
-      await api(`/thumbnails/${id}`, {
-        method: "PATCH",
-        body: { title: trimmed },
-      });
-      setThumbnails((prev) =>
-        prev.map((t) => (t._id === id ? { ...t, title: trimmed } : t)),
-      );
-      toast.success("Title updated");
-    } catch {
-      toast.error("Failed to update title");
-    }
-    setEditingId(null);
-  };
-
-  const startEditing = (thumb) => {
-    setEditingId(thumb._id);
-    setEditTitle(thumb.title);
-    setTimeout(() => editRef.current?.focus(), 0);
-  };
-
   const handleDelete = async () => {
     if (!deleteId) return;
     setDeleting(true);
@@ -327,6 +299,7 @@ function Dashboard() {
           break;
         case "Escape":
           if (shortcutsOpen) setShortcutsOpen(false);
+          else if (editThumb) setEditThumb(null);
           else if (zoomUrl) setZoomUrl(null);
           else if (deleteId) setDeleteId(null);
           else if (bulkDeleteOpen) setBulkDeleteOpen(false);
@@ -341,6 +314,7 @@ function Dashboard() {
       compareMode,
       selectMode,
       shortcutsOpen,
+      editThumb,
       zoomUrl,
       deleteId,
       bulkDeleteOpen,
@@ -718,6 +692,12 @@ function Dashboard() {
                         </div>
                       )}
                       <button
+                        onClick={() => setEditThumb(thumb)}
+                        className="p-1.5 rounded-md bg-black/50 text-white/70 hover:text-white hover:bg-black/70 transition-all"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      <button
                         onClick={() => handleDuplicate(thumb)}
                         className="p-1.5 rounded-md bg-black/50 text-white/70 hover:text-white hover:bg-black/70 transition-all"
                       >
@@ -742,37 +722,20 @@ function Dashboard() {
                 </div>
                 <div className="p-4">
                   <div className="flex items-start justify-between gap-2">
-                    {editingId === thumb._id ? (
-                      <input
-                        ref={editRef}
-                        type="text"
-                        value={editTitle}
-                        onChange={(e) => setEditTitle(e.target.value)}
-                        onBlur={() => handleRename(thumb._id)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") handleRename(thumb._id);
-                          if (e.key === "Escape") setEditingId(null);
-                        }}
-                        className="flex-1 min-w-0 h-6 px-1.5 -ml-1.5 rounded bg-white/4 border border-white/10 text-[14px] font-medium text-white outline-none focus:border-white/20 transition-colors"
-                      />
-                    ) : (
-                      <h3
-                        className="text-[14px] font-medium text-white truncate cursor-pointer hover:text-white/80 transition-colors"
-                        onClick={() => startEditing(thumb)}
-                        title="Click to rename"
-                      >
-                        {thumb.title}
-                      </h3>
-                    )}
+                    <h3
+                      className="text-[14px] font-medium text-white truncate cursor-pointer hover:text-white/80 transition-colors"
+                      onClick={() => setEditThumb(thumb)}
+                      title="Click to edit"
+                    >
+                      {thumb.title}
+                    </h3>
                     <div className="flex items-center gap-1.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                      {editingId !== thumb._id && (
-                        <button
-                          onClick={() => startEditing(thumb)}
-                          className="text-[#4a4a54] hover:text-white transition-colors"
-                        >
-                          <Pencil className="w-3 h-3" />
-                        </button>
-                      )}
+                      <button
+                        onClick={() => setEditThumb(thumb)}
+                        className="text-[#4a4a54] hover:text-white transition-colors"
+                      >
+                        <Pencil className="w-3 h-3" />
+                      </button>
                       <button
                         onClick={() => setDeleteId(thumb._id)}
                         className="text-[#4a4a54] hover:text-red-400 transition-colors"
@@ -1097,6 +1060,18 @@ function Dashboard() {
         open={shortcutsOpen}
         onClose={() => setShortcutsOpen(false)}
         shortcuts={dashboardShortcuts}
+      />
+
+      <EditModal
+        open={!!editThumb}
+        thumb={editThumb}
+        onClose={() => setEditThumb(null)}
+        onSaved={(updated) => {
+          setThumbnails((prev) =>
+            prev.map((t) => (t._id === updated._id ? updated : t)),
+          );
+          toast.success("Thumbnail updated");
+        }}
       />
     </div>
   );
