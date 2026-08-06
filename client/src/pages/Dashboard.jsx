@@ -21,6 +21,7 @@ import {
   Tag,
   GripVertical,
   Copy,
+  Star,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "../context/AuthContext";
@@ -70,6 +71,7 @@ function Dashboard() {
   const [dragOverId, setDragOverId] = useState(null);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [activeTags, setActiveTags] = useState([]);
+  const [showStarred, setShowStarred] = useState(false);
   const [editThumb, setEditThumb] = useState(null);
   const searchRef = useRef(null);
 
@@ -226,6 +228,19 @@ function Dashboard() {
     }
   };
 
+  const handleToggleStar = async (thumb) => {
+    try {
+      const updated = await api(`/thumbnails/${thumb._id}/star`, {
+        method: "PATCH",
+      });
+      setThumbnails((prev) =>
+        prev.map((t) => (t._id === updated._id ? updated : t)),
+      );
+    } catch {
+      toast.error("Failed to update star");
+    }
+  };
+
   const allTags = [...new Set(thumbnails.flatMap((t) => t.tags || []))].sort();
 
   const toggleTag = (tag) => {
@@ -236,6 +251,7 @@ function Dashboard() {
 
   const filtered = thumbnails
     .filter((t) => {
+      if (showStarred && !t.starred) return false;
       if (search.trim()) {
         const q = search.toLowerCase();
         if (
@@ -330,7 +346,7 @@ function Dashboard() {
 
   useEffect(() => {
     setPage(1);
-  }, [search, sort, activeTags]);
+  }, [search, sort, activeTags, showStarred]);
 
   useEffect(() => {
     api("/thumbnails")
@@ -484,6 +500,20 @@ function Dashboard() {
                 className="w-full h-9 pl-9 pr-3 rounded-lg border border-white/8 bg-white/3 text-[14px] text-white placeholder:text-[#4a4a54] outline-none focus:border-white/16 transition-colors"
               />
             </div>
+            <button
+              onClick={() => setShowStarred((v) => !v)}
+              className={`shrink-0 h-9 w-9 rounded-lg border flex items-center justify-center transition-all ${
+                showStarred
+                  ? "border-amber-500/30 bg-amber-500/5 text-amber-400"
+                  : "border-white/8 bg-white/3 text-[#4a4a54] hover:text-amber-400 hover:border-white/12"
+              }`}
+              title={showStarred ? "Show all" : "Show starred"}
+            >
+              <Star
+                className="w-3.5 h-3.5"
+                fill={showStarred ? "currentColor" : "none"}
+              />
+            </button>
             <div className="relative shrink-0">
               <ArrowUpDown className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#4a4a54] pointer-events-none" />
               <select
@@ -577,20 +607,29 @@ function Dashboard() {
             </Button>
           </motion.div>
         ) : filtered.length === 0 &&
-          (search.trim() || activeTags.length > 0) ? (
+          (search.trim() || activeTags.length > 0 || showStarred) ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
-            <Search className="w-5 h-5 text-[#4a4a54] mb-3" />
+            {showStarred ? (
+              <Star className="w-5 h-5 text-[#4a4a54] mb-3" />
+            ) : (
+              <Search className="w-5 h-5 text-[#4a4a54] mb-3" />
+            )}
             <p className="text-[14px] text-[#737380]">
-              {search.trim()
-                ? `No thumbnails matching "${search}"`
-                : `No thumbnails with selected tags`}
+              {showStarred
+                ? "No starred thumbnails"
+                : search.trim()
+                  ? `No thumbnails matching "${search}"`
+                  : "No thumbnails with selected tags"}
             </p>
-            {activeTags.length > 0 && (
+            {(activeTags.length > 0 || showStarred) && (
               <button
-                onClick={() => setActiveTags([])}
+                onClick={() => {
+                  setActiveTags([]);
+                  setShowStarred(false);
+                }}
                 className="text-[13px] text-[#737380] hover:text-white mt-2 transition-colors"
               >
-                Clear tag filters
+                Clear filters
               </button>
             )}
           </div>
@@ -745,6 +784,19 @@ function Dashboard() {
                     </div>
                   </div>
                   <div className="flex items-center gap-3 mt-2">
+                    <button
+                      onClick={() => handleToggleStar(thumb)}
+                      className={`transition-colors ${
+                        thumb.starred
+                          ? "text-amber-400"
+                          : "text-[#4a4a54] opacity-0 group-hover:opacity-100 hover:text-amber-400"
+                      }`}
+                    >
+                      <Star
+                        className="w-3.5 h-3.5"
+                        fill={thumb.starred ? "currentColor" : "none"}
+                      />
+                    </button>
                     {thumb.score > 0 && (
                       <span className="text-[12px] text-[#737380]">
                         Score: {thumb.score}/100

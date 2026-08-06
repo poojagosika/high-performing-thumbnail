@@ -199,10 +199,31 @@ const duplicateThumbnail = async (req, res) => {
       ctr: original.ctr,
       analysis: original.analysis,
       tags: [...(original.tags || [])],
+      starred: original.starred,
       order: (maxOrder?.order ?? -1) + 1,
     });
 
     res.status(201).json(duplicate);
+  } catch (error) {
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+const toggleStar = async (req, res) => {
+  try {
+    const thumbnail = await Thumbnail.findOne({
+      _id: req.params.id,
+      user: req.user._id,
+    });
+
+    if (!thumbnail) {
+      return res.status(404).json({ message: "Thumbnail not found" });
+    }
+
+    thumbnail.starred = !thumbnail.starred;
+    await thumbnail.save();
+
+    res.json(thumbnail);
   } catch (error) {
     res.status(500).json({ message: "Server error" });
   }
@@ -239,6 +260,7 @@ module.exports = {
   deleteThumbnail,
   bulkDelete,
   bulkTag,
+  toggleStar,
   reorder,
   duplicateThumbnail,
 };

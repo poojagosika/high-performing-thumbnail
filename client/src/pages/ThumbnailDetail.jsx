@@ -16,6 +16,7 @@ import {
   X,
   Download,
   Copy,
+  Star,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import DashboardNav from "../components/DashboardNav";
@@ -116,6 +117,15 @@ function ThumbnailDetail() {
       navigate(`/thumbnail/${copy._id}`);
     } catch {
       toast.error("Failed to duplicate");
+    }
+  };
+
+  const handleToggleStar = async () => {
+    try {
+      const updated = await api(`/thumbnails/${id}/star`, { method: "PATCH" });
+      setThumb(updated);
+    } catch {
+      toast.error("Failed to update star");
     }
   };
 
@@ -270,9 +280,24 @@ function ThumbnailDetail() {
           >
             {/* Title & meta */}
             <div className="rounded-xl border border-white/6 bg-[#111118] p-5">
-              <h1 className="font-heading text-xl font-semibold text-white tracking-[-0.01em]">
-                {thumb.title}
-              </h1>
+              <div className="flex items-start justify-between gap-2">
+                <h1 className="font-heading text-xl font-semibold text-white tracking-[-0.01em]">
+                  {thumb.title}
+                </h1>
+                <button
+                  onClick={handleToggleStar}
+                  className={`shrink-0 mt-0.5 transition-colors ${
+                    thumb.starred
+                      ? "text-amber-400"
+                      : "text-[#4a4a54] hover:text-amber-400"
+                  }`}
+                >
+                  <Star
+                    className="w-4.5 h-4.5"
+                    fill={thumb.starred ? "currentColor" : "none"}
+                  />
+                </button>
+              </div>
               <div className="flex items-center gap-1.5 mt-2 text-[12px] text-[#737380]">
                 <Calendar className="w-3 h-3" />
                 {new Date(thumb.createdAt).toLocaleDateString("en-US", {

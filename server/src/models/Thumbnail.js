@@ -34,6 +34,10 @@ const thumbnailSchema = new mongoose.Schema(
       emotionalImpact: { type: Number, min: 0, max: 100, default: null },
     },
     tags: [String],
+    starred: {
+      type: Boolean,
+      default: false,
+    },
     order: {
       type: Number,
       default: 0,
