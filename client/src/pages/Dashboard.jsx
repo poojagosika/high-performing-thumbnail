@@ -22,6 +22,8 @@ import {
   GripVertical,
   Copy,
   Star,
+  TrendingUp,
+  Trophy,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "../context/AuthContext";
@@ -391,6 +393,96 @@ function Dashboard() {
             </div>
           </div>
         </motion.div>
+
+        {!loading && thumbnails.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={stagger(1)}
+            className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8"
+          >
+            {(() => {
+              const scored = thumbnails.filter((t) => t.score > 0);
+              const avgScore =
+                scored.length > 0
+                  ? Math.round(
+                      scored.reduce((sum, t) => sum + t.score, 0) /
+                        scored.length,
+                    )
+                  : null;
+              const best = scored.length > 0
+                ? scored.reduce((a, b) => (a.score > b.score ? a : b))
+                : null;
+              const starredCount = thumbnails.filter((t) => t.starred).length;
+
+              return (
+                <>
+                  <div className="rounded-xl border border-white/6 bg-[#111118] p-4">
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <Image className="w-3.5 h-3.5 text-[#737380]" />
+                      <span className="text-[12px] text-[#737380]">Total</span>
+                    </div>
+                    <span className="font-heading text-xl font-semibold text-white">
+                      {thumbnails.length}
+                    </span>
+                  </div>
+                  <div className="rounded-xl border border-white/6 bg-[#111118] p-4">
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <TrendingUp className="w-3.5 h-3.5 text-[#737380]" />
+                      <span className="text-[12px] text-[#737380]">
+                        Avg Score
+                      </span>
+                    </div>
+                    <span className="font-heading text-xl font-semibold text-white">
+                      {avgScore != null ? avgScore : "—"}
+                      {avgScore != null && (
+                        <span className="text-[11px] text-[#4a4a54] font-normal ml-0.5">
+                          /100
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                  <div className="rounded-xl border border-white/6 bg-[#111118] p-4">
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <Trophy className="w-3.5 h-3.5 text-[#737380]" />
+                      <span className="text-[12px] text-[#737380]">
+                        Best Score
+                      </span>
+                    </div>
+                    {best ? (
+                      <div>
+                        <span className="font-heading text-xl font-semibold text-white">
+                          {best.score}
+                          <span className="text-[11px] text-[#4a4a54] font-normal ml-0.5">
+                            /100
+                          </span>
+                        </span>
+                        <p className="text-[11px] text-[#4a4a54] truncate mt-0.5">
+                          {best.title}
+                        </p>
+                      </div>
+                    ) : (
+                      <span className="font-heading text-xl font-semibold text-white">
+                        —
+                      </span>
+                    )}
+                  </div>
+                  <div className="rounded-xl border border-white/6 bg-[#111118] p-4">
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <Star className="w-3.5 h-3.5 text-[#737380]" />
+                      <span className="text-[12px] text-[#737380]">
+                        Starred
+                      </span>
+                    </div>
+                    <span className="font-heading text-xl font-semibold text-white">
+                      {starredCount}
+                    </span>
+                  </div>
+                </>
+              );
+            })()}
+          </motion.div>
+        )}
 
         {!loading && <ScoreChart thumbnails={thumbnails} />}
 
