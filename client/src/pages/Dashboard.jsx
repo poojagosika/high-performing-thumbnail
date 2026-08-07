@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Link, useNavigate } from "react-router";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ImagePlus,
@@ -56,8 +56,36 @@ function Dashboard() {
   const [uploadOpen, setUploadOpen] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
   const [deleting, setDeleting] = useState(false);
-  const [search, setSearch] = useState("");
-  const [sort, setSort] = useState("newest");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const search = searchParams.get("q") || "";
+  const sort = searchParams.get("sort") || "newest";
+  const page = parseInt(searchParams.get("page") || "1", 10);
+  const activeTags = searchParams.get("tags")
+    ? searchParams.get("tags").split(",")
+    : [];
+  const showStarred = searchParams.get("starred") === "1";
+
+  const setParams = useCallback((updates) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      for (const [key, val] of Object.entries(updates)) {
+        if (
+          val === null ||
+          val === undefined ||
+          val === "" ||
+          (key === "sort" && val === "newest") ||
+          (key === "page" && (val === 1 || val === "1")) ||
+          (key === "starred" && !val)
+        ) {
+          next.delete(key);
+        } else {
+          next.set(key, String(val));
+        }
+      }
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+
   const [zoomUrl, setZoomUrl] = useState(null);
   const [compareMode, setCompareMode] = useState(false);
   const [compareIds, setCompareIds] = useState([]);
@@ -68,12 +96,9 @@ function Dashboard() {
   const [bulkTagOpen, setBulkTagOpen] = useState(false);
   const [bulkTagInput, setBulkTagInput] = useState("");
   const [bulkTagging, setBulkTagging] = useState(false);
-  const [page, setPage] = useState(1);
   const [dragId, setDragId] = useState(null);
   const [dragOverId, setDragOverId] = useState(null);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
-  const [activeTags, setActiveTags] = useState([]);
-  const [showStarred, setShowStarred] = useState(false);
   const [editThumb, setEditThumb] = useState(null);
   const searchRef = useRef(null);
 
@@ -246,9 +271,13 @@ function Dashboard() {
   const allTags = [...new Set(thumbnails.flatMap((t) => t.tags || []))].sort();
 
   const toggleTag = (tag) => {
-    setActiveTags((prev) =>
-      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag],
-    );
+    const newTags = activeTags.includes(tag)
+      ? activeTags.filter((t) => t !== tag)
+      : [...activeTags, tag];
+    setParams({
+      tags: newTags.length > 0 ? newTags.join(",") : null,
+      page: 1,
+    });
   };
 
   const filtered = thumbnails
@@ -345,10 +374,6 @@ function Dashboard() {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [handleKeyDown]);
-
-  useEffect(() => {
-    setPage(1);
-  }, [search, sort, activeTags, showStarred]);
 
   useEffect(() => {
     api("/thumbnails")
@@ -587,13 +612,13 @@ function Dashboard() {
                 ref={searchRef}
                 type="text"
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => setParams({ q: e.target.value, page: 1 })}
                 placeholder="Search by title or tag..."
                 className="w-full h-9 pl-9 pr-3 rounded-lg border border-white/8 bg-white/3 text-[14px] text-white placeholder:text-[#4a4a54] outline-none focus:border-white/16 transition-colors"
               />
             </div>
             <button
-              onClick={() => setShowStarred((v) => !v)}
+              onClick={() => setParams({ starred: !showStarred ? "1" : null, page: 1 })}
               className={`shrink-0 h-9 w-9 rounded-lg border flex items-center justify-center transition-all ${
                 showStarred
                   ? "border-amber-500/30 bg-amber-500/5 text-amber-400"
@@ -610,7 +635,7 @@ function Dashboard() {
               <ArrowUpDown className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#4a4a54] pointer-events-none" />
               <select
                 value={sort}
-                onChange={(e) => setSort(e.target.value)}
+                onChange={(e) => setParams({ sort: e.target.value, page: 1 })}
                 className="h-9 pl-9 pr-3 rounded-lg border border-white/8 bg-white/3 text-[13px] text-[#737380] outline-none focus:border-white/16 transition-colors appearance-none cursor-pointer"
               >
                 <option value="newest">Newest</option>
@@ -647,7 +672,7 @@ function Dashboard() {
               ))}
               {activeTags.length > 0 && (
                 <button
-                  onClick={() => setActiveTags([])}
+                  onClick={() => setParams({ tags: null, page: 1 })}
                   className="shrink-0 flex items-center gap-1 rounded-full px-2.5 py-1 text-[12px] text-[#737380] hover:text-white transition-colors"
                 >
                   <X className="w-3 h-3" />
@@ -715,10 +740,7 @@ function Dashboard() {
             </p>
             {(activeTags.length > 0 || showStarred) && (
               <button
-                onClick={() => {
-                  setActiveTags([]);
-                  setShowStarred(false);
-                }}
+                onClick={() => setParams({ tags: null, starred: null, page: 1 })}
                 className="text-[13px] text-[#737380] hover:text-white mt-2 transition-colors"
               >
                 Clear filters
@@ -927,7 +949,7 @@ function Dashboard() {
             className="flex items-center justify-center gap-2 mt-8"
           >
             <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              onClick={() => setParams({ page: Math.max(1, safePage - 1) })}
               disabled={safePage <= 1}
               className="h-8 w-8 rounded-lg border border-white/8 bg-white/3 flex items-center justify-center text-[#737380] hover:text-white hover:border-white/12 transition-colors disabled:opacity-30 disabled:pointer-events-none"
             >
@@ -936,7 +958,7 @@ function Dashboard() {
             {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
               <button
                 key={p}
-                onClick={() => setPage(p)}
+                onClick={() => setParams({ page: p })}
                 className={`h-8 w-8 rounded-lg text-[13px] font-medium transition-colors ${
                   p === safePage
                     ? "bg-white text-[#0a0a0f]"
@@ -947,7 +969,7 @@ function Dashboard() {
               </button>
             ))}
             <button
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              onClick={() => setParams({ page: Math.min(totalPages, safePage + 1) })}
               disabled={safePage >= totalPages}
               className="h-8 w-8 rounded-lg border border-white/8 bg-white/3 flex items-center justify-center text-[#737380] hover:text-white hover:border-white/12 transition-colors disabled:opacity-30 disabled:pointer-events-none"
             >
