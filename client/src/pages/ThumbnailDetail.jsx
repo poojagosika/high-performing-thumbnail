@@ -50,12 +50,31 @@ function ThumbnailDetail() {
   const [zoomed, setZoomed] = useState(false);
   const [editingTags, setEditingTags] = useState(false);
   const [tagInput, setTagInput] = useState("");
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleInput, setTitleInput] = useState("");
+  const [related, setRelated] = useState([]);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const downloadRef = useRef(null);
+  const titleRef = useRef(null);
 
   useEffect(() => {
     api(`/thumbnails/${id}`)
-      .then((data) => setThumb(data))
+      .then((data) => {
+        setThumb(data);
+        // Fetch related thumbnails (shared tags)
+        api("/thumbnails").then((all) => {
+          const tags = data.tags || [];
+          if (tags.length === 0) return;
+          const matches = all
+            .filter(
+              (t) =>
+                t._id !== data._id &&
+                t.tags?.some((tag) => tags.includes(tag)),
+            )
+            .slice(0, 4);
+          setRelated(matches);
+        });
+      })
       .catch(() => navigate("/dashboard"))
       .finally(() => setLoading(false));
   }, [id, navigate]);
@@ -68,6 +87,31 @@ function ThumbnailDetail() {
     } catch {
       toast.error("Failed to delete thumbnail");
     }
+  };
+
+  const startEditingTitle = () => {
+    setTitleInput(thumb?.title || "");
+    setEditingTitle(true);
+    setTimeout(() => titleRef.current?.focus(), 0);
+  };
+
+  const saveTitle = async () => {
+    const trimmed = titleInput.trim();
+    if (!trimmed || trimmed === thumb.title) {
+      setEditingTitle(false);
+      return;
+    }
+    try {
+      await api(`/thumbnails/${id}`, {
+        method: "PATCH",
+        body: { title: trimmed },
+      });
+      setThumb((prev) => ({ ...prev, title: trimmed }));
+      toast.success("Title updated");
+    } catch {
+      toast.error("Failed to update title");
+    }
+    setEditingTitle(false);
   };
 
   const startEditingTags = () => {
@@ -281,9 +325,28 @@ function ThumbnailDetail() {
             {/* Title & meta */}
             <div className="rounded-xl border border-white/6 bg-[#111118] p-5">
               <div className="flex items-start justify-between gap-2">
-                <h1 className="font-heading text-xl font-semibold text-white tracking-[-0.01em]">
-                  {thumb.title}
-                </h1>
+                {editingTitle ? (
+                  <input
+                    ref={titleRef}
+                    type="text"
+                    value={titleInput}
+                    onChange={(e) => setTitleInput(e.target.value)}
+                    onBlur={saveTitle}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") saveTitle();
+                      if (e.key === "Escape") setEditingTitle(false);
+                    }}
+                    className="flex-1 min-w-0 font-heading text-xl font-semibold text-white tracking-[-0.01em] bg-transparent border-b border-white/20 outline-none pb-0.5"
+                  />
+                ) : (
+                  <h1
+                    className="group/title font-heading text-xl font-semibold text-white tracking-[-0.01em] cursor-pointer flex items-center gap-2"
+                    onClick={startEditingTitle}
+                  >
+                    {thumb.title}
+                    <Pencil className="w-3 h-3 text-[#4a4a54] opacity-0 group-hover/title:opacity-100 transition-opacity shrink-0" />
+                  </h1>
+                )}
                 <button
                   onClick={handleToggleStar}
                   className={`shrink-0 mt-0.5 transition-colors ${
@@ -401,6 +464,18 @@ function ThumbnailDetail() {
                   {analysisItems.map(({ key, label, Icon }) => {
                     const val = thumb.analysis?.[key];
                     if (val == null) return null;
+                    const barColor =
+                      val >= 70
+                        ? "bg-emerald-400/40"
+                        : val >= 40
+                          ? "bg-amber-400/40"
+                          : "bg-red-400/40";
+                    const textColor =
+                      val >= 70
+                        ? "text-emerald-400"
+                        : val >= 40
+                          ? "text-amber-400"
+                          : "text-red-400";
                     return (
                       <div key={key}>
                         <div className="flex items-center justify-between mb-1">
@@ -408,13 +483,15 @@ function ThumbnailDetail() {
                             <Icon className="w-3 h-3" />
                             {label}
                           </span>
-                          <span className="text-[12px] font-medium text-white">
+                          <span
+                            className={`text-[12px] font-medium ${textColor}`}
+                          >
                             {val}
                           </span>
                         </div>
-                        <div className="h-1 rounded-full bg-white/6 overflow-hidden">
+                        <div className="h-1.5 rounded-full bg-white/6 overflow-hidden">
                           <div
-                            className="h-full rounded-full bg-white/20"
+                            className={`h-full rounded-full ${barColor}`}
                             style={{ width: `${val}%` }}
                           />
                         </div>
@@ -454,6 +531,46 @@ function ThumbnailDetail() {
             </div>
           </motion.div>
         </div>
+        {/* Related thumbnails */}
+        {related.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={stagger(4)}
+            className="mt-10"
+          >
+            <h2 className="text-[14px] font-medium text-[#737380] mb-4">
+              Related Thumbnails
+            </h2>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              {related.map((r) => (
+                <Link
+                  key={r._id}
+                  to={`/thumbnail/${r._id}`}
+                  className="group rounded-xl border border-white/6 bg-[#111118] hover:bg-[#0e0e16] overflow-hidden transition-all"
+                >
+                  <div className="aspect-video bg-[#1a1a24] overflow-hidden">
+                    <img
+                      src={`http://localhost:5000${r.imageUrl}`}
+                      alt={r.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                  </div>
+                  <div className="p-3">
+                    <p className="text-[13px] font-medium text-white truncate">
+                      {r.title}
+                    </p>
+                    {r.score > 0 && (
+                      <p className="text-[11px] text-[#4a4a54] mt-0.5">
+                        Score: {r.score}/100
+                      </p>
+                    )}
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </motion.div>
+        )}
       </main>
 
       {/* Zoom overlay */}
