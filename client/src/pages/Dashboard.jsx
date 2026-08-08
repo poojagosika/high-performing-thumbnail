@@ -396,11 +396,19 @@ function Dashboard() {
           className="rounded-xl border border-white/6 bg-[#111118] p-5 mb-8"
         >
           <div className="flex items-center gap-4">
-            <div className="w-10 h-10 rounded-full bg-white/6 flex items-center justify-center shrink-0">
-              <span className="font-heading text-[15px] font-semibold text-white">
-                {user?.name?.charAt(0).toUpperCase()}
-              </span>
-            </div>
+            {user?.avatar ? (
+              <img
+                src={`http://localhost:5000${user.avatar}`}
+                alt={user.name}
+                className="w-10 h-10 rounded-full object-cover shrink-0"
+              />
+            ) : (
+              <div className="w-10 h-10 rounded-full bg-white/6 flex items-center justify-center shrink-0">
+                <span className="font-heading text-[15px] font-semibold text-white">
+                  {user?.name?.charAt(0).toUpperCase()}
+                </span>
+              </div>
+            )}
             <div className="flex-1 min-w-0">
               <h2 className="text-[14px] font-medium text-white truncate">
                 {user?.name}

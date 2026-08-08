@@ -41,7 +41,22 @@ function DashboardNav() {
           >
             Settings
           </Link>
-          <span className="text-[13px] text-[#737380]">{user?.name}</span>
+          <div className="flex items-center gap-2">
+            {user?.avatar ? (
+              <img
+                src={`http://localhost:5000${user.avatar}`}
+                alt={user.name}
+                className="w-6 h-6 rounded-full object-cover"
+              />
+            ) : (
+              <div className="w-6 h-6 rounded-full bg-white/6 flex items-center justify-center">
+                <span className="text-[11px] font-semibold text-white">
+                  {user?.name?.charAt(0).toUpperCase()}
+                </span>
+              </div>
+            )}
+            <span className="text-[13px] text-[#737380]">{user?.name}</span>
+          </div>
           <button
             onClick={() => setLogoutOpen(true)}
             className="text-[#737380] hover:text-white transition-colors"

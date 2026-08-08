@@ -1,5 +1,7 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const fs = require("fs");
+const path = require("path");
 const User = require("../models/User");
 
 const generateToken = (userId) => {
@@ -53,6 +55,7 @@ const register = async (req, res) => {
           name: user.name,
           email: user.email,
           plan: user.plan,
+          avatar: user.avatar,
         },
       });
   } catch (error) {
@@ -100,6 +103,7 @@ const getMe = async (req, res) => {
       name: req.user.name,
       email: req.user.email,
       plan: req.user.plan,
+      avatar: req.user.avatar,
     },
   });
 };
@@ -167,6 +171,37 @@ const changePassword = async (req, res) => {
   }
 };
 
+const uploadAvatar = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: "Image file is required" });
+    }
+
+    // Remove old avatar file if exists
+    if (req.user.avatar) {
+      const oldPath = path.join(__dirname, "../../", req.user.avatar);
+      if (fs.existsSync(oldPath)) {
+        fs.unlinkSync(oldPath);
+      }
+    }
+
+    req.user.avatar = `/uploads/${req.file.filename}`;
+    await req.user.save();
+
+    res.json({
+      user: {
+        id: req.user._id,
+        name: req.user.name,
+        email: req.user.email,
+        plan: req.user.plan,
+        avatar: req.user.avatar,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 const logout = (req, res) => {
   res
     .clearCookie("token", {
@@ -183,5 +218,6 @@ module.exports = {
   getMe,
   updateProfile,
   changePassword,
+  uploadAvatar,
   logout,
 };

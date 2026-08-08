@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Link } from "react-router";
 import { motion } from "framer-motion";
-import { ArrowLeft, User, Lock, Loader2 } from "lucide-react";
+import { ArrowLeft, User, Lock, Loader2, Camera } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import DashboardNav from "../components/DashboardNav";
 import { useAuth } from "../context/AuthContext";
@@ -18,6 +18,35 @@ function Settings() {
   const [email, setEmail] = useState(user?.email || "");
   const [profileError, setProfileError] = useState("");
   const [profileSaving, setProfileSaving] = useState(false);
+
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const avatarRef = useRef(null);
+
+  const handleAvatarUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append("avatar", file);
+
+    setAvatarUploading(true);
+    try {
+      const res = await fetch("http://localhost:5000/api/auth/avatar", {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message);
+      setUser(data.user);
+      toast.success("Avatar updated");
+    } catch (err) {
+      toast.error(err.message || "Failed to upload avatar");
+    } finally {
+      setAvatarUploading(false);
+      if (avatarRef.current) avatarRef.current.value = "";
+    }
+  };
 
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -124,12 +153,67 @@ function Settings() {
           <p className="text-[14px] text-[#737380] mt-1">Manage your account</p>
         </motion.div>
 
+        {/* Avatar section */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={stagger(2)}
+          className="rounded-xl border border-white/6 bg-[#111118] p-5 mb-6"
+        >
+          <div className="flex items-center gap-2 mb-4">
+            <Camera className="w-4 h-4 text-[#737380]" />
+            <h2 className="text-[14px] font-medium text-white">Avatar</h2>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="relative group">
+              {user?.avatar ? (
+                <img
+                  src={`http://localhost:5000${user.avatar}`}
+                  alt={user.name}
+                  className="w-16 h-16 rounded-full object-cover border border-white/6"
+                />
+              ) : (
+                <div className="w-16 h-16 rounded-full bg-white/6 border border-white/6 flex items-center justify-center">
+                  <span className="font-heading text-xl font-semibold text-white">
+                    {user?.name?.charAt(0).toUpperCase()}
+                  </span>
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => avatarRef.current?.click()}
+                disabled={avatarUploading}
+                className="absolute inset-0 rounded-full bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                {avatarUploading ? (
+                  <Loader2 className="w-4 h-4 text-white animate-spin" />
+                ) : (
+                  <Camera className="w-4 h-4 text-white" />
+                )}
+              </button>
+              <input
+                ref={avatarRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={handleAvatarUpload}
+                className="hidden"
+              />
+            </div>
+            <div>
+              <p className="text-[13px] text-white">{user?.name}</p>
+              <p className="text-[12px] text-[#4a4a54] mt-0.5">
+                Click to upload (JPEG, PNG, WebP)
+              </p>
+            </div>
+          </div>
+        </motion.div>
+
         {/* Profile section */}
         <motion.form
           onSubmit={handleProfileUpdate}
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={stagger(2)}
+          transition={stagger(3)}
           className="rounded-xl border border-white/6 bg-[#111118] p-5 mb-6"
         >
           <div className="flex items-center gap-2 mb-4">
@@ -183,7 +267,7 @@ function Settings() {
           onSubmit={handlePasswordChange}
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={stagger(3)}
+          transition={stagger(4)}
           className="rounded-xl border border-white/6 bg-[#111118] p-5"
         >
           <div className="flex items-center gap-2 mb-4">

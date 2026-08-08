@@ -24,6 +24,10 @@ const userSchema = new mongoose.Schema(
       enum: ["free", "pro", "team"],
       default: "free",
     },
+    avatar: {
+      type: String,
+      default: null,
+    },
   },
   { timestamps: true },
 );
