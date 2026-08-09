@@ -17,6 +17,8 @@ import {
   Download,
   Copy,
   Star,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import DashboardNav from "../components/DashboardNav";
@@ -27,8 +29,9 @@ import api from "../lib/api";
 const detailShortcuts = [
   { key: "d", label: "Download thumbnail" },
   { key: "z", label: "Toggle zoom" },
+  { key: "←/→", label: "Previous / next thumbnail" },
   { key: "Esc", label: "Close zoom" },
-  { key: "←", label: "Back to dashboard" },
+  { key: "Backspace", label: "Back to dashboard" },
   { key: "?", label: "Show shortcuts" },
 ];
 
@@ -53,16 +56,27 @@ function ThumbnailDetail() {
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleInput, setTitleInput] = useState("");
   const [related, setRelated] = useState([]);
+  const [allThumbs, setAllThumbs] = useState([]);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const downloadRef = useRef(null);
   const titleRef = useRef(null);
+  const prevRef = useRef(null);
+  const nextRef = useRef(null);
 
   useEffect(() => {
+    // Reset states on thumbnail change
+    setZoomed(false);
+    setEditingTags(false);
+    setEditingTitle(false);
+    setRelated([]);
+    setLoading(true);
+
     api(`/thumbnails/${id}`)
       .then((data) => {
         setThumb(data);
-        // Fetch related thumbnails (shared tags)
+        // Fetch all thumbnails for related + prev/next
         api("/thumbnails").then((all) => {
+          setAllThumbs(all);
           const tags = data.tags || [];
           if (tags.length === 0) return;
           const matches = all
@@ -173,8 +187,12 @@ function ThumbnailDetail() {
     }
   };
 
-  // Store handleDownload in ref so keyboard handler always has latest
+  // Store refs so keyboard handler always has latest
   downloadRef.current = handleDownload;
+  const idx = allThumbs.findIndex((t) => t._id === id);
+  prevRef.current = idx > 0 ? allThumbs[idx - 1]._id : null;
+  nextRef.current =
+    idx >= 0 && idx < allThumbs.length - 1 ? allThumbs[idx + 1]._id : null;
 
   const handleKeyDown = useCallback(
     (e) => {
@@ -194,6 +212,12 @@ function ThumbnailDetail() {
           break;
         case "d":
           downloadRef.current?.();
+          break;
+        case "ArrowLeft":
+          if (prevRef.current) navigate(`/thumbnail/${prevRef.current}`);
+          break;
+        case "ArrowRight":
+          if (nextRef.current) navigate(`/thumbnail/${nextRef.current}`);
           break;
         case "Backspace":
           navigate("/dashboard");
@@ -273,6 +297,13 @@ function ThumbnailDetail() {
     (a) => thumb.analysis?.[a.key] != null,
   );
 
+  const currentIdx = allThumbs.findIndex((t) => t._id === id);
+  const prevThumb = currentIdx > 0 ? allThumbs[currentIdx - 1] : null;
+  const nextThumb =
+    currentIdx >= 0 && currentIdx < allThumbs.length - 1
+      ? allThumbs[currentIdx + 1]
+      : null;
+
   return (
     <div className="min-h-screen">
       <DashboardNav />
@@ -282,14 +313,44 @@ function ThumbnailDetail() {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={stagger(0)}
+          className="flex items-center justify-between mb-6"
         >
           <Link
             to="/dashboard"
-            className="inline-flex items-center gap-1.5 text-[13px] text-[#737380] hover:text-white transition-colors mb-6"
+            className="inline-flex items-center gap-1.5 text-[13px] text-[#737380] hover:text-white transition-colors"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             Back to Dashboard
           </Link>
+          {allThumbs.length > 1 && (
+            <div className="flex items-center gap-1">
+              <Link
+                to={prevThumb ? `/thumbnail/${prevThumb._id}` : "#"}
+                className={`h-7 w-7 rounded-lg border border-white/8 bg-white/3 flex items-center justify-center transition-colors ${
+                  prevThumb
+                    ? "text-[#737380] hover:text-white hover:border-white/12"
+                    : "text-[#4a4a54]/30 pointer-events-none"
+                }`}
+                title={prevThumb?.title}
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+              </Link>
+              <span className="text-[11px] text-[#4a4a54] px-1.5">
+                {currentIdx + 1}/{allThumbs.length}
+              </span>
+              <Link
+                to={nextThumb ? `/thumbnail/${nextThumb._id}` : "#"}
+                className={`h-7 w-7 rounded-lg border border-white/8 bg-white/3 flex items-center justify-center transition-colors ${
+                  nextThumb
+                    ? "text-[#737380] hover:text-white hover:border-white/12"
+                    : "text-[#4a4a54]/30 pointer-events-none"
+                }`}
+                title={nextThumb?.title}
+              >
+                <ChevronRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+          )}
         </motion.div>
 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
