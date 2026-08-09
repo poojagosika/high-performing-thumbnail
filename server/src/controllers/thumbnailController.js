@@ -1,6 +1,7 @@
 const Thumbnail = require("../models/Thumbnail");
 const fs = require("fs");
 const path = require("path");
+const archiver = require("archiver");
 
 const createThumbnail = async (req, res) => {
   try {
@@ -252,6 +253,49 @@ const reorder = async (req, res) => {
   }
 };
 
+const bulkExport = async (req, res) => {
+  try {
+    const { ids } = req.body;
+
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: "No thumbnails selected" });
+    }
+
+    const thumbnails = await Thumbnail.find({
+      _id: { $in: ids },
+      user: req.user._id,
+    });
+
+    if (thumbnails.length === 0) {
+      return res.status(404).json({ message: "No thumbnails found" });
+    }
+
+    res.setHeader("Content-Type", "application/zip");
+    res.setHeader(
+      "Content-Disposition",
+      "attachment; filename=thumbnails.zip",
+    );
+
+    const archive = archiver("zip", { zlib: { level: 5 } });
+    archive.pipe(res);
+
+    for (const thumb of thumbnails) {
+      const filePath = path.join(__dirname, "../../", thumb.imageUrl);
+      if (fs.existsSync(filePath)) {
+        const ext = path.extname(thumb.imageUrl);
+        const safeName = thumb.title.replace(/[^a-zA-Z0-9_\-\s]/g, "").trim();
+        archive.file(filePath, { name: `${safeName}${ext}` });
+      }
+    }
+
+    await archive.finalize();
+  } catch (error) {
+    if (!res.headersSent) {
+      res.status(500).json({ message: "Server error" });
+    }
+  }
+};
+
 module.exports = {
   createThumbnail,
   getThumbnails,
@@ -260,6 +304,7 @@ module.exports = {
   deleteThumbnail,
   bulkDelete,
   bulkTag,
+  bulkExport,
   toggleStar,
   reorder,
   duplicateThumbnail,

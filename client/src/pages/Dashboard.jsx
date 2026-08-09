@@ -96,6 +96,7 @@ function Dashboard() {
   const [bulkTagOpen, setBulkTagOpen] = useState(false);
   const [bulkTagInput, setBulkTagInput] = useState("");
   const [bulkTagging, setBulkTagging] = useState(false);
+  const [bulkExporting, setBulkExporting] = useState(false);
   const [dragId, setDragId] = useState(null);
   const [dragOverId, setDragOverId] = useState(null);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
@@ -168,6 +169,31 @@ function Dashboard() {
       toast.error("Failed to update tags");
     } finally {
       setBulkTagging(false);
+    }
+  };
+
+  const handleBulkExport = async () => {
+    setBulkExporting(true);
+    try {
+      const res = await fetch("http://localhost:5000/api/thumbnails/bulk-export", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ ids: selectedIds }),
+      });
+      if (!res.ok) throw new Error("Export failed");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "thumbnails.zip";
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success(`${selectedIds.length} thumbnails exported`);
+    } catch {
+      toast.error("Failed to export thumbnails");
+    } finally {
+      setBulkExporting(false);
     }
   };
 
@@ -1081,6 +1107,15 @@ function Dashboard() {
             <span className="text-[13px] text-[#737380]">
               {selectedIds.length} selected
             </span>
+            <Button
+              onClick={handleBulkExport}
+              disabled={bulkExporting}
+              variant="outline"
+              className="h-8 text-[13px] border-white/8 text-[#737380] hover:text-white hover:border-white/12 bg-transparent font-medium gap-1.5"
+            >
+              <Download className="w-3.5 h-3.5" />
+              {bulkExporting ? "Exporting..." : "Download"}
+            </Button>
             <Button
               onClick={() => {
                 setBulkTagInput("");
