@@ -10,6 +10,7 @@ const {
   bulkDelete,
   bulkTag,
   bulkExport,
+  trackEvent,
   toggleStar,
   reorder,
   duplicateThumbnail,
@@ -27,6 +28,7 @@ router.post("/reorder", reorder);
 router.get("/", getThumbnails);
 router.get("/:id", getThumbnail);
 router.post("/:id/duplicate", duplicateThumbnail);
+router.post("/:id/track", trackEvent);
 router.patch("/:id/star", toggleStar);
 router.patch("/:id", updateThumbnail);
 router.delete("/:id", deleteThumbnail);

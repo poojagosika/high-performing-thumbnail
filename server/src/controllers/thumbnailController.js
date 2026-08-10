@@ -253,6 +253,49 @@ const reorder = async (req, res) => {
   }
 };
 
+const trackEvent = async (req, res) => {
+  try {
+    const { type } = req.body;
+
+    if (!["view", "click"].includes(type)) {
+      return res.status(400).json({ message: "Invalid event type" });
+    }
+
+    const thumbnail = await Thumbnail.findOne({
+      _id: req.params.id,
+      user: req.user._id,
+    });
+
+    if (!thumbnail) {
+      return res.status(404).json({ message: "Thumbnail not found" });
+    }
+
+    const today = new Date().toISOString().split("T")[0];
+    const dayIdx = thumbnail.dailyStats.findIndex((d) => d.date === today);
+
+    if (type === "view") {
+      thumbnail.views += 1;
+      if (dayIdx >= 0) {
+        thumbnail.dailyStats[dayIdx].views += 1;
+      } else {
+        thumbnail.dailyStats.push({ date: today, views: 1, clicks: 0 });
+      }
+    } else {
+      thumbnail.clicks += 1;
+      if (dayIdx >= 0) {
+        thumbnail.dailyStats[dayIdx].clicks += 1;
+      } else {
+        thumbnail.dailyStats.push({ date: today, views: 0, clicks: 1 });
+      }
+    }
+
+    await thumbnail.save();
+    res.json(thumbnail);
+  } catch (error) {
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 const bulkExport = async (req, res) => {
   try {
     const { ids } = req.body;
@@ -305,6 +348,7 @@ module.exports = {
   bulkDelete,
   bulkTag,
   bulkExport,
+  trackEvent,
   toggleStar,
   reorder,
   duplicateThumbnail,

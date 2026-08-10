@@ -19,6 +19,8 @@ import {
   Star,
   ChevronLeft,
   ChevronRight,
+  Eye,
+  TrendingUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import DashboardNav from "../components/DashboardNav";
@@ -74,6 +76,11 @@ function ThumbnailDetail() {
     api(`/thumbnails/${id}`)
       .then((data) => {
         setThumb(data);
+        // Track view
+        api(`/thumbnails/${id}/track`, {
+          method: "POST",
+          body: { type: "view" },
+        }).then((updated) => setThumb(updated)).catch(() => {});
         // Fetch all thumbnails for related + prev/next
         api("/thumbnails").then((all) => {
           setAllThumbs(all);
@@ -184,6 +191,19 @@ function ThumbnailDetail() {
       setThumb(updated);
     } catch {
       toast.error("Failed to update star");
+    }
+  };
+
+  const handleTrackClick = async () => {
+    try {
+      const updated = await api(`/thumbnails/${id}/track`, {
+        method: "POST",
+        body: { type: "click" },
+      });
+      setThumb(updated);
+      toast.success("Click recorded");
+    } catch {
+      toast.error("Failed to record click");
     }
   };
 
@@ -562,6 +582,150 @@ function ThumbnailDetail() {
                 </div>
               </div>
             )}
+
+            {/* A/B Test Tracking */}
+            <div className="rounded-xl border border-white/6 bg-[#111118] p-5">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-[13px] text-[#737380] font-medium">
+                  Performance Tracking
+                </h3>
+                <button
+                  onClick={handleTrackClick}
+                  className="flex items-center gap-1.5 text-[11px] text-[#737380] hover:text-white border border-white/8 hover:border-white/12 rounded-lg px-2.5 py-1 transition-colors"
+                >
+                  <MousePointerClick className="w-3 h-3" />
+                  Record Click
+                </button>
+              </div>
+              <div className="grid grid-cols-3 gap-3 mb-4">
+                <div className="rounded-lg border border-white/6 bg-white/2 p-2.5">
+                  <div className="flex items-center gap-1 mb-1">
+                    <Eye className="w-3 h-3 text-[#4a4a54]" />
+                    <span className="text-[10px] text-[#4a4a54]">Views</span>
+                  </div>
+                  <span className="font-heading text-lg font-semibold text-white">
+                    {thumb.views || 0}
+                  </span>
+                </div>
+                <div className="rounded-lg border border-white/6 bg-white/2 p-2.5">
+                  <div className="flex items-center gap-1 mb-1">
+                    <MousePointerClick className="w-3 h-3 text-[#4a4a54]" />
+                    <span className="text-[10px] text-[#4a4a54]">Clicks</span>
+                  </div>
+                  <span className="font-heading text-lg font-semibold text-white">
+                    {thumb.clicks || 0}
+                  </span>
+                </div>
+                <div className="rounded-lg border border-white/6 bg-white/2 p-2.5">
+                  <div className="flex items-center gap-1 mb-1">
+                    <TrendingUp className="w-3 h-3 text-[#4a4a54]" />
+                    <span className="text-[10px] text-[#4a4a54]">CTR</span>
+                  </div>
+                  <span className="font-heading text-lg font-semibold text-emerald-400">
+                    {thumb.views > 0
+                      ? `${((thumb.clicks / thumb.views) * 100).toFixed(1)}%`
+                      : "—"}
+                  </span>
+                </div>
+              </div>
+              {/* CTR over time chart */}
+              {thumb.dailyStats?.length >= 2 && (() => {
+                const stats = [...thumb.dailyStats]
+                  .sort((a, b) => a.date.localeCompare(b.date))
+                  .slice(-14);
+                const ctrValues = stats.map((d) =>
+                  d.views > 0 ? (d.clicks / d.views) * 100 : 0,
+                );
+                const maxCtr = Math.max(...ctrValues, 1);
+                const viewW = 400;
+                const viewH = 80;
+                const pad = { top: 8, right: 8, bottom: 16, left: 8 };
+                const plotW = viewW - pad.left - pad.right;
+                const plotH = viewH - pad.top - pad.bottom;
+                const points = ctrValues.map((v, i) => ({
+                  x: pad.left + (i / (ctrValues.length - 1)) * plotW,
+                  y: pad.top + plotH - (v / maxCtr) * plotH,
+                  ctr: v,
+                  date: stats[i].date,
+                }));
+                const linePath = points
+                  .map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`)
+                  .join(" ");
+                const areaPath = `${linePath} L ${points[points.length - 1].x} ${pad.top + plotH} L ${points[0].x} ${pad.top + plotH} Z`;
+                const formatDate = (d) => {
+                  const [, m, day] = d.split("-");
+                  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+                  return `${months[parseInt(m) - 1]} ${parseInt(day)}`;
+                };
+                return (
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-[11px] text-[#4a4a54]">
+                        CTR over time
+                      </span>
+                      <span className="text-[10px] text-[#4a4a54]">
+                        Last {stats.length} days
+                      </span>
+                    </div>
+                    <svg
+                      viewBox={`0 0 ${viewW} ${viewH}`}
+                      className="w-full"
+                      preserveAspectRatio="none"
+                      style={{ height: 80 }}
+                    >
+                      <defs>
+                        <linearGradient id="ctrGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="rgba(52,211,153,0.15)" />
+                          <stop offset="100%" stopColor="rgba(52,211,153,0)" />
+                        </linearGradient>
+                      </defs>
+                      <path d={areaPath} fill="url(#ctrGrad)" />
+                      <path
+                        d={linePath}
+                        fill="none"
+                        stroke="#34d399"
+                        strokeWidth="1.5"
+                        strokeLinejoin="round"
+                        strokeLinecap="round"
+                      />
+                      {points.map((p, i) => (
+                        <circle
+                          key={i}
+                          cx={p.x}
+                          cy={p.y}
+                          r="2.5"
+                          fill="#111118"
+                          stroke="#34d399"
+                          strokeWidth="1.5"
+                        >
+                          <title>
+                            {formatDate(p.date)}: {p.ctr.toFixed(1)}% CTR
+                          </title>
+                        </circle>
+                      ))}
+                      <text
+                        x={points[0].x}
+                        y={viewH - 2}
+                        fill="rgba(255,255,255,0.15)"
+                        fontSize="8"
+                        textAnchor="start"
+                      >
+                        {formatDate(stats[0].date)}
+                      </text>
+                      <text
+                        x={points[points.length - 1].x}
+                        y={viewH - 2}
+                        fill="rgba(255,255,255,0.15)"
+                        fontSize="8"
+                        textAnchor="end"
+                      >
+                        {formatDate(stats[stats.length - 1].date)}
+                      </text>
+                    </svg>
+                  </div>
+                );
+              })()}
+            </div>
 
             {/* Actions */}
             <div className="grid grid-cols-3 gap-2">

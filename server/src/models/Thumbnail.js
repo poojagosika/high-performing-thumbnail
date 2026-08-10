@@ -38,6 +38,21 @@ const thumbnailSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    views: {
+      type: Number,
+      default: 0,
+    },
+    clicks: {
+      type: Number,
+      default: 0,
+    },
+    dailyStats: [
+      {
+        date: { type: String, required: true },
+        views: { type: Number, default: 0 },
+        clicks: { type: Number, default: 0 },
+      },
+    ],
     order: {
       type: Number,
       default: 0,
