@@ -64,6 +64,7 @@ const updateThumbnail = async (req, res) => {
     if (req.body.tags !== undefined) {
       updates.tags = req.body.tags.split(",").map((t) => t.trim());
     }
+    if (req.body.notes !== undefined) updates.notes = req.body.notes;
 
     const thumbnail = await Thumbnail.findOneAndUpdate(
       { _id: req.params.id, user: req.user._id },

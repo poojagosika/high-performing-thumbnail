@@ -21,6 +21,7 @@ import {
   ChevronRight,
   Eye,
   TrendingUp,
+  StickyNote,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import DashboardNav from "../components/DashboardNav";
@@ -60,6 +61,8 @@ function ThumbnailDetail() {
   const [related, setRelated] = useState([]);
   const [allThumbs, setAllThumbs] = useState([]);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [notesInput, setNotesInput] = useState("");
+  const [notesSaved, setNotesSaved] = useState(true);
   const downloadRef = useRef(null);
   const titleRef = useRef(null);
   const prevRef = useRef(null);
@@ -73,9 +76,13 @@ function ThumbnailDetail() {
     setRelated([]);
     setLoading(true);
 
+    setNotesInput("");
+    setNotesSaved(true);
+
     api(`/thumbnails/${id}`)
       .then((data) => {
         setThumb(data);
+        setNotesInput(data.notes || "");
         // Track view
         api(`/thumbnails/${id}/track`, {
           method: "POST",
@@ -191,6 +198,24 @@ function ThumbnailDetail() {
       setThumb(updated);
     } catch {
       toast.error("Failed to update star");
+    }
+  };
+
+  const saveNotes = async () => {
+    if (notesInput === (thumb?.notes || "")) {
+      setNotesSaved(true);
+      return;
+    }
+    try {
+      await api(`/thumbnails/${id}`, {
+        method: "PATCH",
+        body: { notes: notesInput },
+      });
+      setThumb((prev) => ({ ...prev, notes: notesInput }));
+      setNotesSaved(true);
+      toast.success("Notes saved");
+    } catch {
+      toast.error("Failed to save notes");
     }
   };
 
@@ -725,6 +750,46 @@ function ThumbnailDetail() {
                   </div>
                 );
               })()}
+            </div>
+
+            {/* Notes */}
+            <div className="rounded-xl border border-white/6 bg-[#111118] p-5">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="flex items-center gap-1.5 text-[13px] text-[#737380] font-medium">
+                  <StickyNote className="w-3.5 h-3.5" />
+                  Notes
+                </h3>
+                {!notesSaved && (
+                  <button
+                    onClick={saveNotes}
+                    className="text-[11px] text-emerald-400 hover:text-emerald-300 transition-colors"
+                  >
+                    Save
+                  </button>
+                )}
+                {notesSaved && notesInput !== "" && (
+                  <span className="text-[10px] text-[#4a4a54]">Saved</span>
+                )}
+              </div>
+              <textarea
+                value={notesInput}
+                onChange={(e) => {
+                  setNotesInput(e.target.value);
+                  setNotesSaved(false);
+                }}
+                onBlur={saveNotes}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                    e.target.blur();
+                  }
+                }}
+                placeholder="Add observations, ideas, or feedback..."
+                rows={3}
+                className="w-full bg-white/3 border border-white/8 rounded-lg px-3 py-2 text-[13px] text-white placeholder:text-[#4a4a54] outline-none focus:border-white/16 transition-colors resize-none"
+              />
+              <p className="text-[10px] text-[#4a4a54] mt-1.5">
+                Auto-saves on blur · Ctrl+Enter to save
+              </p>
             </div>
 
             {/* Actions */}

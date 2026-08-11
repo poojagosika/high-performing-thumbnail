@@ -53,6 +53,10 @@ const thumbnailSchema = new mongoose.Schema(
         clicks: { type: Number, default: 0 },
       },
     ],
+    notes: {
+      type: String,
+      default: "",
+    },
     order: {
       type: Number,
       default: 0,
