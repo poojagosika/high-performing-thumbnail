@@ -24,6 +24,8 @@ import {
   Star,
   TrendingUp,
   Trophy,
+  LayoutGrid,
+  List,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "../context/AuthContext";
@@ -38,6 +40,7 @@ import api from "../lib/api";
 const dashboardShortcuts = [
   { key: "/", label: "Focus search" },
   { key: "u", label: "Upload thumbnail" },
+  { key: "v", label: "Toggle grid/list view" },
   { key: "c", label: "Toggle compare mode" },
   { key: "s", label: "Toggle select mode" },
   { key: "Esc", label: "Close modal / exit mode" },
@@ -64,6 +67,7 @@ function Dashboard() {
     ? searchParams.get("tags").split(",")
     : [];
   const showStarred = searchParams.get("starred") === "1";
+  const view = searchParams.get("view") || "grid";
 
   const setParams = useCallback((updates) => {
     setSearchParams((prev) => {
@@ -75,7 +79,8 @@ function Dashboard() {
           val === "" ||
           (key === "sort" && val === "newest") ||
           (key === "page" && (val === 1 || val === "1")) ||
-          (key === "starred" && !val)
+          (key === "starred" && !val) ||
+          (key === "view" && val === "grid")
         ) {
           next.delete(key);
         } else {
@@ -359,6 +364,9 @@ function Dashboard() {
           break;
         case "u":
           setUploadOpen(true);
+          break;
+        case "v":
+          setParams({ view: view === "grid" ? "list" : "grid" });
           break;
         case "c":
           if (!selectMode) {
@@ -679,6 +687,30 @@ function Dashboard() {
                 <option value="custom">Custom</option>
               </select>
             </div>
+            <div className="shrink-0 flex items-center rounded-lg border border-white/8 bg-white/3 overflow-hidden">
+              <button
+                onClick={() => setParams({ view: "grid" })}
+                className={`h-9 w-9 flex items-center justify-center transition-colors ${
+                  view === "grid"
+                    ? "bg-white/8 text-white"
+                    : "text-[#4a4a54] hover:text-white"
+                }`}
+                title="Grid view"
+              >
+                <LayoutGrid className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => setParams({ view: "list" })}
+                className={`h-9 w-9 flex items-center justify-center transition-colors ${
+                  view === "list"
+                    ? "bg-white/8 text-white"
+                    : "text-[#4a4a54] hover:text-white"
+                }`}
+                title="List view"
+              >
+                <List className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </motion.div>
         )}
 
@@ -781,6 +813,120 @@ function Dashboard() {
               </button>
             )}
           </div>
+        ) : view === "list" ? (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={stagger(2)}
+            className="rounded-xl border border-white/6 bg-[#111118] overflow-hidden"
+          >
+            {/* Table header */}
+            <div className="grid grid-cols-[44px_1fr_80px_1fr_100px_40px] items-center gap-3 px-4 py-2.5 border-b border-white/6 text-[11px] text-[#4a4a54] uppercase tracking-wider font-medium">
+              <span />
+              <span>Title</span>
+              <span>Score</span>
+              <span>Tags</span>
+              <span>Date</span>
+              <span />
+            </div>
+            {paginated.map((thumb, i) => (
+              <motion.div
+                key={thumb._id}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={stagger(i + 2)}
+                className={`group grid grid-cols-[44px_1fr_80px_1fr_100px_40px] items-center gap-3 px-4 py-2 border-b border-white/4 last:border-b-0 hover:bg-white/2 transition-colors ${
+                  (compareMode && compareIds.includes(thumb._id)) ||
+                  (selectMode && selectedIds.includes(thumb._id))
+                    ? "bg-white/3"
+                    : ""
+                }`}
+                onClick={
+                  compareMode
+                    ? () => toggleCompare(thumb._id)
+                    : selectMode
+                      ? () => toggleSelect(thumb._id)
+                      : undefined
+                }
+              >
+                {/* Thumbnail */}
+                <div className="relative w-11 h-7 rounded overflow-hidden bg-[#1a1a24] shrink-0">
+                  {compareMode || selectMode ? (
+                    <img
+                      src={`http://localhost:5000${thumb.imageUrl}`}
+                      alt={thumb.title}
+                      className="w-full h-full object-cover cursor-pointer"
+                    />
+                  ) : (
+                    <Link to={`/thumbnail/${thumb._id}`}>
+                      <img
+                        src={`http://localhost:5000${thumb.imageUrl}`}
+                        alt={thumb.title}
+                        className="w-full h-full object-cover"
+                      />
+                    </Link>
+                  )}
+                  {compareMode && compareIds.includes(thumb._id) && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-emerald-500/30">
+                      <Check className="w-3 h-3 text-emerald-400" />
+                    </div>
+                  )}
+                  {selectMode && selectedIds.includes(thumb._id) && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-blue-500/30">
+                      <Check className="w-3 h-3 text-blue-400" />
+                    </div>
+                  )}
+                </div>
+                {/* Title */}
+                <Link
+                  to={`/thumbnail/${thumb._id}`}
+                  className="text-[13px] text-white truncate hover:text-white/80 transition-colors"
+                >
+                  {thumb.title}
+                </Link>
+                {/* Score */}
+                <span className="text-[12px] text-[#737380]">
+                  {thumb.score > 0 ? `${thumb.score}/100` : "—"}
+                </span>
+                {/* Tags */}
+                <div className="flex gap-1 overflow-hidden">
+                  {thumb.tags?.slice(0, 3).map((tag) => (
+                    <span
+                      key={tag}
+                      className="text-[10px] rounded-full px-2 py-0.5 bg-white/4 text-[#4a4a54] truncate shrink-0"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+                {/* Date */}
+                <span className="text-[11px] text-[#4a4a54]">
+                  {new Date(thumb.createdAt).toLocaleDateString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  })}
+                </span>
+                {/* Star */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleToggleStar(thumb);
+                  }}
+                  className={`transition-colors ${
+                    thumb.starred
+                      ? "text-amber-400"
+                      : "text-[#4a4a54] opacity-0 group-hover:opacity-100 hover:text-amber-400"
+                  }`}
+                >
+                  <Star
+                    className="w-3.5 h-3.5"
+                    fill={thumb.starred ? "currentColor" : "none"}
+                  />
+                </button>
+              </motion.div>
+            ))}
+          </motion.div>
         ) : (
           <motion.div
             initial={{ opacity: 0 }}
