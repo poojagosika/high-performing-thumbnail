@@ -57,6 +57,12 @@ const thumbnailSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    versions: [
+      {
+        imageUrl: { type: String, required: true },
+        uploadedAt: { type: Date, default: Date.now },
+      },
+    ],
     order: {
       type: Number,
       default: 0,

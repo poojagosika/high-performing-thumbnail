@@ -22,6 +22,8 @@ import {
   Eye,
   TrendingUp,
   StickyNote,
+  History,
+  Upload,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import DashboardNav from "../components/DashboardNav";
@@ -63,7 +65,10 @@ function ThumbnailDetail() {
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [notesInput, setNotesInput] = useState("");
   const [notesSaved, setNotesSaved] = useState(true);
+  const [comparingVersion, setComparingVersion] = useState(null);
+  const [reuploading, setReuploading] = useState(false);
   const downloadRef = useRef(null);
+  const reuploadRef = useRef(null);
   const titleRef = useRef(null);
   const prevRef = useRef(null);
   const nextRef = useRef(null);
@@ -78,6 +83,7 @@ function ThumbnailDetail() {
 
     setNotesInput("");
     setNotesSaved(true);
+    setComparingVersion(null);
 
     api(`/thumbnails/${id}`)
       .then((data) => {
@@ -216,6 +222,30 @@ function ThumbnailDetail() {
       toast.success("Notes saved");
     } catch {
       toast.error("Failed to save notes");
+    }
+  };
+
+  const handleReupload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setReuploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("image", file);
+      const res = await fetch(`http://localhost:5000/api/thumbnails/${id}/reupload`, {
+        method: "POST",
+        credentials: "include",
+        body: formData,
+      });
+      if (!res.ok) throw new Error("Upload failed");
+      const updated = await res.json();
+      setThumb(updated);
+      toast.success("New version uploaded");
+    } catch {
+      toast.error("Failed to upload new version");
+    } finally {
+      setReuploading(false);
+      if (reuploadRef.current) reuploadRef.current.value = "";
     }
   };
 
@@ -419,6 +449,77 @@ function ThumbnailDetail() {
             <p className="text-[11px] text-[#4a4a54] mt-2 text-center">
               Click image to zoom
             </p>
+
+            {/* Version History */}
+            {(thumb.versions?.length > 0 || true) && (
+              <div className="mt-4 rounded-xl border border-white/6 bg-[#111118] p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="flex items-center gap-1.5 text-[13px] text-[#737380] font-medium">
+                    <History className="w-3.5 h-3.5" />
+                    Version History
+                    {thumb.versions?.length > 0 && (
+                      <span className="text-[11px] text-[#4a4a54] font-normal ml-1">
+                        ({thumb.versions.length + 1} versions)
+                      </span>
+                    )}
+                  </h3>
+                  <label
+                    className={`flex items-center gap-1.5 text-[11px] border border-white/8 hover:border-white/12 rounded-lg px-2.5 py-1 transition-colors cursor-pointer ${
+                      reuploading
+                        ? "text-[#4a4a54] pointer-events-none"
+                        : "text-[#737380] hover:text-white"
+                    }`}
+                  >
+                    <Upload className="w-3 h-3" />
+                    {reuploading ? "Uploading..." : "New Version"}
+                    <input
+                      ref={reuploadRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      onChange={handleReupload}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+                {thumb.versions?.length > 0 ? (
+                  <div className="flex gap-2 overflow-x-auto scrollbar-none pb-1">
+                    {[...thumb.versions].reverse().map((v, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setComparingVersion(v)}
+                        className="shrink-0 rounded-lg border border-white/6 hover:border-white/16 overflow-hidden transition-all group/ver"
+                      >
+                        <div className="relative w-28 aspect-video bg-[#1a1a24]">
+                          <img
+                            src={`http://localhost:5000${v.imageUrl}`}
+                            alt={`Version ${thumb.versions.length - i}`}
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/ver:opacity-100 transition-opacity flex items-center justify-center">
+                            <span className="text-[10px] text-white font-medium">
+                              Compare
+                            </span>
+                          </div>
+                        </div>
+                        <div className="px-2 py-1.5">
+                          <span className="text-[10px] text-[#4a4a54]">
+                            v{thumb.versions.length - i} ·{" "}
+                            {new Date(v.uploadedAt).toLocaleDateString("en-US", {
+                              month: "short",
+                              day: "numeric",
+                            })}
+                          </span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-[12px] text-[#4a4a54]">
+                    Upload a new version to start tracking changes
+                  </p>
+                )}
+              </div>
+            )}
           </motion.div>
 
           {/* Info panel */}
@@ -884,6 +985,73 @@ function ThumbnailDetail() {
               className="max-w-full max-h-full object-contain rounded-lg"
             />
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Version compare overlay */}
+      <AnimatePresence>
+        {comparingVersion && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+              onClick={() => setComparingVersion(null)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 10 }}
+              transition={{ duration: 0.2 }}
+              className="relative w-full max-w-4xl rounded-xl border border-white/6 bg-[#111118] shadow-2xl p-5"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="font-heading text-[15px] font-semibold text-white">
+                  Version Comparison
+                </h2>
+                <button
+                  onClick={() => setComparingVersion(null)}
+                  className="text-[#4a4a54] hover:text-white transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-[11px] text-[#4a4a54] mb-2 text-center">
+                    Previous · v{thumb.versions?.findIndex(
+                      (v) => v.imageUrl === comparingVersion.imageUrl
+                    ) + 1}{" "}
+                    · {new Date(comparingVersion.uploadedAt).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
+                  </p>
+                  <div className="rounded-lg border border-white/6 overflow-hidden bg-[#1a1a24]">
+                    <img
+                      src={`http://localhost:5000${comparingVersion.imageUrl}`}
+                      alt="Previous version"
+                      className="w-full aspect-video object-cover"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <p className="text-[11px] text-[#4a4a54] mb-2 text-center">
+                    Current · v{(thumb.versions?.length || 0) + 1} · Latest
+                  </p>
+                  <div className="rounded-lg border border-white/6 overflow-hidden bg-[#1a1a24]">
+                    <img
+                      src={`http://localhost:5000${thumb.imageUrl}`}
+                      alt="Current version"
+                      className="w-full aspect-video object-cover"
+                    />
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
 

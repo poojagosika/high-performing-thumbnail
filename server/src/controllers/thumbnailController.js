@@ -297,6 +297,37 @@ const trackEvent = async (req, res) => {
   }
 };
 
+const reuploadVersion = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: "Image file is required" });
+    }
+
+    const thumbnail = await Thumbnail.findOne({
+      _id: req.params.id,
+      user: req.user._id,
+    });
+
+    if (!thumbnail) {
+      return res.status(404).json({ message: "Thumbnail not found" });
+    }
+
+    // Push current image to versions history
+    thumbnail.versions.push({
+      imageUrl: thumbnail.imageUrl,
+      uploadedAt: thumbnail.updatedAt || thumbnail.createdAt,
+    });
+
+    // Set new image as current
+    thumbnail.imageUrl = `/uploads/${req.file.filename}`;
+    await thumbnail.save();
+
+    res.json(thumbnail);
+  } catch (error) {
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 const bulkExport = async (req, res) => {
   try {
     const { ids } = req.body;
@@ -350,6 +381,7 @@ module.exports = {
   bulkTag,
   bulkExport,
   trackEvent,
+  reuploadVersion,
   toggleStar,
   reorder,
   duplicateThumbnail,
