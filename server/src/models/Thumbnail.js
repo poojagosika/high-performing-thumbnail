@@ -63,6 +63,12 @@ const thumbnailSchema = new mongoose.Schema(
         uploadedAt: { type: Date, default: Date.now },
       },
     ],
+    shareToken: {
+      type: String,
+      unique: true,
+      sparse: true,
+      default: null,
+    },
     order: {
       type: Number,
       default: 0,

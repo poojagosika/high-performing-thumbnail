@@ -9,6 +9,7 @@ import Dashboard from "./pages/Dashboard";
 import ThumbnailDetail from "./pages/ThumbnailDetail";
 import Compare from "./pages/Compare";
 import Settings from "./pages/Settings";
+import SharedThumbnail from "./pages/SharedThumbnail";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ScrollToTop from "./components/ScrollToTop";
@@ -82,6 +83,14 @@ function AppRoutes() {
                 <Settings />
               </PageTransition>
             </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/shared/:token"
+          element={
+            <PageTransition>
+              <SharedThumbnail />
+            </PageTransition>
           }
         />
         <Route

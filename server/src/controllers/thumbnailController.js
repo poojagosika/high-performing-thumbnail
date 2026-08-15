@@ -1,3 +1,4 @@
+const crypto = require("crypto");
 const Thumbnail = require("../models/Thumbnail");
 const fs = require("fs");
 const path = require("path");
@@ -297,6 +298,46 @@ const trackEvent = async (req, res) => {
   }
 };
 
+const toggleShare = async (req, res) => {
+  try {
+    const thumbnail = await Thumbnail.findOne({
+      _id: req.params.id,
+      user: req.user._id,
+    });
+
+    if (!thumbnail) {
+      return res.status(404).json({ message: "Thumbnail not found" });
+    }
+
+    if (thumbnail.shareToken) {
+      thumbnail.shareToken = null;
+    } else {
+      thumbnail.shareToken = crypto.randomBytes(16).toString("hex");
+    }
+
+    await thumbnail.save();
+    res.json(thumbnail);
+  } catch (error) {
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+const getPublicThumbnail = async (req, res) => {
+  try {
+    const thumbnail = await Thumbnail.findOne({
+      shareToken: req.params.token,
+    }).select("title imageUrl score ctr analysis tags createdAt shareToken versions");
+
+    if (!thumbnail) {
+      return res.status(404).json({ message: "Thumbnail not found" });
+    }
+
+    res.json(thumbnail);
+  } catch (error) {
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 const reuploadVersion = async (req, res) => {
   try {
     if (!req.file) {
@@ -382,6 +423,8 @@ module.exports = {
   bulkExport,
   trackEvent,
   reuploadVersion,
+  toggleShare,
+  getPublicThumbnail,
   toggleStar,
   reorder,
   duplicateThumbnail,

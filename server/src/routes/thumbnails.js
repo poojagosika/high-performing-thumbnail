@@ -12,12 +12,17 @@ const {
   bulkExport,
   trackEvent,
   reuploadVersion,
+  toggleShare,
+  getPublicThumbnail,
   toggleStar,
   reorder,
   duplicateThumbnail,
 } = require("../controllers/thumbnailController");
 
 const router = express.Router();
+
+// Public route (no auth)
+router.get("/public/:token", getPublicThumbnail);
 
 router.use(auth);
 
@@ -31,6 +36,7 @@ router.get("/:id", getThumbnail);
 router.post("/:id/duplicate", duplicateThumbnail);
 router.post("/:id/reupload", upload.single("image"), reuploadVersion);
 router.post("/:id/track", trackEvent);
+router.patch("/:id/share", toggleShare);
 router.patch("/:id/star", toggleStar);
 router.patch("/:id", updateThumbnail);
 router.delete("/:id", deleteThumbnail);

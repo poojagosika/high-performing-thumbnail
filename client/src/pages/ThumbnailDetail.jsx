@@ -24,6 +24,9 @@ import {
   StickyNote,
   History,
   Upload,
+  Share2,
+  Link2,
+  Unlink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import DashboardNav from "../components/DashboardNav";
@@ -247,6 +250,26 @@ function ThumbnailDetail() {
       setReuploading(false);
       if (reuploadRef.current) reuploadRef.current.value = "";
     }
+  };
+
+  const handleToggleShare = async () => {
+    try {
+      const updated = await api(`/thumbnails/${id}/share`, { method: "PATCH" });
+      setThumb(updated);
+      if (updated.shareToken) {
+        toast.success("Share link created");
+      } else {
+        toast.success("Share link revoked");
+      }
+    } catch {
+      toast.error("Failed to update share link");
+    }
+  };
+
+  const handleCopyShareLink = () => {
+    const url = `${window.location.origin}/shared/${thumb.shareToken}`;
+    navigator.clipboard.writeText(url);
+    toast.success("Link copied to clipboard");
   };
 
   const handleTrackClick = async () => {
@@ -891,6 +914,51 @@ function ThumbnailDetail() {
               <p className="text-[10px] text-[#4a4a54] mt-1.5">
                 Auto-saves on blur · Ctrl+Enter to save
               </p>
+            </div>
+
+            {/* Share */}
+            <div className="rounded-xl border border-white/6 bg-[#111118] p-4">
+              <div className="flex items-center justify-between">
+                <h3 className="flex items-center gap-1.5 text-[13px] text-[#737380] font-medium">
+                  <Share2 className="w-3.5 h-3.5" />
+                  Share
+                </h3>
+                <button
+                  onClick={handleToggleShare}
+                  className={`flex items-center gap-1.5 text-[11px] border rounded-lg px-2.5 py-1 transition-colors ${
+                    thumb.shareToken
+                      ? "border-red-500/20 text-red-400 hover:text-red-300 hover:border-red-500/30"
+                      : "border-white/8 text-[#737380] hover:text-white hover:border-white/12"
+                  }`}
+                >
+                  {thumb.shareToken ? (
+                    <>
+                      <Unlink className="w-3 h-3" />
+                      Revoke
+                    </>
+                  ) : (
+                    <>
+                      <Link2 className="w-3 h-3" />
+                      Create Link
+                    </>
+                  )}
+                </button>
+              </div>
+              {thumb.shareToken && (
+                <div className="mt-3 flex items-center gap-2">
+                  <div className="flex-1 h-8 px-3 rounded-lg border border-white/8 bg-white/3 flex items-center overflow-hidden">
+                    <span className="text-[12px] text-[#737380] truncate">
+                      {window.location.origin}/shared/{thumb.shareToken}
+                    </span>
+                  </div>
+                  <button
+                    onClick={handleCopyShareLink}
+                    className="shrink-0 h-8 px-3 rounded-lg border border-white/8 bg-white/3 text-[12px] text-[#737380] hover:text-white hover:border-white/12 transition-colors"
+                  >
+                    Copy
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Actions */}
