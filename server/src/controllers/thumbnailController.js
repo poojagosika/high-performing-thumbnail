@@ -1,8 +1,13 @@
 const crypto = require("crypto");
 const Thumbnail = require("../models/Thumbnail");
+const Activity = require("../models/Activity");
 const fs = require("fs");
 const path = require("path");
 const archiver = require("archiver");
+
+const logActivity = (user, type, thumbnailTitle, thumbnailId) => {
+  Activity.create({ user, type, thumbnailTitle, thumbnailId }).catch(() => {});
+};
 
 const createThumbnail = async (req, res) => {
   try {
@@ -23,6 +28,7 @@ const createThumbnail = async (req, res) => {
       order: (maxOrder?.order ?? -1) + 1,
     });
 
+    logActivity(req.user._id, "uploaded", thumbnail.title, thumbnail._id);
     res.status(201).json(thumbnail);
   } catch (error) {
     res.status(500).json({ message: "Server error" });
@@ -77,6 +83,9 @@ const updateThumbnail = async (req, res) => {
       return res.status(404).json({ message: "Thumbnail not found" });
     }
 
+    if (req.body.title !== undefined || req.body.tags !== undefined) {
+      logActivity(req.user._id, "edited", thumbnail.title, thumbnail._id);
+    }
     res.json(thumbnail);
   } catch (error) {
     res.status(500).json({ message: "Server error" });
@@ -100,6 +109,7 @@ const deleteThumbnail = async (req, res) => {
       fs.unlinkSync(filePath);
     }
 
+    logActivity(req.user._id, "deleted", thumbnail.title, null);
     res.json({ message: "Thumbnail deleted" });
   } catch (error) {
     res.status(500).json({ message: "Server error" });
@@ -206,6 +216,7 @@ const duplicateThumbnail = async (req, res) => {
       order: (maxOrder?.order ?? -1) + 1,
     });
 
+    logActivity(req.user._id, "duplicated", original.title, duplicate._id);
     res.status(201).json(duplicate);
   } catch (error) {
     res.status(500).json({ message: "Server error" });
@@ -226,6 +237,12 @@ const toggleStar = async (req, res) => {
     thumbnail.starred = !thumbnail.starred;
     await thumbnail.save();
 
+    logActivity(
+      req.user._id,
+      thumbnail.starred ? "starred" : "unstarred",
+      thumbnail.title,
+      thumbnail._id,
+    );
     res.json(thumbnail);
   } catch (error) {
     res.status(500).json({ message: "Server error" });
@@ -316,6 +333,12 @@ const toggleShare = async (req, res) => {
     }
 
     await thumbnail.save();
+    logActivity(
+      req.user._id,
+      thumbnail.shareToken ? "shared" : "unshared",
+      thumbnail.title,
+      thumbnail._id,
+    );
     res.json(thumbnail);
   } catch (error) {
     res.status(500).json({ message: "Server error" });
@@ -363,6 +386,7 @@ const reuploadVersion = async (req, res) => {
     thumbnail.imageUrl = `/uploads/${req.file.filename}`;
     await thumbnail.save();
 
+    logActivity(req.user._id, "reuploaded", thumbnail.title, thumbnail._id);
     res.json(thumbnail);
   } catch (error) {
     res.status(500).json({ message: "Server error" });

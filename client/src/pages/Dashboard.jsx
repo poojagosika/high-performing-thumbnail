@@ -26,6 +26,10 @@ import {
   Trophy,
   LayoutGrid,
   List,
+  Activity,
+  Upload as UploadIcon,
+  Share2,
+  History,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "../context/AuthContext";
@@ -106,6 +110,8 @@ function Dashboard() {
   const [dragOverId, setDragOverId] = useState(null);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [editThumb, setEditThumb] = useState(null);
+  const [activityOpen, setActivityOpen] = useState(false);
+  const [activities, setActivities] = useState([]);
   const searchRef = useRef(null);
 
   const toggleCompare = (id) => {
@@ -410,6 +416,12 @@ function Dashboard() {
   }, [handleKeyDown]);
 
   useEffect(() => {
+    api("/activities")
+      .then((data) => setActivities(data))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
     api("/thumbnails")
       .then((data) => setThumbnails(data))
       .catch(() => {})
@@ -608,6 +620,14 @@ function Dashboard() {
               </Button>
             )}
             <Button
+              onClick={() => setActivityOpen((v) => !v)}
+              variant="outline"
+              className={`h-9 text-[13px] font-medium gap-1.5 ${activityOpen ? "border-white/16 text-white bg-white/5" : "border-white/8 text-[#737380] hover:text-white hover:border-white/12 bg-transparent"}`}
+            >
+              <Activity className="w-3.5 h-3.5" />
+              Activity
+            </Button>
+            <Button
               onClick={() => setUploadOpen(true)}
               className="h-9 text-[13px] bg-white text-[#0a0a0f] hover:bg-white/90 font-medium gap-1.5"
             >
@@ -616,6 +636,111 @@ function Dashboard() {
             </Button>
           </div>
         </motion.div>
+
+        <AnimatePresence>
+          {activityOpen && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.2 }}
+              className="overflow-hidden mb-6"
+            >
+              <div className="rounded-xl border border-white/6 bg-[#111118] p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="flex items-center gap-1.5 text-[14px] font-medium text-white">
+                    <Activity className="w-4 h-4 text-[#737380]" />
+                    Recent Activity
+                  </h3>
+                  <button
+                    onClick={() => setActivityOpen(false)}
+                    className="text-[#4a4a54] hover:text-white transition-colors"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+                {activities.length === 0 ? (
+                  <p className="text-[13px] text-[#4a4a54]">
+                    No activity yet. Start by uploading a thumbnail.
+                  </p>
+                ) : (
+                  <div className="space-y-0.5 max-h-64 overflow-y-auto scrollbar-none">
+                    {activities.map((a) => {
+                      const icons = {
+                        uploaded: <UploadIcon className="w-3 h-3 text-emerald-400" />,
+                        edited: <Pencil className="w-3 h-3 text-blue-400" />,
+                        deleted: <Trash2 className="w-3 h-3 text-red-400" />,
+                        starred: <Star className="w-3 h-3 text-amber-400" />,
+                        unstarred: <Star className="w-3 h-3 text-[#4a4a54]" />,
+                        duplicated: <Copy className="w-3 h-3 text-purple-400" />,
+                        shared: <Share2 className="w-3 h-3 text-blue-400" />,
+                        unshared: <Share2 className="w-3 h-3 text-[#4a4a54]" />,
+                        reuploaded: <History className="w-3 h-3 text-cyan-400" />,
+                      };
+                      const labels = {
+                        uploaded: "Uploaded",
+                        edited: "Edited",
+                        deleted: "Deleted",
+                        starred: "Starred",
+                        unstarred: "Unstarred",
+                        duplicated: "Duplicated",
+                        shared: "Shared",
+                        unshared: "Unshared",
+                        reuploaded: "Reuploaded",
+                      };
+                      const timeAgo = (date) => {
+                        const s = Math.floor((Date.now() - new Date(date)) / 1000);
+                        if (s < 60) return "just now";
+                        const m = Math.floor(s / 60);
+                        if (m < 60) return `${m}m ago`;
+                        const h = Math.floor(m / 60);
+                        if (h < 24) return `${h}h ago`;
+                        const d = Math.floor(h / 24);
+                        if (d < 7) return `${d}d ago`;
+                        return new Date(date).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                        });
+                      };
+                      return (
+                        <div
+                          key={a._id}
+                          className="flex items-center gap-3 py-2 px-2 rounded-lg hover:bg-white/2 transition-colors"
+                        >
+                          <div className="w-6 h-6 rounded-full bg-white/4 flex items-center justify-center shrink-0">
+                            {icons[a.type]}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[12px] text-white truncate">
+                              <span className="text-[#737380]">
+                                {labels[a.type]}
+                              </span>{" "}
+                              {a.thumbnailId ? (
+                                <Link
+                                  to={`/thumbnail/${a.thumbnailId}`}
+                                  className="hover:underline underline-offset-2"
+                                >
+                                  {a.thumbnailTitle}
+                                </Link>
+                              ) : (
+                                <span className="text-[#4a4a54]">
+                                  {a.thumbnailTitle}
+                                </span>
+                              )}
+                            </p>
+                          </div>
+                          <span className="text-[10px] text-[#4a4a54] shrink-0">
+                            {timeAgo(a.createdAt)}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {compareMode && (
           <motion.div
