@@ -30,6 +30,7 @@ import {
   Upload as UploadIcon,
   Share2,
   History,
+  CalendarDays,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "../context/AuthContext";
@@ -72,6 +73,7 @@ function Dashboard() {
     : [];
   const showStarred = searchParams.get("starred") === "1";
   const view = searchParams.get("view") || "grid";
+  const dateRange = searchParams.get("range") || "all";
 
   const setParams = useCallback((updates) => {
     setSearchParams((prev) => {
@@ -84,7 +86,8 @@ function Dashboard() {
           (key === "sort" && val === "newest") ||
           (key === "page" && (val === 1 || val === "1")) ||
           (key === "starred" && !val) ||
-          (key === "view" && val === "grid")
+          (key === "view" && val === "grid") ||
+          (key === "range" && (val === "all" || !val))
         ) {
           next.delete(key);
         } else {
@@ -330,6 +333,25 @@ function Dashboard() {
       }
       if (activeTags.length > 0) {
         if (!t.tags?.some((tag) => activeTags.includes(tag))) return false;
+      }
+      if (dateRange !== "all") {
+        const created = new Date(t.createdAt);
+        const now = new Date();
+        if (dateRange === "today") {
+          if (created.toDateString() !== now.toDateString()) return false;
+        } else if (dateRange === "week") {
+          const weekAgo = new Date(now);
+          weekAgo.setDate(weekAgo.getDate() - 7);
+          if (created < weekAgo) return false;
+        } else if (dateRange === "month") {
+          const monthAgo = new Date(now);
+          monthAgo.setMonth(monthAgo.getMonth() - 1);
+          if (created < monthAgo) return false;
+        } else if (dateRange === "year") {
+          const yearAgo = new Date(now);
+          yearAgo.setFullYear(yearAgo.getFullYear() - 1);
+          if (created < yearAgo) return false;
+        }
       }
       return true;
     })
@@ -812,6 +834,20 @@ function Dashboard() {
                 <option value="custom">Custom</option>
               </select>
             </div>
+            <div className="relative shrink-0">
+              <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#4a4a54] pointer-events-none" />
+              <select
+                value={dateRange}
+                onChange={(e) => setParams({ range: e.target.value, page: 1 })}
+                className="h-9 pl-9 pr-3 rounded-lg border border-white/8 bg-white/3 text-[13px] text-[#737380] outline-none focus:border-white/16 transition-colors appearance-none cursor-pointer"
+              >
+                <option value="all">All Time</option>
+                <option value="today">Today</option>
+                <option value="week">This Week</option>
+                <option value="month">This Month</option>
+                <option value="year">This Year</option>
+              </select>
+            </div>
             <div className="shrink-0 flex items-center rounded-lg border border-white/8 bg-white/3 overflow-hidden">
               <button
                 onClick={() => setParams({ view: "grid" })}
@@ -915,10 +951,12 @@ function Dashboard() {
             </Button>
           </motion.div>
         ) : filtered.length === 0 &&
-          (search.trim() || activeTags.length > 0 || showStarred) ? (
+          (search.trim() || activeTags.length > 0 || showStarred || dateRange !== "all") ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             {showStarred ? (
               <Star className="w-5 h-5 text-[#4a4a54] mb-3" />
+            ) : dateRange !== "all" ? (
+              <CalendarDays className="w-5 h-5 text-[#4a4a54] mb-3" />
             ) : (
               <Search className="w-5 h-5 text-[#4a4a54] mb-3" />
             )}
@@ -927,11 +965,13 @@ function Dashboard() {
                 ? "No starred thumbnails"
                 : search.trim()
                   ? `No thumbnails matching "${search}"`
-                  : "No thumbnails with selected tags"}
+                  : dateRange !== "all"
+                    ? "No thumbnails in this date range"
+                    : "No thumbnails with selected tags"}
             </p>
-            {(activeTags.length > 0 || showStarred) && (
+            {(activeTags.length > 0 || showStarred || dateRange !== "all") && (
               <button
-                onClick={() => setParams({ tags: null, starred: null, page: 1 })}
+                onClick={() => setParams({ tags: null, starred: null, range: null, page: 1 })}
                 className="text-[13px] text-[#737380] hover:text-white mt-2 transition-colors"
               >
                 Clear filters
