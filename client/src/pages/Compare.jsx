@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Link, useSearchParams, useNavigate } from "react-router";
 import { motion } from "framer-motion";
 import {
@@ -10,6 +10,8 @@ import {
   Type,
   Heart,
   Trophy,
+  Columns2,
+  Layers,
 } from "lucide-react";
 import DashboardNav from "../components/DashboardNav";
 import api from "../lib/api";
@@ -109,6 +111,38 @@ function Compare() {
   const [thumbA, setThumbA] = useState(null);
   const [thumbB, setThumbB] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [compareMode, setCompareMode] = useState("side");
+  const [sliderPos, setSliderPos] = useState(50);
+  const sliderContainerRef = useRef(null);
+  const draggingRef = useRef(false);
+
+  const handleSliderMove = useCallback((clientX) => {
+    const rect = sliderContainerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const x = Math.max(0, Math.min(clientX - rect.left, rect.width));
+    setSliderPos((x / rect.width) * 100);
+  }, []);
+
+  useEffect(() => {
+    const onMouseMove = (e) => {
+      if (draggingRef.current) handleSliderMove(e.clientX);
+    };
+    const onMouseUp = () => { draggingRef.current = false; };
+    const onTouchMove = (e) => {
+      if (draggingRef.current) handleSliderMove(e.touches[0].clientX);
+    };
+    const onTouchEnd = () => { draggingRef.current = false; };
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+    window.addEventListener("touchmove", onTouchMove);
+    window.addEventListener("touchend", onTouchEnd);
+    return () => {
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+      window.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener("touchend", onTouchEnd);
+    };
+  }, [handleSliderMove]);
 
   const idA = searchParams.get("a");
   const idB = searchParams.get("b");
@@ -233,83 +267,196 @@ function Compare() {
           </p>
         </motion.div>
 
-        {/* Thumbnail images */}
+        {/* Mode toggle */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={stagger(2)}
-          className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6"
+          className="flex items-center gap-2 mb-4"
         >
-          <div>
-            <div
-              className={`rounded-xl border overflow-hidden ${winner === "A" ? "border-emerald-500/30" : "border-white/6"}`}
+          <div className="flex items-center rounded-lg border border-white/8 bg-white/3 overflow-hidden">
+            <button
+              onClick={() => setCompareMode("side")}
+              className={`h-8 px-3 flex items-center gap-1.5 text-[12px] transition-colors ${
+                compareMode === "side"
+                  ? "bg-white/8 text-white"
+                  : "text-[#4a4a54] hover:text-white"
+              }`}
             >
-              <div className="relative">
+              <Columns2 className="w-3.5 h-3.5" />
+              Side by Side
+            </button>
+            <button
+              onClick={() => setCompareMode("overlay")}
+              className={`h-8 px-3 flex items-center gap-1.5 text-[12px] transition-colors ${
+                compareMode === "overlay"
+                  ? "bg-white/8 text-white"
+                  : "text-[#4a4a54] hover:text-white"
+              }`}
+            >
+              <Layers className="w-3.5 h-3.5" />
+              Overlay
+            </button>
+          </div>
+          {compareMode === "overlay" && (
+            <span className="text-[11px] text-[#4a4a54]">
+              Drag the slider to compare
+            </span>
+          )}
+        </motion.div>
+
+        {/* Thumbnail images */}
+        {compareMode === "overlay" ? (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={stagger(2)}
+            className="mb-6"
+          >
+            <div
+              ref={sliderContainerRef}
+              className="relative rounded-xl border border-white/6 overflow-hidden cursor-col-resize select-none"
+              onMouseDown={(e) => {
+                draggingRef.current = true;
+                handleSliderMove(e.clientX);
+              }}
+              onTouchStart={(e) => {
+                draggingRef.current = true;
+                handleSliderMove(e.touches[0].clientX);
+              }}
+            >
+              {/* Image B (full, bottom layer) */}
+              <img
+                src={`http://localhost:5000${thumbB.imageUrl}`}
+                alt={thumbB.title}
+                className="w-full aspect-video object-cover"
+                draggable={false}
+              />
+              {/* Image A (clipped, top layer) */}
+              <div
+                className="absolute inset-0 overflow-hidden"
+                style={{ width: `${sliderPos}%` }}
+              >
                 <img
                   src={`http://localhost:5000${thumbA.imageUrl}`}
                   alt={thumbA.title}
-                  className="w-full aspect-video object-cover"
+                  className="aspect-video object-cover"
+                  style={{ width: sliderContainerRef.current?.offsetWidth || "100%" }}
+                  draggable={false}
                 />
-                {winner === "A" && (
-                  <div className="absolute top-2 left-2 flex items-center gap-1 bg-emerald-500/90 text-white text-[11px] font-medium px-2 py-0.5 rounded-md">
-                    <Trophy className="w-3 h-3" />
-                    Winner
+              </div>
+              {/* Slider line */}
+              <div
+                className="absolute top-0 bottom-0 w-0.5 bg-white/80 z-10"
+                style={{ left: `${sliderPos}%`, transform: "translateX(-50%)" }}
+              >
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/90 border-2 border-white flex items-center justify-center shadow-lg">
+                  <div className="flex items-center gap-0.5">
+                    <div className="w-0 h-0 border-t-[4px] border-t-transparent border-b-[4px] border-b-transparent border-r-[5px] border-r-[#0a0a0f]" />
+                    <div className="w-0 h-0 border-t-[4px] border-t-transparent border-b-[4px] border-b-transparent border-l-[5px] border-l-[#0a0a0f]" />
                   </div>
-                )}
+                </div>
               </div>
+              {/* Labels */}
+              <div className="absolute bottom-3 left-3 bg-black/60 text-white text-[11px] font-medium px-2 py-0.5 rounded-md">
+                {thumbA.title}
+              </div>
+              <div className="absolute bottom-3 right-3 bg-black/60 text-white text-[11px] font-medium px-2 py-0.5 rounded-md">
+                {thumbB.title}
+              </div>
+              {/* Winner badges */}
+              {winner === "A" && (
+                <div className="absolute top-3 left-3 flex items-center gap-1 bg-emerald-500/90 text-white text-[11px] font-medium px-2 py-0.5 rounded-md">
+                  <Trophy className="w-3 h-3" />
+                  Winner
+                </div>
+              )}
+              {winner === "B" && (
+                <div className="absolute top-3 right-3 flex items-center gap-1 bg-emerald-500/90 text-white text-[11px] font-medium px-2 py-0.5 rounded-md">
+                  <Trophy className="w-3 h-3" />
+                  Winner
+                </div>
+              )}
             </div>
-            <h3 className="text-[14px] font-medium text-white mt-3 truncate">
-              {thumbA.title}
-            </h3>
-            {thumbA.tags?.length > 0 && (
-              <div className="flex gap-1.5 mt-1.5 flex-wrap">
-                {thumbA.tags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="text-[11px] text-[#4a4a54] bg-white/4 rounded-full px-2 py-0.5"
-                  >
-                    {tag}
-                  </span>
-                ))}
+          </motion.div>
+        ) : (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={stagger(2)}
+            className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6"
+          >
+            <div>
+              <div
+                className={`rounded-xl border overflow-hidden ${winner === "A" ? "border-emerald-500/30" : "border-white/6"}`}
+              >
+                <div className="relative">
+                  <img
+                    src={`http://localhost:5000${thumbA.imageUrl}`}
+                    alt={thumbA.title}
+                    className="w-full aspect-video object-cover"
+                  />
+                  {winner === "A" && (
+                    <div className="absolute top-2 left-2 flex items-center gap-1 bg-emerald-500/90 text-white text-[11px] font-medium px-2 py-0.5 rounded-md">
+                      <Trophy className="w-3 h-3" />
+                      Winner
+                    </div>
+                  )}
+                </div>
               </div>
-            )}
-          </div>
+              <h3 className="text-[14px] font-medium text-white mt-3 truncate">
+                {thumbA.title}
+              </h3>
+              {thumbA.tags?.length > 0 && (
+                <div className="flex gap-1.5 mt-1.5 flex-wrap">
+                  {thumbA.tags.map((tag) => (
+                    <span
+                      key={tag}
+                      className="text-[11px] text-[#4a4a54] bg-white/4 rounded-full px-2 py-0.5"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
 
-          <div>
-            <div
-              className={`rounded-xl border overflow-hidden ${winner === "B" ? "border-emerald-500/30" : "border-white/6"}`}
-            >
-              <div className="relative">
-                <img
-                  src={`http://localhost:5000${thumbB.imageUrl}`}
-                  alt={thumbB.title}
-                  className="w-full aspect-video object-cover"
-                />
-                {winner === "B" && (
-                  <div className="absolute top-2 left-2 flex items-center gap-1 bg-emerald-500/90 text-white text-[11px] font-medium px-2 py-0.5 rounded-md">
-                    <Trophy className="w-3 h-3" />
-                    Winner
-                  </div>
-                )}
+            <div>
+              <div
+                className={`rounded-xl border overflow-hidden ${winner === "B" ? "border-emerald-500/30" : "border-white/6"}`}
+              >
+                <div className="relative">
+                  <img
+                    src={`http://localhost:5000${thumbB.imageUrl}`}
+                    alt={thumbB.title}
+                    className="w-full aspect-video object-cover"
+                  />
+                  {winner === "B" && (
+                    <div className="absolute top-2 left-2 flex items-center gap-1 bg-emerald-500/90 text-white text-[11px] font-medium px-2 py-0.5 rounded-md">
+                      <Trophy className="w-3 h-3" />
+                      Winner
+                    </div>
+                  )}
+                </div>
               </div>
+              <h3 className="text-[14px] font-medium text-white mt-3 truncate">
+                {thumbB.title}
+              </h3>
+              {thumbB.tags?.length > 0 && (
+                <div className="flex gap-1.5 mt-1.5 flex-wrap">
+                  {thumbB.tags.map((tag) => (
+                    <span
+                      key={tag}
+                      className="text-[11px] text-[#4a4a54] bg-white/4 rounded-full px-2 py-0.5"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
-            <h3 className="text-[14px] font-medium text-white mt-3 truncate">
-              {thumbB.title}
-            </h3>
-            {thumbB.tags?.length > 0 && (
-              <div className="flex gap-1.5 mt-1.5 flex-wrap">
-                {thumbB.tags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="text-[11px] text-[#4a4a54] bg-white/4 rounded-full px-2 py-0.5"
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-        </motion.div>
+          </motion.div>
+        )}
 
         {/* Score & CTR */}
         <motion.div
