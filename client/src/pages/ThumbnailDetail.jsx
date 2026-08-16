@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { Link, useParams, useNavigate } from "react-router";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -70,6 +70,7 @@ function ThumbnailDetail() {
   const [notesSaved, setNotesSaved] = useState(true);
   const [comparingVersion, setComparingVersion] = useState(null);
   const [reuploading, setReuploading] = useState(false);
+  const [palette, setPalette] = useState([]);
   const downloadRef = useRef(null);
   const reuploadRef = useRef(null);
   const titleRef = useRef(null);
@@ -87,6 +88,7 @@ function ThumbnailDetail() {
     setNotesInput("");
     setNotesSaved(true);
     setComparingVersion(null);
+    setPalette([]);
 
     api(`/thumbnails/${id}`)
       .then((data) => {
@@ -115,6 +117,40 @@ function ThumbnailDetail() {
       .catch(() => navigate("/dashboard"))
       .finally(() => setLoading(false));
   }, [id, navigate]);
+
+  // Extract color palette from image
+  useEffect(() => {
+    if (!thumb?.imageUrl) return;
+    const img = new window.Image();
+    img.crossOrigin = "anonymous";
+    img.src = `http://localhost:5000${thumb.imageUrl}`;
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      const size = 64;
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, size, size);
+      const data = ctx.getImageData(0, 0, size, size).data;
+      // Simple k-means-like quantization: bucket colors
+      const buckets = {};
+      for (let i = 0; i < data.length; i += 16) {
+        const r = Math.round(data[i] / 32) * 32;
+        const g = Math.round(data[i + 1] / 32) * 32;
+        const b = Math.round(data[i + 2] / 32) * 32;
+        const key = `${r},${g},${b}`;
+        buckets[key] = (buckets[key] || 0) + 1;
+      }
+      const sorted = Object.entries(buckets)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 6)
+        .map(([key]) => {
+          const [r, g, b] = key.split(",").map(Number);
+          return `rgb(${r},${g},${b})`;
+        });
+      setPalette(sorted);
+    };
+  }, [thumb?.imageUrl]);
 
   const handleDelete = async () => {
     try {
@@ -683,6 +719,46 @@ function ThumbnailDetail() {
                 </span>
               </div>
             </div>
+
+            {/* Color Palette */}
+            {palette.length > 0 && (
+              <div className="rounded-xl border border-white/6 bg-[#111118] p-4">
+                <h3 className="flex items-center gap-1.5 text-[13px] text-[#737380] font-medium mb-3">
+                  <Palette className="w-3.5 h-3.5" />
+                  Color Palette
+                </h3>
+                <div className="flex gap-2">
+                  {palette.map((color, i) => (
+                    <button
+                      key={i}
+                      onClick={() => {
+                        const hex = color
+                          .match(/\d+/g)
+                          .map((n) => parseInt(n).toString(16).padStart(2, "0"))
+                          .join("");
+                        navigator.clipboard.writeText(`#${hex}`);
+                        toast.success(`Copied #${hex}`);
+                      }}
+                      className="group/color flex-1 flex flex-col items-center gap-1.5"
+                      title="Click to copy hex"
+                    >
+                      <div
+                        className="w-full aspect-square rounded-lg border border-white/6 group-hover/color:scale-110 transition-transform"
+                        style={{ backgroundColor: color }}
+                      />
+                      <span className="text-[9px] text-[#4a4a54] group-hover/color:text-[#737380] transition-colors">
+                        {color
+                          .match(/\d+/g)
+                          .map((n) => parseInt(n).toString(16).padStart(2, "0"))
+                          .join("")
+                          .toUpperCase()
+                          .replace(/^/, "#")}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Analysis breakdown */}
             {hasAnalysis && (
