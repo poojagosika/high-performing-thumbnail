@@ -1,6 +1,7 @@
 import Navbar from "../components/Navbar";
 import Hero from "../components/Hero";
 import Features from "../components/Features";
+import KeyboardShowcase from "../components/KeyboardShowcase";
 import HowItWorks from "../components/HowItWorks";
 import Pricing from "../components/Pricing";
 import Testimonials from "../components/Testimonials";
@@ -12,6 +13,7 @@ function Landing() {
       <Navbar />
       <Hero />
       <Features />
+      <KeyboardShowcase />
       <HowItWorks />
       <Pricing />
       <Testimonials />
