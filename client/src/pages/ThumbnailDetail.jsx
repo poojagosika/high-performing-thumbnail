@@ -27,6 +27,7 @@ import {
   Share2,
   Link2,
   Unlink,
+  Crop,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import DashboardNav from "../components/DashboardNav";
@@ -71,6 +72,13 @@ function ThumbnailDetail() {
   const [comparingVersion, setComparingVersion] = useState(null);
   const [reuploading, setReuploading] = useState(false);
   const [palette, setPalette] = useState([]);
+  const [cropOpen, setCropOpen] = useState(false);
+  const [cropArea, setCropArea] = useState({ x: 0, y: 0, w: 100, h: 100 });
+  const [cropPreset, setCropPreset] = useState(null);
+  const [cropDragging, setCropDragging] = useState(null);
+  const cropCanvasRef = useRef(null);
+  const cropImgRef = useRef(null);
+  const cropContainerRef = useRef(null);
   const downloadRef = useRef(null);
   const reuploadRef = useRef(null);
   const titleRef = useRef(null);
@@ -306,6 +314,119 @@ function ThumbnailDetail() {
     const url = `${window.location.origin}/shared/${thumb.shareToken}`;
     navigator.clipboard.writeText(url);
     toast.success("Link copied to clipboard");
+  };
+
+  const cropPresets = [
+    { label: "YouTube", w: 1280, h: 720 },
+    { label: "HD", w: 1920, h: 1080 },
+    { label: "Square", w: 1080, h: 1080 },
+    { label: "Twitter", w: 1200, h: 675 },
+    { label: "Instagram", w: 1080, h: 1350 },
+    { label: "Free", w: 0, h: 0 },
+  ];
+
+  const openCropModal = () => {
+    setCropPreset(null);
+    setCropArea({ x: 0, y: 0, w: 100, h: 100 });
+    setCropOpen(true);
+  };
+
+  const applyCropPreset = (preset, imgW, imgH) => {
+    if (preset.w === 0) {
+      setCropPreset(preset);
+      setCropArea({ x: 0, y: 0, w: 100, h: 100 });
+      return;
+    }
+    setCropPreset(preset);
+    const targetRatio = preset.w / preset.h;
+    const imgRatio = imgW / imgH;
+    let cropW, cropH;
+    if (targetRatio > imgRatio) {
+      cropW = 100;
+      cropH = (imgW / targetRatio / imgH) * 100;
+    } else {
+      cropH = 100;
+      cropW = (imgH * targetRatio / imgW) * 100;
+    }
+    setCropArea({
+      x: (100 - cropW) / 2,
+      y: (100 - cropH) / 2,
+      w: cropW,
+      h: cropH,
+    });
+  };
+
+  const handleCropMouseDown = (e, type) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const container = cropContainerRef.current;
+    if (!container) return;
+    const rect = container.getBoundingClientRect();
+    const startX = ((e.clientX - rect.left) / rect.width) * 100;
+    const startY = ((e.clientY - rect.top) / rect.height) * 100;
+    const startArea = { ...cropArea };
+
+    const onMove = (ev) => {
+      const mx = ((ev.clientX - rect.left) / rect.width) * 100;
+      const my = ((ev.clientY - rect.top) / rect.height) * 100;
+      const dx = mx - startX;
+      const dy = my - startY;
+
+      if (type === "move") {
+        const nx = Math.max(0, Math.min(100 - startArea.w, startArea.x + dx));
+        const ny = Math.max(0, Math.min(100 - startArea.h, startArea.y + dy));
+        setCropArea({ ...startArea, x: nx, y: ny });
+      } else {
+        let { x, y, w, h } = startArea;
+        if (type.includes("r")) w = Math.max(5, Math.min(100 - x, w + dx));
+        if (type.includes("l")) { const nw = Math.max(5, w - dx); x = x + (w - nw); w = nw; }
+        if (type.includes("b")) h = Math.max(5, Math.min(100 - y, h + dy));
+        if (type.includes("t")) { const nh = Math.max(5, h - dy); y = y + (h - nh); h = nh; }
+        // Constrain aspect ratio for presets
+        if (cropPreset && cropPreset.w > 0) {
+          const ratio = cropPreset.w / cropPreset.h;
+          const img = cropImgRef.current;
+          if (img) {
+            const imgRatio = img.naturalWidth / img.naturalHeight;
+            const pixelW = (w / 100) * img.naturalWidth;
+            const newH = pixelW / ratio;
+            h = (newH / img.naturalHeight) * 100;
+            if (y + h > 100) { h = 100 - y; w = ((h / 100) * img.naturalHeight * ratio / img.naturalWidth) * 100; }
+          }
+        }
+        setCropArea({ x: Math.max(0, x), y: Math.max(0, y), w, h });
+      }
+    };
+    const onUp = () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  };
+
+  const handleCropDownload = () => {
+    const img = cropImgRef.current;
+    if (!img) return;
+    const canvas = document.createElement("canvas");
+    const sx = (cropArea.x / 100) * img.naturalWidth;
+    const sy = (cropArea.y / 100) * img.naturalHeight;
+    const sw = (cropArea.w / 100) * img.naturalWidth;
+    const sh = (cropArea.h / 100) * img.naturalHeight;
+    canvas.width = Math.round(sw);
+    canvas.height = Math.round(sh);
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+    canvas.toBlob((blob) => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const suffix = cropPreset?.label ? `-${cropPreset.label.toLowerCase()}` : "-cropped";
+      a.download = `${thumb.title}${suffix}.png`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Cropped image downloaded");
+    }, "image/png");
   };
 
   const handleTrackClick = async () => {
@@ -1038,7 +1159,7 @@ function ThumbnailDetail() {
             </div>
 
             {/* Actions */}
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-4 gap-2">
               <Button
                 variant="outline"
                 onClick={handleDownload}
@@ -1046,6 +1167,14 @@ function ThumbnailDetail() {
               >
                 <Download className="w-3.5 h-3.5" />
                 Download
+              </Button>
+              <Button
+                variant="outline"
+                onClick={openCropModal}
+                className="h-9 text-[13px] border-white/8 text-[#737380] hover:text-white hover:border-white/12 bg-transparent font-medium gap-1.5"
+              >
+                <Crop className="w-3.5 h-3.5" />
+                Crop
               </Button>
               <Button
                 variant="outline"
@@ -1192,6 +1321,188 @@ function ThumbnailDetail() {
                       className="w-full aspect-video object-cover"
                     />
                   </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Crop modal */}
+      <AnimatePresence>
+        {cropOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+              onClick={() => setCropOpen(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 10 }}
+              transition={{ duration: 0.2 }}
+              className="relative w-full max-w-3xl rounded-xl border border-white/6 bg-[#111118] shadow-2xl p-5"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="font-heading text-[15px] font-semibold text-white flex items-center gap-2">
+                  <Crop className="w-4 h-4 text-[#737380]" />
+                  Crop & Resize
+                </h2>
+                <button
+                  onClick={() => setCropOpen(false)}
+                  className="text-[#4a4a54] hover:text-white transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Presets */}
+              <div className="flex items-center gap-1.5 mb-4 flex-wrap">
+                {cropPresets.map((p) => (
+                  <button
+                    key={p.label}
+                    onClick={() => {
+                      const img = cropImgRef.current;
+                      if (img) applyCropPreset(p, img.naturalWidth, img.naturalHeight);
+                    }}
+                    className={`px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all ${
+                      cropPreset?.label === p.label
+                        ? "bg-white text-[#0a0a0f]"
+                        : "text-[#737380] border border-white/8 hover:text-white hover:border-white/12"
+                    }`}
+                  >
+                    {p.label}
+                    {p.w > 0 && (
+                      <span className="text-[10px] opacity-60 ml-1">
+                        {p.w}×{p.h}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+
+              {/* Crop area */}
+              <div
+                ref={cropContainerRef}
+                className="relative rounded-lg overflow-hidden bg-[#0a0a0f] select-none"
+                style={{ maxHeight: "60vh" }}
+              >
+                <img
+                  ref={cropImgRef}
+                  src={`http://localhost:5000${thumb.imageUrl}`}
+                  alt={thumb.title}
+                  crossOrigin="anonymous"
+                  className="w-full object-contain"
+                  draggable={false}
+                  onLoad={(e) => {
+                    if (!cropPreset) {
+                      setCropArea({ x: 5, y: 5, w: 90, h: 90 });
+                    }
+                  }}
+                />
+                {/* Darkened overlay outside crop */}
+                <div className="absolute inset-0 pointer-events-none">
+                  {/* Top */}
+                  <div
+                    className="absolute bg-black/60"
+                    style={{ top: 0, left: 0, right: 0, height: `${cropArea.y}%` }}
+                  />
+                  {/* Bottom */}
+                  <div
+                    className="absolute bg-black/60"
+                    style={{ bottom: 0, left: 0, right: 0, height: `${100 - cropArea.y - cropArea.h}%` }}
+                  />
+                  {/* Left */}
+                  <div
+                    className="absolute bg-black/60"
+                    style={{ top: `${cropArea.y}%`, left: 0, width: `${cropArea.x}%`, height: `${cropArea.h}%` }}
+                  />
+                  {/* Right */}
+                  <div
+                    className="absolute bg-black/60"
+                    style={{ top: `${cropArea.y}%`, right: 0, width: `${100 - cropArea.x - cropArea.w}%`, height: `${cropArea.h}%` }}
+                  />
+                </div>
+                {/* Crop selection */}
+                <div
+                  className="absolute border-2 border-white/80 cursor-move"
+                  style={{
+                    left: `${cropArea.x}%`,
+                    top: `${cropArea.y}%`,
+                    width: `${cropArea.w}%`,
+                    height: `${cropArea.h}%`,
+                  }}
+                  onMouseDown={(e) => handleCropMouseDown(e, "move")}
+                >
+                  {/* Grid lines */}
+                  <div className="absolute inset-0 pointer-events-none">
+                    <div className="absolute left-1/3 top-0 bottom-0 w-px bg-white/20" />
+                    <div className="absolute left-2/3 top-0 bottom-0 w-px bg-white/20" />
+                    <div className="absolute top-1/3 left-0 right-0 h-px bg-white/20" />
+                    <div className="absolute top-2/3 left-0 right-0 h-px bg-white/20" />
+                  </div>
+                  {/* Corner handles */}
+                  {["tl", "tr", "bl", "br"].map((pos) => (
+                    <div
+                      key={pos}
+                      className="absolute w-3 h-3 bg-white rounded-sm shadow-md"
+                      style={{
+                        top: pos.includes("t") ? -6 : "auto",
+                        bottom: pos.includes("b") ? -6 : "auto",
+                        left: pos.includes("l") ? -6 : "auto",
+                        right: pos.includes("r") ? -6 : "auto",
+                        cursor: pos === "tl" || pos === "br" ? "nwse-resize" : "nesw-resize",
+                      }}
+                      onMouseDown={(e) => {
+                        const type = pos.replace("t", "t").replace("b", "b").replace("l", "l").replace("r", "r");
+                        handleCropMouseDown(e, type);
+                      }}
+                    />
+                  ))}
+                  {/* Edge handles */}
+                  {["t", "b", "l", "r"].map((pos) => (
+                    <div
+                      key={pos}
+                      className="absolute bg-white/80 rounded-sm"
+                      style={{
+                        ...(pos === "t" ? { top: -2, left: "50%", transform: "translateX(-50%)", width: 24, height: 3, cursor: "ns-resize" } : {}),
+                        ...(pos === "b" ? { bottom: -2, left: "50%", transform: "translateX(-50%)", width: 24, height: 3, cursor: "ns-resize" } : {}),
+                        ...(pos === "l" ? { left: -2, top: "50%", transform: "translateY(-50%)", width: 3, height: 24, cursor: "ew-resize" } : {}),
+                        ...(pos === "r" ? { right: -2, top: "50%", transform: "translateY(-50%)", width: 3, height: 24, cursor: "ew-resize" } : {}),
+                      }}
+                      onMouseDown={(e) => handleCropMouseDown(e, pos)}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Dimensions info + download */}
+              <div className="flex items-center justify-between mt-4">
+                <div className="text-[12px] text-[#737380]">
+                  {cropImgRef.current && (
+                    <>
+                      {Math.round((cropArea.w / 100) * cropImgRef.current.naturalWidth)} × {Math.round((cropArea.h / 100) * cropImgRef.current.naturalHeight)} px
+                    </>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setCropOpen(false)}
+                    className="h-8 text-[12px] border-white/8 text-[#737380] hover:text-white hover:border-white/12 bg-transparent font-medium"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleCropDownload}
+                    className="h-8 text-[12px] bg-white text-[#0a0a0f] hover:bg-white/90 font-medium gap-1.5"
+                  >
+                    <Download className="w-3 h-3" />
+                    Download Cropped
+                  </Button>
                 </div>
               </div>
             </motion.div>
