@@ -28,6 +28,12 @@ import {
   Link2,
   Unlink,
   Crop,
+  PenTool,
+  Circle,
+  Square,
+  ArrowUpRight,
+  Undo2,
+  Minus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import DashboardNav from "../components/DashboardNav";
@@ -76,6 +82,16 @@ function ThumbnailDetail() {
   const [cropArea, setCropArea] = useState({ x: 0, y: 0, w: 100, h: 100 });
   const [cropPreset, setCropPreset] = useState(null);
   const [cropDragging, setCropDragging] = useState(null);
+  const [annotateOpen, setAnnotateOpen] = useState(false);
+  const [annoTool, setAnnoTool] = useState("freehand");
+  const [annoColor, setAnnoColor] = useState("#ef4444");
+  const [annoStroke, setAnnoStroke] = useState(3);
+  const [annoShapes, setAnnoShapes] = useState([]);
+  const [annoDrawing, setAnnoDrawing] = useState(null);
+  const [annoText, setAnnoText] = useState({ active: false, x: 0, y: 0, value: "" });
+  const annoCanvasRef = useRef(null);
+  const annoImgRef = useRef(null);
+  const annoContainerRef = useRef(null);
   const cropCanvasRef = useRef(null);
   const cropImgRef = useRef(null);
   const cropContainerRef = useRef(null);
@@ -428,6 +444,160 @@ function ThumbnailDetail() {
       toast.success("Cropped image downloaded");
     }, "image/png");
   };
+
+  // --- Annotation logic ---
+  const openAnnotateModal = () => {
+    setAnnoShapes([]);
+    setAnnoDrawing(null);
+    setAnnoTool("freehand");
+    setAnnoText({ active: false, x: 0, y: 0, value: "" });
+    setAnnotateOpen(true);
+  };
+
+  const getAnnoPos = (e) => {
+    const canvas = annoCanvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: ((e.clientX - rect.left) / rect.width) * canvas.width,
+      y: ((e.clientY - rect.top) / rect.height) * canvas.height,
+    };
+  };
+
+  const drawShape = (ctx, shape) => {
+    ctx.strokeStyle = shape.color;
+    ctx.fillStyle = shape.color;
+    ctx.lineWidth = shape.stroke;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+
+    if (shape.type === "freehand" && shape.points.length > 1) {
+      ctx.beginPath();
+      ctx.moveTo(shape.points[0].x, shape.points[0].y);
+      for (let i = 1; i < shape.points.length; i++) {
+        ctx.lineTo(shape.points[i].x, shape.points[i].y);
+      }
+      ctx.stroke();
+    } else if (shape.type === "arrow") {
+      const { sx, sy, ex, ey } = shape;
+      const angle = Math.atan2(ey - sy, ex - sx);
+      const headLen = 12 + shape.stroke * 2;
+      ctx.beginPath();
+      ctx.moveTo(sx, sy);
+      ctx.lineTo(ex, ey);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(ex, ey);
+      ctx.lineTo(ex - headLen * Math.cos(angle - Math.PI / 6), ey - headLen * Math.sin(angle - Math.PI / 6));
+      ctx.moveTo(ex, ey);
+      ctx.lineTo(ex - headLen * Math.cos(angle + Math.PI / 6), ey - headLen * Math.sin(angle + Math.PI / 6));
+      ctx.stroke();
+    } else if (shape.type === "circle") {
+      const rx = Math.abs(shape.ex - shape.sx) / 2;
+      const ry = Math.abs(shape.ey - shape.sy) / 2;
+      const cx = (shape.sx + shape.ex) / 2;
+      const cy = (shape.sy + shape.ey) / 2;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    } else if (shape.type === "rect") {
+      ctx.beginPath();
+      ctx.rect(shape.sx, shape.sy, shape.ex - shape.sx, shape.ey - shape.sy);
+      ctx.stroke();
+    } else if (shape.type === "line") {
+      ctx.beginPath();
+      ctx.moveTo(shape.sx, shape.sy);
+      ctx.lineTo(shape.ex, shape.ey);
+      ctx.stroke();
+    } else if (shape.type === "text") {
+      ctx.font = `${Math.max(14, shape.stroke * 6)}px Inter, sans-serif`;
+      ctx.fillText(shape.value, shape.x, shape.y);
+    }
+  };
+
+  const redrawAnno = useCallback(() => {
+    const canvas = annoCanvasRef.current;
+    const img = annoImgRef.current;
+    if (!canvas || !img) return;
+    const ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    annoShapes.forEach((s) => drawShape(ctx, s));
+    if (annoDrawing) drawShape(ctx, annoDrawing);
+  }, [annoShapes, annoDrawing]);
+
+  useEffect(() => {
+    if (annotateOpen) redrawAnno();
+  }, [annotateOpen, redrawAnno]);
+
+  const handleAnnoMouseDown = (e) => {
+    if (annoTool === "text") {
+      const pos = getAnnoPos(e);
+      setAnnoText({ active: true, x: pos.x, y: pos.y, value: "" });
+      return;
+    }
+    const pos = getAnnoPos(e);
+    if (annoTool === "freehand") {
+      setAnnoDrawing({ type: "freehand", points: [pos], color: annoColor, stroke: annoStroke });
+    } else {
+      setAnnoDrawing({ type: annoTool, sx: pos.x, sy: pos.y, ex: pos.x, ey: pos.y, color: annoColor, stroke: annoStroke });
+    }
+  };
+
+  const handleAnnoMouseMove = (e) => {
+    if (!annoDrawing) return;
+    const pos = getAnnoPos(e);
+    if (annoDrawing.type === "freehand") {
+      setAnnoDrawing((d) => ({ ...d, points: [...d.points, pos] }));
+    } else {
+      setAnnoDrawing((d) => ({ ...d, ex: pos.x, ey: pos.y }));
+    }
+  };
+
+  const handleAnnoMouseUp = () => {
+    if (!annoDrawing) return;
+    setAnnoShapes((prev) => [...prev, annoDrawing]);
+    setAnnoDrawing(null);
+  };
+
+  const handleAnnoTextSubmit = () => {
+    if (annoText.value.trim()) {
+      setAnnoShapes((prev) => [
+        ...prev,
+        { type: "text", x: annoText.x, y: annoText.y, value: annoText.value, color: annoColor, stroke: annoStroke },
+      ]);
+    }
+    setAnnoText({ active: false, x: 0, y: 0, value: "" });
+  };
+
+  const handleAnnoUndo = () => {
+    setAnnoShapes((prev) => prev.slice(0, -1));
+  };
+
+  const handleAnnoDownload = () => {
+    const canvas = annoCanvasRef.current;
+    if (!canvas) return;
+    canvas.toBlob((blob) => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${thumb.title}-annotated.png`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Annotated image downloaded");
+    }, "image/png");
+  };
+
+  const annoTools = [
+    { id: "freehand", label: "Draw", Icon: PenTool },
+    { id: "arrow", label: "Arrow", Icon: ArrowUpRight },
+    { id: "circle", label: "Circle", Icon: Circle },
+    { id: "rect", label: "Rect", Icon: Square },
+    { id: "line", label: "Line", Icon: Minus },
+    { id: "text", label: "Text", Icon: Type },
+  ];
+
+  const annoColors = ["#ef4444", "#f59e0b", "#22c55e", "#3b82f6", "#a855f7", "#ffffff"];
 
   const handleTrackClick = async () => {
     try {
@@ -1159,7 +1329,7 @@ function ThumbnailDetail() {
             </div>
 
             {/* Actions */}
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-5 gap-2">
               <Button
                 variant="outline"
                 onClick={handleDownload}
@@ -1175,6 +1345,14 @@ function ThumbnailDetail() {
               >
                 <Crop className="w-3.5 h-3.5" />
                 Crop
+              </Button>
+              <Button
+                variant="outline"
+                onClick={openAnnotateModal}
+                className="h-9 text-[13px] border-white/8 text-[#737380] hover:text-white hover:border-white/12 bg-transparent font-medium gap-1.5"
+              >
+                <PenTool className="w-3.5 h-3.5" />
+                Markup
               </Button>
               <Button
                 variant="outline"
@@ -1321,6 +1499,196 @@ function ThumbnailDetail() {
                       className="w-full aspect-video object-cover"
                     />
                   </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Annotate modal */}
+      <AnimatePresence>
+        {annotateOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+              onClick={() => setAnnotateOpen(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 10 }}
+              transition={{ duration: 0.2 }}
+              className="relative w-full max-w-4xl rounded-xl border border-white/6 bg-[#111118] shadow-2xl p-5"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="font-heading text-[15px] font-semibold text-white flex items-center gap-2">
+                  <PenTool className="w-4 h-4 text-[#737380]" />
+                  Annotate & Markup
+                </h2>
+                <button
+                  onClick={() => setAnnotateOpen(false)}
+                  className="text-[#4a4a54] hover:text-white transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Toolbar */}
+              <div className="flex items-center gap-4 mb-4 flex-wrap">
+                {/* Tool buttons */}
+                <div className="flex items-center gap-1">
+                  {annoTools.map(({ id, label, Icon }) => (
+                    <button
+                      key={id}
+                      onClick={() => setAnnoTool(id)}
+                      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium transition-all ${
+                        annoTool === id
+                          ? "bg-white text-[#0a0a0f]"
+                          : "text-[#737380] border border-white/8 hover:text-white hover:border-white/12"
+                      }`}
+                    >
+                      <Icon className="w-3.5 h-3.5" />
+                      {label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="w-px h-5 bg-white/8" />
+
+                {/* Colors */}
+                <div className="flex items-center gap-1.5">
+                  {annoColors.map((c) => (
+                    <button
+                      key={c}
+                      onClick={() => setAnnoColor(c)}
+                      className={`w-5 h-5 rounded-full border-2 transition-transform ${
+                        annoColor === c ? "border-white scale-125" : "border-white/10 hover:scale-110"
+                      }`}
+                      style={{ backgroundColor: c }}
+                    />
+                  ))}
+                </div>
+
+                <div className="w-px h-5 bg-white/8" />
+
+                {/* Stroke width */}
+                <div className="flex items-center gap-1.5">
+                  {[2, 3, 5].map((w) => (
+                    <button
+                      key={w}
+                      onClick={() => setAnnoStroke(w)}
+                      className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${
+                        annoStroke === w
+                          ? "bg-white/10 border border-white/20"
+                          : "border border-white/6 hover:border-white/12"
+                      }`}
+                    >
+                      <div
+                        className="rounded-full bg-white"
+                        style={{ width: w * 2, height: w * 2 }}
+                      />
+                    </button>
+                  ))}
+                </div>
+
+                <div className="w-px h-5 bg-white/8" />
+
+                {/* Undo */}
+                <button
+                  onClick={handleAnnoUndo}
+                  disabled={annoShapes.length === 0}
+                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium border border-white/8 transition-colors ${
+                    annoShapes.length > 0
+                      ? "text-[#737380] hover:text-white hover:border-white/12"
+                      : "text-[#4a4a54]/40 pointer-events-none"
+                  }`}
+                >
+                  <Undo2 className="w-3.5 h-3.5" />
+                  Undo
+                </button>
+              </div>
+
+              {/* Canvas area */}
+              <div
+                ref={annoContainerRef}
+                className="relative rounded-lg overflow-hidden bg-[#0a0a0f] select-none"
+                style={{ maxHeight: "60vh" }}
+              >
+                <img
+                  ref={annoImgRef}
+                  src={`http://localhost:5000${thumb.imageUrl}`}
+                  alt={thumb.title}
+                  crossOrigin="anonymous"
+                  className="w-full object-contain invisible absolute"
+                  draggable={false}
+                  onLoad={(e) => {
+                    const canvas = annoCanvasRef.current;
+                    if (!canvas) return;
+                    canvas.width = e.target.naturalWidth;
+                    canvas.height = e.target.naturalHeight;
+                    const ctx = canvas.getContext("2d");
+                    ctx.drawImage(e.target, 0, 0, canvas.width, canvas.height);
+                  }}
+                />
+                <canvas
+                  ref={annoCanvasRef}
+                  className="w-full cursor-crosshair"
+                  style={{ display: "block" }}
+                  onMouseDown={handleAnnoMouseDown}
+                  onMouseMove={handleAnnoMouseMove}
+                  onMouseUp={handleAnnoMouseUp}
+                  onMouseLeave={handleAnnoMouseUp}
+                />
+                {/* Text input overlay */}
+                {annoText.active && (
+                  <div
+                    className="absolute"
+                    style={{
+                      left: `${(annoText.x / (annoCanvasRef.current?.width || 1)) * 100}%`,
+                      top: `${(annoText.y / (annoCanvasRef.current?.height || 1)) * 100}%`,
+                    }}
+                  >
+                    <input
+                      autoFocus
+                      type="text"
+                      value={annoText.value}
+                      onChange={(e) => setAnnoText((t) => ({ ...t, value: e.target.value }))}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleAnnoTextSubmit();
+                        if (e.key === "Escape") setAnnoText({ active: false, x: 0, y: 0, value: "" });
+                      }}
+                      onBlur={handleAnnoTextSubmit}
+                      className="bg-black/60 border border-white/20 rounded px-2 py-1 text-white text-[14px] outline-none min-w-[120px]"
+                      style={{ color: annoColor }}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="flex items-center justify-between mt-4">
+                <span className="text-[12px] text-[#737380]">
+                  {annoShapes.length} annotation{annoShapes.length !== 1 ? "s" : ""}
+                </span>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setAnnotateOpen(false)}
+                    className="h-8 text-[12px] border-white/8 text-[#737380] hover:text-white hover:border-white/12 bg-transparent font-medium"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleAnnoDownload}
+                    className="h-8 text-[12px] bg-white text-[#0a0a0f] hover:bg-white/90 font-medium gap-1.5"
+                  >
+                    <Download className="w-3 h-3" />
+                    Download Annotated
+                  </Button>
                 </div>
               </div>
             </motion.div>
