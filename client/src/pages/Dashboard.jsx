@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -115,7 +115,9 @@ function Dashboard() {
   const [editThumb, setEditThumb] = useState(null);
   const [activityOpen, setActivityOpen] = useState(false);
   const [activities, setActivities] = useState([]);
+  const [searchFocused, setSearchFocused] = useState(false);
   const searchRef = useRef(null);
+  const searchDropdownRef = useRef(null);
 
   const toggleCompare = (id) => {
     setCompareIds((prev) =>
@@ -319,6 +321,20 @@ function Dashboard() {
       page: 1,
     });
   };
+
+  const searchSuggestions = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return [];
+    const titleMatches = thumbnails
+      .filter((t) => t.title.toLowerCase().includes(q))
+      .slice(0, 4)
+      .map((t) => ({ type: "thumbnail", id: t._id, label: t.title, imageUrl: t.imageUrl }));
+    const tagMatches = allTags
+      .filter((tag) => tag.toLowerCase().includes(q) && !activeTags.includes(tag))
+      .slice(0, 3)
+      .map((tag) => ({ type: "tag", id: tag, label: tag }));
+    return [...titleMatches, ...tagMatches];
+  }, [search, thumbnails, allTags, activeTags]);
 
   const filtered = thumbnails
     .filter((t) => {
@@ -795,16 +811,67 @@ function Dashboard() {
             transition={stagger(2)}
             className="mb-6 flex items-center gap-3"
           >
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#4a4a54]" />
+            <div className="relative flex-1" ref={searchDropdownRef}>
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#4a4a54] pointer-events-none z-10" />
               <input
                 ref={searchRef}
                 type="text"
                 value={search}
                 onChange={(e) => setParams({ q: e.target.value, page: 1 })}
+                onFocus={() => setSearchFocused(true)}
+                onBlur={() => setTimeout(() => setSearchFocused(false), 150)}
                 placeholder="Search by title or tag..."
                 className="w-full h-9 pl-9 pr-3 rounded-lg border border-white/8 bg-white/3 text-[14px] text-white placeholder:text-[#4a4a54] outline-none focus:border-white/16 transition-colors"
               />
+              {searchFocused && searchSuggestions.length > 0 && (
+                <div className="absolute top-full left-0 right-0 mt-1.5 rounded-xl border border-white/8 bg-[#111118] shadow-2xl overflow-hidden z-50">
+                  {searchSuggestions.map((s, i) => (
+                    <button
+                      key={`${s.type}-${s.id}`}
+                      onClick={() => {
+                        if (s.type === "thumbnail") {
+                          navigate(`/thumbnail/${s.id}`);
+                        } else {
+                          toggleTag(s.label);
+                          setParams({ q: "", page: 1 });
+                        }
+                        setSearchFocused(false);
+                      }}
+                      className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-white/4 transition-colors"
+                    >
+                      {s.type === "thumbnail" ? (
+                        <>
+                          <div className="w-10 h-6 rounded bg-[#1a1a24] overflow-hidden shrink-0">
+                            <img
+                              src={`http://localhost:5000${s.imageUrl}`}
+                              alt=""
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                          <span className="text-[13px] text-white truncate flex-1">
+                            {s.label}
+                          </span>
+                          <span className="text-[10px] text-[#4a4a54] shrink-0">
+                            Thumbnail
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <div className="w-10 h-6 rounded bg-white/4 flex items-center justify-center shrink-0">
+                            <Tag className="w-3 h-3 text-[#737380]" />
+                          </div>
+                          <span className="text-[13px] text-[#737380] truncate flex-1">
+                            {s.label}
+                          </span>
+                          <span className="text-[10px] text-[#4a4a54] shrink-0">
+                            Tag
+                          </span>
+                        </>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             <button
               onClick={() => setParams({ starred: !showStarred ? "1" : null, page: 1 })}
