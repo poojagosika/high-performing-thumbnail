@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Link, useSearchParams, useNavigate } from "react-router";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
   BarChart3,
@@ -12,8 +12,15 @@ import {
   Trophy,
   Columns2,
   Layers,
+  Save,
+  History,
+  Trash2,
+  StickyNote,
+  X,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import DashboardNav from "../components/DashboardNav";
+import { useToast } from "../context/ToastContext";
 import api from "../lib/api";
 
 const stagger = (i) => ({ duration: 0.4, delay: i * 0.06, ease: "easeOut" });
@@ -108,11 +115,17 @@ function AnalysisRow({ label, Icon, valueA, valueB }) {
 function Compare() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const toast = useToast();
   const [thumbA, setThumbA] = useState(null);
   const [thumbB, setThumbB] = useState(null);
   const [loading, setLoading] = useState(true);
   const [compareMode, setCompareMode] = useState("side");
   const [sliderPos, setSliderPos] = useState(50);
+  const [comparisonNotes, setComparisonNotes] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [history, setHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const sliderContainerRef = useRef(null);
   const draggingRef = useRef(false);
 
@@ -161,6 +174,61 @@ function Compare() {
       .catch(() => navigate("/dashboard"))
       .finally(() => setLoading(false));
   }, [idA, idB, navigate]);
+
+  const handleSaveComparison = async () => {
+    setSaving(true);
+    try {
+      await api("/comparisons", {
+        method: "POST",
+        body: {
+          thumbnailA: idA,
+          thumbnailB: idB,
+          winner: winner || null,
+          notes: comparisonNotes,
+        },
+      });
+      toast.success("Comparison saved");
+    } catch {
+      toast.error("Failed to save comparison");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const loadHistory = async () => {
+    setHistoryOpen(true);
+    setHistoryLoading(true);
+    try {
+      const data = await api("/comparisons");
+      setHistory(data);
+    } catch {
+      toast.error("Failed to load history");
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  const deleteComparison = async (compId) => {
+    try {
+      await api(`/comparisons/${compId}`, { method: "DELETE" });
+      setHistory((prev) => prev.filter((c) => c._id !== compId));
+      toast.success("Comparison removed");
+    } catch {
+      toast.error("Failed to delete");
+    }
+  };
+
+  const relativeTime = (date) => {
+    const diff = Date.now() - new Date(date).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return "just now";
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    const days = Math.floor(hrs / 24);
+    if (days < 7) return `${days}d ago`;
+    return new Date(date).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  };
 
   if (loading) {
     return (
@@ -545,7 +613,204 @@ function Compare() {
             )}
           </motion.div>
         )}
+
+        {/* Notes & Save */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={stagger(6)}
+          className="mt-6 rounded-xl border border-white/6 bg-[#111118] p-5"
+        >
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="flex items-center gap-1.5 text-[13px] text-[#737380] font-medium">
+              <StickyNote className="w-3.5 h-3.5" />
+              Comparison Notes
+            </h3>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                onClick={loadHistory}
+                className="h-8 text-[12px] border-white/8 text-[#737380] hover:text-white hover:border-white/12 bg-transparent font-medium gap-1.5"
+              >
+                <History className="w-3.5 h-3.5" />
+                History
+              </Button>
+              <Button
+                onClick={handleSaveComparison}
+                disabled={saving}
+                className="h-8 text-[12px] bg-white text-[#0a0a0f] hover:bg-white/90 font-medium gap-1.5"
+              >
+                <Save className="w-3.5 h-3.5" />
+                {saving ? "Saving..." : "Save Comparison"}
+              </Button>
+            </div>
+          </div>
+          <textarea
+            value={comparisonNotes}
+            onChange={(e) => setComparisonNotes(e.target.value)}
+            placeholder="Add notes about this comparison..."
+            rows={2}
+            className="w-full bg-white/3 border border-white/8 rounded-lg px-3 py-2 text-[13px] text-white placeholder:text-[#4a4a54] outline-none focus:border-white/16 transition-colors resize-none"
+          />
+        </motion.div>
       </main>
+
+      {/* History panel */}
+      <AnimatePresence>
+        {historyOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+              onClick={() => setHistoryOpen(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 10 }}
+              transition={{ duration: 0.2 }}
+              className="relative w-full max-w-2xl max-h-[80vh] rounded-xl border border-white/6 bg-[#111118] shadow-2xl flex flex-col"
+            >
+              <div className="flex items-center justify-between p-5 pb-0">
+                <h2 className="font-heading text-[15px] font-semibold text-white flex items-center gap-2">
+                  <History className="w-4 h-4 text-[#737380]" />
+                  Comparison History
+                </h2>
+                <button
+                  onClick={() => setHistoryOpen(false)}
+                  className="text-[#4a4a54] hover:text-white transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="p-5 overflow-y-auto flex-1">
+                {historyLoading ? (
+                  <div className="space-y-3">
+                    {[0, 1, 2].map((i) => (
+                      <div key={i} className="rounded-lg border border-white/6 bg-white/2 p-4">
+                        <div className="flex gap-3">
+                          <div className="w-16 h-10 rounded bg-white/4 animate-pulse" />
+                          <div className="w-16 h-10 rounded bg-white/4 animate-pulse" />
+                          <div className="flex-1 space-y-2">
+                            <div className="h-3 w-32 rounded bg-white/4 animate-pulse" />
+                            <div className="h-3 w-20 rounded bg-white/4 animate-pulse" />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : history.length === 0 ? (
+                  <div className="text-center py-10">
+                    <History className="w-8 h-8 text-[#4a4a54] mx-auto mb-3" />
+                    <p className="text-[13px] text-[#737380]">No saved comparisons yet</p>
+                    <p className="text-[12px] text-[#4a4a54] mt-1">
+                      Save a comparison to see it here
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {history.map((comp) => (
+                      <div
+                        key={comp._id}
+                        className="rounded-lg border border-white/6 bg-white/2 hover:bg-white/3 transition-colors p-3"
+                      >
+                        <div className="flex items-center gap-3">
+                          {/* Thumbnail previews */}
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {comp.thumbnailA ? (
+                              <div className={`w-14 h-9 rounded overflow-hidden border ${comp.winner === "A" ? "border-emerald-500/40" : "border-white/6"}`}>
+                                <img
+                                  src={`http://localhost:5000${comp.thumbnailA.imageUrl}`}
+                                  alt={comp.thumbnailA.title}
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                            ) : (
+                              <div className="w-14 h-9 rounded bg-white/4 flex items-center justify-center text-[9px] text-[#4a4a54]">
+                                Deleted
+                              </div>
+                            )}
+                            <span className="text-[10px] text-[#4a4a54] font-medium">vs</span>
+                            {comp.thumbnailB ? (
+                              <div className={`w-14 h-9 rounded overflow-hidden border ${comp.winner === "B" ? "border-emerald-500/40" : "border-white/6"}`}>
+                                <img
+                                  src={`http://localhost:5000${comp.thumbnailB.imageUrl}`}
+                                  alt={comp.thumbnailB.title}
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                            ) : (
+                              <div className="w-14 h-9 rounded bg-white/4 flex items-center justify-center text-[9px] text-[#4a4a54]">
+                                Deleted
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Info */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[12px] text-white truncate">
+                                {comp.thumbnailA?.title || "Deleted"}
+                              </span>
+                              <span className="text-[10px] text-[#4a4a54]">vs</span>
+                              <span className="text-[12px] text-white truncate">
+                                {comp.thumbnailB?.title || "Deleted"}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              {comp.winner && comp.winner !== "tie" && (
+                                <span className="flex items-center gap-1 text-[10px] text-emerald-400">
+                                  <Trophy className="w-2.5 h-2.5" />
+                                  {comp.winner === "A" ? comp.thumbnailA?.title : comp.thumbnailB?.title}
+                                </span>
+                              )}
+                              {comp.winner === "tie" && (
+                                <span className="text-[10px] text-[#737380]">Tie</span>
+                              )}
+                              <span className="text-[10px] text-[#4a4a54]">
+                                {relativeTime(comp.createdAt)}
+                              </span>
+                            </div>
+                            {comp.notes && (
+                              <p className="text-[11px] text-[#737380] mt-1 line-clamp-1">
+                                {comp.notes}
+                              </p>
+                            )}
+                          </div>
+
+                          {/* Actions */}
+                          <div className="flex items-center gap-1 shrink-0">
+                            {comp.thumbnailA && comp.thumbnailB && (
+                              <button
+                                onClick={() => {
+                                  navigate(`/compare?a=${comp.thumbnailA._id}&b=${comp.thumbnailB._id}`);
+                                  setHistoryOpen(false);
+                                }}
+                                className="h-7 px-2.5 rounded-lg border border-white/8 text-[11px] text-[#737380] hover:text-white hover:border-white/12 transition-colors"
+                              >
+                                View
+                              </button>
+                            )}
+                            <button
+                              onClick={() => deleteComparison(comp._id)}
+                              className="h-7 w-7 rounded-lg border border-white/8 flex items-center justify-center text-[#4a4a54] hover:text-red-400 hover:border-red-500/20 transition-colors"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

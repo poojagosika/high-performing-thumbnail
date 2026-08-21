@@ -30,6 +30,7 @@ app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 app.use("/api/auth", require("./routes/auth"));
 app.use("/api/thumbnails", require("./routes/thumbnails"));
 app.use("/api/activities", require("./routes/activities"));
+app.use("/api/comparisons", require("./routes/comparisons"));
 
 // Health check route
 app.get("/api/health", (req, res) => {
