@@ -1053,7 +1053,8 @@ function Dashboard() {
             className="rounded-xl border border-white/6 bg-[#111118] overflow-hidden"
           >
             {/* Table header */}
-            <div className="grid grid-cols-[44px_1fr_80px_1fr_100px_40px] items-center gap-3 px-4 py-2.5 border-b border-white/6 text-[11px] text-[#4a4a54] uppercase tracking-wider font-medium">
+            <div className={`grid ${canDrag ? "grid-cols-[20px_44px_1fr_80px_1fr_100px_40px]" : "grid-cols-[44px_1fr_80px_1fr_100px_40px]"} items-center gap-3 px-4 py-2.5 border-b border-white/6 text-[11px] text-[#4a4a54] uppercase tracking-wider font-medium`}>
+              {canDrag && <span />}
               <span />
               <span>Title</span>
               <span>Score</span>
@@ -1067,12 +1068,33 @@ function Dashboard() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={stagger(i + 2)}
-                className={`group grid grid-cols-[44px_1fr_80px_1fr_100px_40px] items-center gap-3 px-4 py-2 border-b border-white/4 last:border-b-0 hover:bg-white/2 transition-colors ${
+                draggable={canDrag}
+                onDragStart={() => setDragId(thumb._id)}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  if (canDrag) setDragOverId(thumb._id);
+                }}
+                onDragLeave={() => setDragOverId(null)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  handleDrop(thumb._id);
+                }}
+                onDragEnd={() => {
+                  setDragId(null);
+                  setDragOverId(null);
+                }}
+                className={`group grid ${canDrag ? "grid-cols-[20px_44px_1fr_80px_1fr_100px_40px]" : "grid-cols-[44px_1fr_80px_1fr_100px_40px]"} items-center gap-3 px-4 py-2 border-b border-white/4 last:border-b-0 hover:bg-white/2 transition-all ${
+                  dragOverId === thumb._id && dragId !== thumb._id
+                    ? "bg-white/4 border-white/12"
+                    : dragId === thumb._id
+                      ? "opacity-50"
+                      : ""
+                } ${
                   (compareMode && compareIds.includes(thumb._id)) ||
                   (selectMode && selectedIds.includes(thumb._id))
                     ? "bg-white/3"
                     : ""
-                }`}
+                } ${canDrag ? "cursor-grab active:cursor-grabbing" : ""}`}
                 onClick={
                   compareMode
                     ? () => toggleCompare(thumb._id)
@@ -1081,6 +1103,12 @@ function Dashboard() {
                       : undefined
                 }
               >
+                {/* Drag handle */}
+                {canDrag && (
+                  <div className="text-[#4a4a54] group-hover:text-[#737380] transition-colors">
+                    <GripVertical className="w-3.5 h-3.5" />
+                  </div>
+                )}
                 {/* Thumbnail */}
                 <div className="relative w-11 h-7 rounded overflow-hidden bg-[#1a1a24] shrink-0">
                   {compareMode || selectMode ? (
