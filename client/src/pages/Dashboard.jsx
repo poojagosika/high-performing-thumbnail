@@ -38,6 +38,7 @@ import { useToast } from "../context/ToastContext";
 import DashboardNav from "../components/DashboardNav";
 import UploadModal from "../components/UploadModal";
 import ScoreChart from "../components/ScoreChart";
+import AnalyticsChart from "../components/AnalyticsChart";
 import ShortcutsModal from "../components/ShortcutsModal";
 import EditModal from "../components/EditModal";
 import api from "../lib/api";
@@ -602,6 +603,7 @@ function Dashboard() {
         )}
 
         {!loading && <ScoreChart thumbnails={thumbnails} />}
+        {!loading && <AnalyticsChart thumbnails={thumbnails} />}
 
         <motion.div
           initial={{ opacity: 0, y: 10 }}
