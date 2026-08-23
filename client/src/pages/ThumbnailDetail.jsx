@@ -66,6 +66,11 @@ function ThumbnailDetail() {
   const [thumb, setThumb] = useState(null);
   const [loading, setLoading] = useState(true);
   const [zoomed, setZoomed] = useState(false);
+  const [zoomLevel, setZoomLevel] = useState(1);
+  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
+  const panDragging = useRef(false);
+  const panStart = useRef({ x: 0, y: 0 });
+  const panOffsetStart = useRef({ x: 0, y: 0 });
   const [editingTags, setEditingTags] = useState(false);
   const [tagInput, setTagInput] = useState("");
   const [editingTitle, setEditingTitle] = useState(false);
@@ -630,7 +635,11 @@ function ThumbnailDetail() {
           break;
         case "Escape":
           if (shortcutsOpen) setShortcutsOpen(false);
-          else if (zoomed) setZoomed(false);
+          else if (zoomed) {
+            setZoomed(false);
+            setZoomLevel(1);
+            setPanOffset({ x: 0, y: 0 });
+          }
           break;
         case "z":
           setZoomed((v) => !v);
@@ -1415,7 +1424,7 @@ function ThumbnailDetail() {
         )}
       </main>
 
-      {/* Zoom overlay */}
+      {/* Zoom overlay with pan */}
       <AnimatePresence>
         {zoomed && (
           <motion.div
@@ -1423,18 +1432,98 @@ function ThumbnailDetail() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm cursor-zoom-out p-6"
-            onClick={() => setZoomed(false)}
+            className="fixed inset-0 z-50 bg-black/95 backdrop-blur-sm select-none"
+            onWheel={(e) => {
+              e.preventDefault();
+              setZoomLevel((z) => Math.max(0.5, Math.min(5, z + (e.deltaY > 0 ? -0.25 : 0.25))));
+            }}
+            onMouseDown={(e) => {
+              if (e.target.closest("[data-zoom-controls]")) return;
+              if (zoomLevel > 1) {
+                panDragging.current = true;
+                panStart.current = { x: e.clientX, y: e.clientY };
+                panOffsetStart.current = { ...panOffset };
+              }
+            }}
+            onMouseMove={(e) => {
+              if (!panDragging.current) return;
+              setPanOffset({
+                x: panOffsetStart.current.x + (e.clientX - panStart.current.x),
+                y: panOffsetStart.current.y + (e.clientY - panStart.current.y),
+              });
+            }}
+            onMouseUp={() => { panDragging.current = false; }}
+            onMouseLeave={() => { panDragging.current = false; }}
+            style={{ cursor: zoomLevel > 1 ? (panDragging.current ? "grabbing" : "grab") : "zoom-out" }}
+            onClick={(e) => {
+              if (e.target.closest("[data-zoom-controls]")) return;
+              if (zoomLevel <= 1 && !panDragging.current) {
+                setZoomed(false);
+                setZoomLevel(1);
+                setPanOffset({ x: 0, y: 0 });
+              }
+            }}
           >
-            <motion.img
-              initial={{ scale: 0.9 }}
-              animate={{ scale: 1 }}
-              exit={{ scale: 0.9 }}
-              transition={{ duration: 0.2 }}
-              src={`http://localhost:5000${thumb.imageUrl}`}
-              alt={thumb.title}
-              className="max-w-full max-h-full object-contain rounded-lg"
-            />
+            <div className="w-full h-full flex items-center justify-center overflow-hidden">
+              <motion.img
+                initial={{ scale: 0.9 }}
+                animate={{ scale: 1 }}
+                exit={{ scale: 0.9 }}
+                transition={{ duration: 0.2 }}
+                src={`http://localhost:5000${thumb.imageUrl}`}
+                alt={thumb.title}
+                className="max-w-full max-h-full object-contain rounded-lg"
+                draggable={false}
+                style={{
+                  transform: `scale(${zoomLevel}) translate(${panOffset.x / zoomLevel}px, ${panOffset.y / zoomLevel}px)`,
+                  transition: panDragging.current ? "none" : "transform 0.15s ease-out",
+                }}
+              />
+            </div>
+
+            {/* Zoom controls */}
+            <div
+              data-zoom-controls
+              className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-1 rounded-xl border border-white/10 bg-[#111118]/90 backdrop-blur-md px-2 py-1.5"
+            >
+              <button
+                onClick={() => setZoomLevel((z) => Math.max(0.5, z - 0.25))}
+                className="w-7 h-7 rounded-lg flex items-center justify-center text-[#737380] hover:text-white hover:bg-white/8 transition-colors text-[16px] font-medium"
+              >
+                −
+              </button>
+              <button
+                onClick={() => {
+                  setZoomLevel(1);
+                  setPanOffset({ x: 0, y: 0 });
+                }}
+                className="px-2 h-7 rounded-lg flex items-center justify-center text-[12px] text-[#737380] hover:text-white hover:bg-white/8 transition-colors font-medium min-w-[48px]"
+              >
+                {Math.round(zoomLevel * 100)}%
+              </button>
+              <button
+                onClick={() => setZoomLevel((z) => Math.min(5, z + 0.25))}
+                className="w-7 h-7 rounded-lg flex items-center justify-center text-[#737380] hover:text-white hover:bg-white/8 transition-colors text-[16px] font-medium"
+              >
+                +
+              </button>
+              <div className="w-px h-4 bg-white/8 mx-1" />
+              <button
+                onClick={() => {
+                  setZoomed(false);
+                  setZoomLevel(1);
+                  setPanOffset({ x: 0, y: 0 });
+                }}
+                className="w-7 h-7 rounded-lg flex items-center justify-center text-[#737380] hover:text-white hover:bg-white/8 transition-colors"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            {/* Zoom hint */}
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 text-[11px] text-[#4a4a54]">
+              Scroll to zoom · Drag to pan · Click to close
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
