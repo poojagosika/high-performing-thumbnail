@@ -17,6 +17,7 @@ const {
   toggleStar,
   reorder,
   duplicateThumbnail,
+  analyzeThumbnail,
 } = require("../controllers/thumbnailController");
 
 const router = express.Router();
@@ -36,6 +37,7 @@ router.get("/:id", getThumbnail);
 router.post("/:id/duplicate", duplicateThumbnail);
 router.post("/:id/reupload", upload.single("image"), reuploadVersion);
 router.post("/:id/track", trackEvent);
+router.post("/:id/analyze", analyzeThumbnail);
 router.patch("/:id/share", toggleShare);
 router.patch("/:id/star", toggleStar);
 router.patch("/:id", updateThumbnail);

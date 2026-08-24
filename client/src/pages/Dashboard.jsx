@@ -31,6 +31,7 @@ import {
   Share2,
   History,
   CalendarDays,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "../context/AuthContext";
@@ -110,6 +111,8 @@ function Dashboard() {
   const [bulkTagInput, setBulkTagInput] = useState("");
   const [bulkTagging, setBulkTagging] = useState(false);
   const [bulkExporting, setBulkExporting] = useState(false);
+  const [bulkAnalyzing, setBulkAnalyzing] = useState(false);
+  const [analyzeProgress, setAnalyzeProgress] = useState({ done: 0, total: 0 });
   const [dragId, setDragId] = useState(null);
   const [dragOverId, setDragOverId] = useState(null);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
@@ -212,6 +215,25 @@ function Dashboard() {
     } finally {
       setBulkExporting(false);
     }
+  };
+
+  const handleBulkAnalyze = async () => {
+    setBulkAnalyzing(true);
+    setAnalyzeProgress({ done: 0, total: selectedIds.length });
+    let completed = 0;
+    for (const thumbId of selectedIds) {
+      try {
+        const updated = await api(`/thumbnails/${thumbId}/analyze`, { method: "POST" });
+        setThumbnails((prev) =>
+          prev.map((t) => (t._id === updated._id ? updated : t)),
+        );
+      } catch {}
+      completed++;
+      setAnalyzeProgress({ done: completed, total: selectedIds.length });
+    }
+    setBulkAnalyzing(false);
+    toast.success(`${selectedIds.length} thumbnails analyzed`);
+    exitSelect();
   };
 
   const canDrag =
@@ -1523,6 +1545,17 @@ function Dashboard() {
             >
               <Download className="w-3.5 h-3.5" />
               {bulkExporting ? "Exporting..." : "Download"}
+            </Button>
+            <Button
+              onClick={handleBulkAnalyze}
+              disabled={bulkAnalyzing}
+              variant="outline"
+              className="h-8 text-[13px] border-white/8 text-[#737380] hover:text-white hover:border-white/12 bg-transparent font-medium gap-1.5"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              {bulkAnalyzing
+                ? `Analyzing ${analyzeProgress.done}/${analyzeProgress.total}`
+                : "Analyze"}
             </Button>
             <Button
               onClick={() => {

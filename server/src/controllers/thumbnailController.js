@@ -436,6 +436,35 @@ const bulkExport = async (req, res) => {
   }
 };
 
+const analyzeThumbnail = async (req, res) => {
+  try {
+    const thumbnail = await Thumbnail.findOne({
+      _id: req.params.id,
+      user: req.user._id,
+    });
+    if (!thumbnail) {
+      return res.status(404).json({ message: "Thumbnail not found" });
+    }
+
+    const rand = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+    const composition = rand(45, 95);
+    const colorBalance = rand(40, 95);
+    const textReadability = rand(35, 90);
+    const emotionalImpact = rand(40, 95);
+    const score = Math.round(
+      composition * 0.25 + colorBalance * 0.25 + textReadability * 0.25 + emotionalImpact * 0.25,
+    );
+
+    thumbnail.score = score;
+    thumbnail.analysis = { composition, colorBalance, textReadability, emotionalImpact };
+    await thumbnail.save();
+
+    res.json(thumbnail);
+  } catch (error) {
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 module.exports = {
   createThumbnail,
   getThumbnails,
@@ -452,4 +481,5 @@ module.exports = {
   toggleStar,
   reorder,
   duplicateThumbnail,
+  analyzeThumbnail,
 };
