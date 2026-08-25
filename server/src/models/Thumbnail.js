@@ -69,6 +69,13 @@ const thumbnailSchema = new mongoose.Schema(
       sparse: true,
       default: null,
     },
+    suggestions: [
+      {
+        category: { type: String, required: true },
+        tip: { type: String, required: true },
+        priority: { type: String, enum: ["high", "medium", "low"], default: "medium" },
+      },
+    ],
     order: {
       type: Number,
       default: 0,

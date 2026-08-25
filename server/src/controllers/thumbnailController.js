@@ -455,8 +455,39 @@ const analyzeThumbnail = async (req, res) => {
       composition * 0.25 + colorBalance * 0.25 + textReadability * 0.25 + emotionalImpact * 0.25,
     );
 
+    const suggestions = [];
+    if (composition < 60) {
+      suggestions.push({ category: "Composition", tip: "Try the rule of thirds — position key elements along grid intersections for a more balanced layout", priority: "high" });
+    } else if (composition < 80) {
+      suggestions.push({ category: "Composition", tip: "Consider adding a clear focal point to draw the viewer's eye immediately", priority: "medium" });
+    } else {
+      suggestions.push({ category: "Composition", tip: "Strong composition — the visual hierarchy guides the eye naturally", priority: "low" });
+    }
+    if (colorBalance < 60) {
+      suggestions.push({ category: "Color", tip: "Use higher contrast between text and background — aim for at least 4.5:1 contrast ratio", priority: "high" });
+    } else if (colorBalance < 80) {
+      suggestions.push({ category: "Color", tip: "Try limiting your palette to 2-3 dominant colors for a cleaner look", priority: "medium" });
+    } else {
+      suggestions.push({ category: "Color", tip: "Great color harmony — the palette creates visual cohesion", priority: "low" });
+    }
+    if (textReadability < 60) {
+      suggestions.push({ category: "Text", tip: "Increase font size or add a drop shadow/outline — text should be readable at small sizes", priority: "high" });
+    } else if (textReadability < 80) {
+      suggestions.push({ category: "Text", tip: "Keep text concise — 3-5 words max for thumbnail titles to improve scannability", priority: "medium" });
+    } else {
+      suggestions.push({ category: "Text", tip: "Text is clear and legible — good sizing and contrast choices", priority: "low" });
+    }
+    if (emotionalImpact < 60) {
+      suggestions.push({ category: "Emotion", tip: "Add a human face or expressive element — faces with emotions boost click-through rates significantly", priority: "high" });
+    } else if (emotionalImpact < 80) {
+      suggestions.push({ category: "Emotion", tip: "Amplify the emotional hook — try bolder expressions or more dramatic visuals", priority: "medium" });
+    } else {
+      suggestions.push({ category: "Emotion", tip: "High emotional resonance — the visual creates strong curiosity and engagement", priority: "low" });
+    }
+
     thumbnail.score = score;
     thumbnail.analysis = { composition, colorBalance, textReadability, emotionalImpact };
+    thumbnail.suggestions = suggestions;
     await thumbnail.save();
 
     res.json(thumbnail);

@@ -28,6 +28,7 @@ import {
   Link2,
   Unlink,
   Crop,
+  Sparkles,
   PenTool,
   Circle,
   Square,
@@ -83,6 +84,7 @@ function ThumbnailDetail() {
   const [comparingVersion, setComparingVersion] = useState(null);
   const [reuploading, setReuploading] = useState(false);
   const [palette, setPalette] = useState([]);
+  const [analyzing, setAnalyzing] = useState(false);
   const [cropOpen, setCropOpen] = useState(false);
   const [cropArea, setCropArea] = useState({ x: 0, y: 0, w: 100, h: 100 });
   const [cropPreset, setCropPreset] = useState(null);
@@ -604,6 +606,19 @@ function ThumbnailDetail() {
 
   const annoColors = ["#ef4444", "#f59e0b", "#22c55e", "#3b82f6", "#a855f7", "#ffffff"];
 
+  const handleAnalyze = async () => {
+    setAnalyzing(true);
+    try {
+      const updated = await api(`/thumbnails/${id}/analyze`, { method: "POST" });
+      setThumb(updated);
+      toast.success("Analysis complete");
+    } catch {
+      toast.error("Failed to analyze thumbnail");
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
   const handleTrackClick = async () => {
     try {
       const updated = await api(`/thumbnails/${id}/track`, {
@@ -1107,6 +1122,74 @@ function ThumbnailDetail() {
                 </div>
               </div>
             )}
+
+            {/* AI Suggestions */}
+            <div className="rounded-xl border border-white/6 bg-[#111118] p-5">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="flex items-center gap-1.5 text-[13px] text-[#737380] font-medium">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  AI Suggestions
+                </h3>
+                <button
+                  onClick={handleAnalyze}
+                  disabled={analyzing}
+                  className={`flex items-center gap-1.5 text-[11px] border rounded-lg px-2.5 py-1 transition-colors ${
+                    analyzing
+                      ? "border-white/6 text-[#4a4a54] pointer-events-none"
+                      : "border-white/8 text-[#737380] hover:text-white hover:border-white/12"
+                  }`}
+                >
+                  <Sparkles className="w-3 h-3" />
+                  {analyzing ? "Analyzing..." : thumb.suggestions?.length > 0 ? "Re-analyze" : "Analyze"}
+                </button>
+              </div>
+              {thumb.suggestions?.length > 0 ? (
+                <div className="space-y-2.5">
+                  {thumb.suggestions.map((s, i) => {
+                    const priorityColor =
+                      s.priority === "high"
+                        ? "border-red-500/20 bg-red-500/5"
+                        : s.priority === "medium"
+                          ? "border-amber-500/20 bg-amber-500/5"
+                          : "border-emerald-500/20 bg-emerald-500/5";
+                    const dotColor =
+                      s.priority === "high"
+                        ? "bg-red-400"
+                        : s.priority === "medium"
+                          ? "bg-amber-400"
+                          : "bg-emerald-400";
+                    return (
+                      <div
+                        key={i}
+                        className={`rounded-lg border p-3 ${priorityColor}`}
+                      >
+                        <div className="flex items-center gap-2 mb-1">
+                          <div className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />
+                          <span className="text-[11px] text-[#737380] font-medium uppercase tracking-wider">
+                            {s.category}
+                          </span>
+                          <span className={`text-[10px] ml-auto ${
+                            s.priority === "high" ? "text-red-400" : s.priority === "medium" ? "text-amber-400" : "text-emerald-400"
+                          }`}>
+                            {s.priority}
+                          </span>
+                        </div>
+                        <p className="text-[12px] text-[#737380] leading-relaxed">
+                          {s.tip}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-4">
+                  <Sparkles className="w-6 h-6 text-[#4a4a54] mx-auto mb-2" />
+                  <p className="text-[12px] text-[#4a4a54]">
+                    Run analysis to get improvement suggestions
+                  </p>
+                </div>
+              )}
+            </div>
 
             {/* A/B Test Tracking */}
             <div className="rounded-xl border border-white/6 bg-[#111118] p-5">
