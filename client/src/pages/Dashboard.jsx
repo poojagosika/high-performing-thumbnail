@@ -32,6 +32,7 @@ import {
   History,
   CalendarDays,
   Sparkles,
+  FileImage,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "../context/AuthContext";
@@ -234,6 +235,182 @@ function Dashboard() {
     setBulkAnalyzing(false);
     toast.success(`${selectedIds.length} thumbnails analyzed`);
     exitSelect();
+  };
+
+  const handleExportReport = () => {
+    const canvas = document.createElement("canvas");
+    const w = 1200;
+    const h = 630;
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+
+    // Background
+    ctx.fillStyle = "#0a0a0f";
+    ctx.fillRect(0, 0, w, h);
+
+    // Border
+    ctx.strokeStyle = "rgba(255,255,255,0.06)";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(1, 1, w - 2, h - 2);
+
+    // Title
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 28px Inter, sans-serif";
+    ctx.fillText("ThumbCraft Analytics Report", 48, 60);
+
+    // Date
+    ctx.fillStyle = "#737380";
+    ctx.font = "14px Inter, sans-serif";
+    ctx.fillText(new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }), 48, 88);
+
+    // Separator
+    ctx.fillStyle = "rgba(255,255,255,0.06)";
+    ctx.fillRect(48, 108, w - 96, 1);
+
+    // Stats
+    const scored = thumbnails.filter((t) => t.score > 0);
+    const avgScore = scored.length > 0 ? Math.round(scored.reduce((s, t) => s + t.score, 0) / scored.length) : null;
+    const bestThumb = scored.length > 0 ? scored.reduce((a, b) => (a.score > b.score ? a : b)) : null;
+    const starredCount = thumbnails.filter((t) => t.starred).length;
+    const allTags = [...new Set(thumbnails.flatMap((t) => t.tags || []))];
+    const topTags = (() => {
+      const counts = {};
+      thumbnails.forEach((t) => (t.tags || []).forEach((tag) => { counts[tag] = (counts[tag] || 0) + 1; }));
+      return Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    })();
+
+    const statCards = [
+      { label: "Total Thumbnails", value: String(thumbnails.length) },
+      { label: "Average Score", value: avgScore != null ? `${avgScore}/100` : "—" },
+      { label: "Best Score", value: bestThumb ? `${bestThumb.score}/100` : "—", sub: bestThumb?.title },
+      { label: "Starred", value: String(starredCount) },
+    ];
+
+    const cardW = (w - 96 - 36) / 4;
+    statCards.forEach((stat, i) => {
+      const x = 48 + i * (cardW + 12);
+      const y = 130;
+      // Card bg
+      ctx.fillStyle = "#111118";
+      ctx.beginPath();
+      ctx.roundRect(x, y, cardW, 90, 8);
+      ctx.fill();
+      ctx.strokeStyle = "rgba(255,255,255,0.06)";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      // Label
+      ctx.fillStyle = "#737380";
+      ctx.font = "12px Inter, sans-serif";
+      ctx.fillText(stat.label, x + 16, y + 28);
+      // Value
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "bold 24px Inter, sans-serif";
+      ctx.fillText(stat.value, x + 16, y + 60);
+      // Sub
+      if (stat.sub) {
+        ctx.fillStyle = "#4a4a54";
+        ctx.font = "11px Inter, sans-serif";
+        const truncated = stat.sub.length > 20 ? stat.sub.slice(0, 20) + "..." : stat.sub;
+        ctx.fillText(truncated, x + 16, y + 78);
+      }
+    });
+
+    // Score distribution bar chart
+    const chartX = 48;
+    const chartY = 250;
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 16px Inter, sans-serif";
+    ctx.fillText("Score Distribution", chartX, chartY);
+
+    if (scored.length > 0) {
+      const buckets = [0, 0, 0, 0, 0];
+      scored.forEach((t) => {
+        if (t.score <= 20) buckets[0]++;
+        else if (t.score <= 40) buckets[1]++;
+        else if (t.score <= 60) buckets[2]++;
+        else if (t.score <= 80) buckets[3]++;
+        else buckets[4]++;
+      });
+      const maxBucket = Math.max(...buckets, 1);
+      const labels = ["0-20", "21-40", "41-60", "61-80", "81-100"];
+      const barW = 80;
+      const barMaxH = 120;
+      const barGap = 16;
+      const barStartX = chartX + 40;
+      const barBaseY = chartY + 160;
+
+      buckets.forEach((count, i) => {
+        const bx = barStartX + i * (barW + barGap);
+        const bh = (count / maxBucket) * barMaxH;
+        // Bar
+        ctx.fillStyle = "rgba(255,255,255,0.1)";
+        ctx.beginPath();
+        ctx.roundRect(bx, barBaseY - bh, barW, bh, [4, 4, 0, 0]);
+        ctx.fill();
+        // Count
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 14px Inter, sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText(String(count), bx + barW / 2, barBaseY - bh - 8);
+        // Label
+        ctx.fillStyle = "#4a4a54";
+        ctx.font = "11px Inter, sans-serif";
+        ctx.fillText(labels[i], bx + barW / 2, barBaseY + 16);
+        ctx.textAlign = "left";
+      });
+    }
+
+    // Top tags
+    const tagX = 580;
+    const tagY = 250;
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 16px Inter, sans-serif";
+    ctx.fillText("Top Tags", tagX, tagY);
+
+    if (topTags.length > 0) {
+      const tagMaxW = 500;
+      const tagMax = topTags[0][1];
+      topTags.forEach(([tag, count], i) => {
+        const ty = tagY + 30 + i * 36;
+        // Label
+        ctx.fillStyle = "#737380";
+        ctx.font = "13px Inter, sans-serif";
+        ctx.fillText(tag, tagX, ty + 14);
+        // Bar
+        const barX = tagX + 120;
+        const barW = (count / tagMax) * (tagMaxW - 160);
+        ctx.fillStyle = "rgba(255,255,255,0.08)";
+        ctx.beginPath();
+        ctx.roundRect(barX, ty, barW, 20, 4);
+        ctx.fill();
+        // Count
+        ctx.fillStyle = "#737380";
+        ctx.font = "bold 12px Inter, sans-serif";
+        ctx.fillText(String(count), barX + barW + 8, ty + 14);
+      });
+    } else {
+      ctx.fillStyle = "#4a4a54";
+      ctx.font = "12px Inter, sans-serif";
+      ctx.fillText("No tags yet", tagX, tagY + 40);
+    }
+
+    // Footer
+    ctx.fillStyle = "rgba(255,255,255,0.06)";
+    ctx.fillRect(48, h - 52, w - 96, 1);
+    ctx.fillStyle = "#4a4a54";
+    ctx.font = "11px Inter, sans-serif";
+    ctx.fillText(`Generated by ThumbCraft · ${allTags.length} unique tags · ${thumbnails.length} thumbnails`, 48, h - 24);
+
+    canvas.toBlob((blob) => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "thumbcraft-report.png";
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Report downloaded");
+    }, "image/png");
   };
 
   const canDrag =
@@ -621,6 +798,23 @@ function Dashboard() {
                 </>
               );
             })()}
+          </motion.div>
+        )}
+
+        {!loading && thumbnails.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={stagger(1)}
+            className="flex justify-end mb-4"
+          >
+            <button
+              onClick={handleExportReport}
+              className="flex items-center gap-1.5 text-[12px] text-[#737380] hover:text-white border border-white/8 hover:border-white/12 rounded-lg px-3 py-1.5 transition-colors"
+            >
+              <FileImage className="w-3.5 h-3.5" />
+              Export Report
+            </button>
           </motion.div>
         )}
 
