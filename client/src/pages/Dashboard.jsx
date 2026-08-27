@@ -128,7 +128,7 @@ function Dashboard() {
     setCompareIds((prev) =>
       prev.includes(id)
         ? prev.filter((x) => x !== id)
-        : prev.length < 2
+        : prev.length < 6
           ? [...prev, id]
           : prev,
     );
@@ -1005,7 +1005,7 @@ function Dashboard() {
             className="mb-4 rounded-lg border border-emerald-500/10 bg-emerald-500/5 px-4 py-2.5"
           >
             <p className="text-[13px] text-emerald-400">
-              Select 2 thumbnails to compare — {compareIds.length}/2 selected
+              Select thumbnails to compare (2-6) — {compareIds.length} selected
             </p>
           </motion.div>
         )}
@@ -1484,7 +1484,7 @@ function Dashboard() {
                   )}
                   {compareMode &&
                     !compareIds.includes(thumb._id) &&
-                    compareIds.length < 2 && (
+                    compareIds.length < 6 && (
                       <div className="absolute top-2 left-2 w-5 h-5 rounded-full border-2 border-white/30 bg-black/30" />
                     )}
                   {selectMode && selectedIds.includes(thumb._id) && (
@@ -1694,7 +1694,7 @@ function Dashboard() {
 
       {/* Compare bar */}
       <AnimatePresence>
-        {compareMode && compareIds.length === 2 && (
+        {compareMode && compareIds.length >= 2 && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -1703,16 +1703,17 @@ function Dashboard() {
             className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 bg-[#111118] border border-white/8 rounded-xl px-5 py-3 shadow-2xl"
           >
             <span className="text-[13px] text-[#737380]">
-              2 thumbnails selected
+              {compareIds.length} thumbnails selected
             </span>
             <Button
-              onClick={() =>
-                navigate(`/compare?a=${compareIds[0]}&b=${compareIds[1]}`)
-              }
+              onClick={() => {
+                const params = compareIds.map((id, i) => `ids=${id}`).join("&");
+                navigate(`/compare?${params}`);
+              }}
               className="h-8 text-[13px] bg-white text-[#0a0a0f] hover:bg-white/90 font-medium gap-1.5"
             >
               <GitCompareArrows className="w-3.5 h-3.5" />
-              Compare
+              Compare {compareIds.length}
             </Button>
           </motion.div>
         )}

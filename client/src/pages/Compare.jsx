@@ -116,6 +116,7 @@ function Compare() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const toast = useToast();
+  const [thumbs, setThumbs] = useState([]);
   const [thumbA, setThumbA] = useState(null);
   const [thumbB, setThumbB] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -159,20 +160,31 @@ function Compare() {
 
   const idA = searchParams.get("a");
   const idB = searchParams.get("b");
+  const multiIds = searchParams.getAll("ids");
+  const isMulti = multiIds.length > 2;
 
   useEffect(() => {
-    if (!idA || !idB) {
+    if (multiIds.length >= 2) {
+      Promise.all(multiIds.map((mid) => api(`/thumbnails/${mid}`)))
+        .then((results) => {
+          setThumbs(results);
+          setThumbA(results[0]);
+          setThumbB(results[1]);
+        })
+        .catch(() => navigate("/dashboard"))
+        .finally(() => setLoading(false));
+    } else if (idA && idB) {
+      Promise.all([api(`/thumbnails/${idA}`), api(`/thumbnails/${idB}`)])
+        .then(([a, b]) => {
+          setThumbA(a);
+          setThumbB(b);
+          setThumbs([a, b]);
+        })
+        .catch(() => navigate("/dashboard"))
+        .finally(() => setLoading(false));
+    } else {
       navigate("/dashboard");
-      return;
     }
-
-    Promise.all([api(`/thumbnails/${idA}`), api(`/thumbnails/${idB}`)])
-      .then(([a, b]) => {
-        setThumbA(a);
-        setThumbB(b);
-      })
-      .catch(() => navigate("/dashboard"))
-      .finally(() => setLoading(false));
   }, [idA, idB, navigate]);
 
   const handleSaveComparison = async () => {
@@ -328,13 +340,174 @@ function Compare() {
           className="mb-8"
         >
           <h1 className="font-heading text-2xl font-semibold text-white tracking-[-0.01em]">
-            A/B Compare
+            {isMulti ? "Multi Compare" : "A/B Compare"}
           </h1>
           <p className="text-[14px] text-[#737380] mt-1">
-            Side-by-side comparison of two thumbnails
+            {isMulti
+              ? `Comparing ${thumbs.length} thumbnails side by side`
+              : "Side-by-side comparison of two thumbnails"}
           </p>
         </motion.div>
 
+        {/* Multi-compare grid */}
+        {isMulti && (
+          <>
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={stagger(2)}
+              className={`grid gap-4 mb-6 ${thumbs.length <= 3 ? "grid-cols-3" : thumbs.length <= 4 ? "grid-cols-4" : "grid-cols-3"}`}
+            >
+              {thumbs.map((t, i) => {
+                const bestScore = Math.max(...thumbs.map((th) => th.score ?? -1));
+                const isBest = t.score != null && t.score === bestScore && thumbs.filter((th) => th.score === bestScore).length === 1;
+                return (
+                  <motion.div
+                    key={t._id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={stagger(i + 2)}
+                  >
+                    <div className={`rounded-xl border overflow-hidden ${isBest ? "border-emerald-500/30" : "border-white/6"}`}>
+                      <div className="relative">
+                        <img
+                          src={`http://localhost:5000${t.imageUrl}`}
+                          alt={t.title}
+                          className="w-full aspect-video object-cover"
+                        />
+                        {isBest && (
+                          <div className="absolute top-2 left-2 flex items-center gap-1 bg-emerald-500/90 text-white text-[11px] font-medium px-2 py-0.5 rounded-md">
+                            <Trophy className="w-3 h-3" />
+                            Best
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <h3 className="text-[14px] font-medium text-white mt-3 truncate">
+                      {t.title}
+                    </h3>
+                    {t.tags?.length > 0 && (
+                      <div className="flex gap-1 mt-1.5 flex-wrap">
+                        {t.tags.slice(0, 3).map((tag) => (
+                          <span key={tag} className="text-[10px] text-[#4a4a54] bg-white/4 rounded-full px-2 py-0.5">
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </motion.div>
+                );
+              })}
+            </motion.div>
+
+            {/* Multi stats table */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={stagger(3)}
+              className="rounded-xl border border-white/6 bg-[#111118] overflow-hidden mb-6"
+            >
+              <div className={`grid ${thumbs.length <= 3 ? "grid-cols-[120px_repeat(3,1fr)]" : thumbs.length <= 4 ? "grid-cols-[120px_repeat(4,1fr)]" : "grid-cols-[120px_repeat(5,1fr)]"} gap-px bg-white/4`}>
+                {/* Header */}
+                <div className="bg-[#111118] p-3 text-[11px] text-[#4a4a54] uppercase tracking-wider font-medium" />
+                {thumbs.map((t) => (
+                  <div key={t._id} className="bg-[#111118] p-3 text-[12px] text-white font-medium truncate">
+                    {t.title}
+                  </div>
+                ))}
+                {/* Score row */}
+                <div className="bg-[#111118] p-3 text-[12px] text-[#737380] flex items-center gap-1.5">
+                  <BarChart3 className="w-3 h-3" />
+                  Score
+                </div>
+                {thumbs.map((t) => {
+                  const best = Math.max(...thumbs.map((th) => th.score ?? -1));
+                  const isBest = t.score != null && t.score === best && thumbs.filter((th) => th.score === best).length === 1;
+                  return (
+                    <div key={t._id} className="bg-[#111118] p-3">
+                      <span className={`font-heading text-lg font-semibold ${isBest ? "text-emerald-400" : "text-white"}`}>
+                        {t.score != null ? t.score : "—"}
+                      </span>
+                    </div>
+                  );
+                })}
+                {/* CTR row */}
+                <div className="bg-[#111118] p-3 text-[12px] text-[#737380] flex items-center gap-1.5">
+                  <MousePointerClick className="w-3 h-3" />
+                  CTR
+                </div>
+                {thumbs.map((t) => (
+                  <div key={t._id} className="bg-[#111118] p-3">
+                    <span className="font-heading text-lg font-semibold text-white">
+                      {t.ctr != null ? `${t.ctr}%` : "—"}
+                    </span>
+                  </div>
+                ))}
+                {/* Analysis rows */}
+                {analysisItems.map(({ key, label, Icon }) => (
+                  <>
+                    <div key={`label-${key}`} className="bg-[#111118] p-3 text-[12px] text-[#737380] flex items-center gap-1.5">
+                      <Icon className="w-3 h-3" />
+                      {label}
+                    </div>
+                    {thumbs.map((t) => {
+                      const val = t.analysis?.[key];
+                      const best = Math.max(...thumbs.map((th) => th.analysis?.[key] ?? -1));
+                      const isBest = val != null && val === best && thumbs.filter((th) => th.analysis?.[key] === best).length === 1;
+                      return (
+                        <div key={t._id} className="bg-[#111118] p-3">
+                          <div className="flex items-center gap-2">
+                            <span className={`text-[13px] font-medium ${isBest ? "text-emerald-400" : "text-white"}`}>
+                              {val != null ? val : "—"}
+                            </span>
+                            {val != null && (
+                              <div className="flex-1 h-1 rounded-full bg-white/6 overflow-hidden">
+                                <div
+                                  className={`h-full rounded-full ${isBest ? "bg-emerald-400/40" : "bg-white/20"}`}
+                                  style={{ width: `${val}%` }}
+                                />
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </>
+                ))}
+              </div>
+            </motion.div>
+
+            {/* Multi verdict */}
+            {(() => {
+              const scored = thumbs.filter((t) => t.score != null);
+              if (scored.length < 2) return null;
+              const best = scored.reduce((a, b) => ((a.score ?? 0) > (b.score ?? 0) ? a : b));
+              const isTie = scored.filter((t) => t.score === best.score).length > 1;
+              return (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={stagger(4)}
+                  className="rounded-xl border border-white/6 bg-[#111118] p-5 text-center mb-6"
+                >
+                  <p className="text-[13px] text-[#737380]">Verdict</p>
+                  {isTie ? (
+                    <p className="font-heading text-lg font-semibold text-white mt-1">It&apos;s a tie</p>
+                  ) : (
+                    <>
+                      <p className="font-heading text-lg font-semibold text-emerald-400 mt-1">{best.title}</p>
+                      <p className="text-[12px] text-[#4a4a54] mt-1">highest score at {best.score}/100</p>
+                    </>
+                  )}
+                </motion.div>
+              );
+            })()}
+          </>
+        )}
+
+        {/* Two-thumbnail compare (original) */}
+        {!isMulti && (
+        <>
         {/* Mode toggle */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
@@ -653,6 +826,8 @@ function Compare() {
             className="w-full bg-white/3 border border-white/8 rounded-lg px-3 py-2 text-[13px] text-white placeholder:text-[#4a4a54] outline-none focus:border-white/16 transition-colors resize-none"
           />
         </motion.div>
+        </>
+        )}
       </main>
 
       {/* History panel */}
