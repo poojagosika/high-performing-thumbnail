@@ -19,4 +19,20 @@ router.get("/", async (req, res) => {
   }
 });
 
+router.get("/thumbnail/:id", async (req, res) => {
+  try {
+    const activities = await Activity.find({
+      user: req.user._id,
+      thumbnailId: req.params.id,
+    })
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .lean();
+
+    res.json(activities);
+  } catch (error) {
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
 module.exports = router;

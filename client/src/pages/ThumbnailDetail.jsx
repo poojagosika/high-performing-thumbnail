@@ -35,6 +35,7 @@ import {
   ArrowUpRight,
   Undo2,
   Minus,
+  Clock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import DashboardNav from "../components/DashboardNav";
@@ -52,6 +53,54 @@ const detailShortcuts = [
 ];
 
 const stagger = (i) => ({ duration: 0.4, delay: i * 0.06, ease: "easeOut" });
+
+const relativeTime = (date) => {
+  const diff = Date.now() - new Date(date).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 7) return `${days}d ago`;
+  return new Date(date).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+};
+
+const activityMeta = {
+  uploaded: { color: "text-emerald-400", bg: "bg-emerald-400" },
+  edited: { color: "text-blue-400", bg: "bg-blue-400" },
+  deleted: { color: "text-red-400", bg: "bg-red-400" },
+  starred: { color: "text-amber-400", bg: "bg-amber-400" },
+  unstarred: { color: "text-[#4a4a54]", bg: "bg-[#4a4a54]" },
+  duplicated: { color: "text-purple-400", bg: "bg-purple-400" },
+  shared: { color: "text-blue-400", bg: "bg-blue-400" },
+  unshared: { color: "text-[#4a4a54]", bg: "bg-[#4a4a54]" },
+  reuploaded: { color: "text-cyan-400", bg: "bg-cyan-400" },
+};
+
+const activityIcons = {
+  uploaded: Upload,
+  edited: Pencil,
+  deleted: Trash2,
+  starred: Star,
+  unstarred: Star,
+  duplicated: Copy,
+  shared: Share2,
+  unshared: Share2,
+  reuploaded: History,
+};
+
+const activityLabels = {
+  uploaded: "Uploaded",
+  edited: "Edited",
+  deleted: "Deleted",
+  starred: "Starred",
+  unstarred: "Unstarred",
+  duplicated: "Duplicated",
+  shared: "Shared",
+  unshared: "Unshared",
+  reuploaded: "Reuploaded",
+};
 
 const analysisItems = [
   { key: "composition", label: "Composition", Icon: Layout },
@@ -85,6 +134,8 @@ function ThumbnailDetail() {
   const [reuploading, setReuploading] = useState(false);
   const [palette, setPalette] = useState([]);
   const [analyzing, setAnalyzing] = useState(false);
+  const [timeline, setTimeline] = useState([]);
+  const [timelineOpen, setTimelineOpen] = useState(false);
   const [cropOpen, setCropOpen] = useState(false);
   const [cropArea, setCropArea] = useState({ x: 0, y: 0, w: 100, h: 100 });
   const [cropPreset, setCropPreset] = useState(null);
@@ -125,6 +176,10 @@ function ThumbnailDetail() {
       .then((data) => {
         setThumb(data);
         setNotesInput(data.notes || "");
+        // Fetch timeline
+        api(`/activities/thumbnail/${id}`)
+          .then((events) => setTimeline(events))
+          .catch(() => {});
         // Track view
         api(`/thumbnails/${id}/track`, {
           method: "POST",
@@ -1418,6 +1473,78 @@ function ThumbnailDetail() {
                   </button>
                 </div>
               )}
+            </div>
+
+            {/* Timeline */}
+            <div className="rounded-xl border border-white/6 bg-[#111118] p-4">
+              <button
+                onClick={() => setTimelineOpen(!timelineOpen)}
+                className="w-full flex items-center justify-between"
+              >
+                <h3 className="flex items-center gap-1.5 text-[13px] text-[#737380] font-medium">
+                  <Clock className="w-3.5 h-3.5" />
+                  Activity Timeline
+                </h3>
+                <div className="flex items-center gap-2">
+                  {timeline.length > 0 && (
+                    <span className="text-[11px] text-[#4a4a54]">
+                      {timeline.length} event{timeline.length !== 1 ? "s" : ""}
+                    </span>
+                  )}
+                  <motion.div
+                    animate={{ rotate: timelineOpen ? 180 : 0 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <ChevronRight className="w-3.5 h-3.5 text-[#4a4a54] rotate-90" />
+                  </motion.div>
+                </div>
+              </button>
+              <AnimatePresence>
+                {timelineOpen && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.25, ease: "easeOut" }}
+                    className="overflow-hidden"
+                  >
+                    {timeline.length === 0 ? (
+                      <p className="text-[12px] text-[#4a4a54] mt-3">No activity yet</p>
+                    ) : (
+                      <div className="mt-3 space-y-0">
+                        {timeline.slice(0, 20).map((event, i) => {
+                          const meta = activityMeta[event.type] || activityMeta.edited;
+                          const Icon = activityIcons[event.type] || Clock;
+                          const label = activityLabels[event.type] || event.type;
+                          return (
+                            <div key={event._id} className="flex gap-3 relative">
+                              <div className="flex flex-col items-center">
+                                <div className={`w-6 h-6 rounded-full border border-white/8 bg-white/3 flex items-center justify-center shrink-0`}>
+                                  <Icon className={`w-3 h-3 ${meta.color}`} />
+                                </div>
+                                {i < Math.min(timeline.length, 20) - 1 && (
+                                  <div className="w-px flex-1 bg-white/6 min-h-[16px]" />
+                                )}
+                              </div>
+                              <div className="pb-4 min-w-0">
+                                <p className="text-[13px] text-white leading-tight">{label}</p>
+                                <p className="text-[11px] text-[#4a4a54] mt-0.5">
+                                  {relativeTime(event.createdAt)}
+                                </p>
+                              </div>
+                            </div>
+                          );
+                        })}
+                        {timeline.length > 20 && (
+                          <p className="text-[11px] text-[#4a4a54] pl-9">
+                            +{timeline.length - 20} more events
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
             {/* Actions */}
