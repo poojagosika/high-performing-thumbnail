@@ -33,6 +33,8 @@ import {
   CalendarDays,
   Sparkles,
   FileImage,
+  Folder,
+  FolderPlus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "../context/AuthContext";
@@ -77,6 +79,7 @@ function Dashboard() {
   const showStarred = searchParams.get("starred") === "1";
   const view = searchParams.get("view") || "grid";
   const dateRange = searchParams.get("range") || "all";
+  const activeCollection = searchParams.get("collection") || "";
 
   const setParams = useCallback((updates) => {
     setSearchParams((prev) => {
@@ -121,6 +124,15 @@ function Dashboard() {
   const [activityOpen, setActivityOpen] = useState(false);
   const [activities, setActivities] = useState([]);
   const [searchFocused, setSearchFocused] = useState(false);
+  const [collections, setCollections] = useState([]);
+  const [newCollectionName, setNewCollectionName] = useState("");
+  const [creatingCollection, setCreatingCollection] = useState(false);
+  const [addingCollection, setAddingCollection] = useState(false);
+  const [renameId, setRenameId] = useState(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [deleteCollectionId, setDeleteCollectionId] = useState(null);
+  const [bulkCollectionOpen, setBulkCollectionOpen] = useState(false);
+  const [bulkMoving, setBulkMoving] = useState(false);
   const searchRef = useRef(null);
   const searchDropdownRef = useRef(null);
 
@@ -165,6 +177,101 @@ function Dashboard() {
     } finally {
       setBulkDeleting(false);
       setBulkDeleteOpen(false);
+    }
+  };
+
+  const collectionCounts = useMemo(() => {
+    const map = {};
+    thumbnails.forEach((t) => {
+      if (t.collectionId) {
+        const key = String(t.collectionId);
+        map[key] = (map[key] || 0) + 1;
+      }
+    });
+    return map;
+  }, [thumbnails]);
+
+  const handleCreateCollection = async () => {
+    const name = newCollectionName.trim();
+    if (!name) return;
+    setCreatingCollection(true);
+    try {
+      const created = await api("/collections", {
+        method: "POST",
+        body: { name },
+      });
+      setCollections((prev) => [...prev, created]);
+      setNewCollectionName("");
+      setAddingCollection(false);
+      toast.success(`Collection "${created.name}" created`);
+    } catch {
+      toast.error("Failed to create collection");
+    } finally {
+      setCreatingCollection(false);
+    }
+  };
+
+  const handleRenameCollection = async (id) => {
+    const name = renameValue.trim();
+    if (!name) return setRenameId(null);
+    try {
+      const updated = await api(`/collections/${id}`, {
+        method: "PATCH",
+        body: { name },
+      });
+      setCollections((prev) =>
+        prev.map((c) => (c._id === id ? { ...c, name: updated.name } : c)),
+      );
+      toast.success("Collection renamed");
+    } catch {
+      toast.error("Failed to rename collection");
+    } finally {
+      setRenameId(null);
+    }
+  };
+
+  const handleDeleteCollection = async () => {
+    const id = deleteCollectionId;
+    if (!id) return;
+    try {
+      await api(`/collections/${id}`, { method: "DELETE" });
+      setCollections((prev) => prev.filter((c) => c._id !== id));
+      setThumbnails((prev) =>
+        prev.map((t) =>
+          String(t.collectionId || "") === id ? { ...t, collectionId: null } : t,
+        ),
+      );
+      if (activeCollection === id) setParams({ collection: null, page: 1 });
+      toast.success("Collection deleted");
+    } catch {
+      toast.error("Failed to delete collection");
+    } finally {
+      setDeleteCollectionId(null);
+    }
+  };
+
+  const handleBulkCollection = async (collectionId) => {
+    setBulkMoving(true);
+    try {
+      const updated = await api("/thumbnails/bulk-collection", {
+        method: "POST",
+        body: { ids: selectedIds, collectionId: collectionId || null },
+      });
+      setThumbnails((prev) =>
+        prev.map((t) => updated.find((u) => u._id === t._id) || t),
+      );
+      const target = collections.find((c) => c._id === collectionId);
+      toast.success(
+        target
+          ? `Moved ${selectedIds.length} to "${target.name}"`
+          : `Removed ${selectedIds.length} from collections`,
+      );
+      setBulkCollectionOpen(false);
+      exitSelect();
+    } catch {
+      toast.error("Failed to move thumbnails");
+    } finally {
+      setBulkMoving(false);
     }
   };
 
@@ -539,6 +646,8 @@ function Dashboard() {
   const filtered = thumbnails
     .filter((t) => {
       if (showStarred && !t.starred) return false;
+      if (activeCollection && String(t.collectionId || "") !== activeCollection)
+        return false;
       if (search.trim()) {
         const q = search.toLowerCase();
         if (
@@ -656,6 +765,12 @@ function Dashboard() {
   useEffect(() => {
     api("/activities")
       .then((data) => setActivities(data))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    api("/collections")
+      .then((data) => setCollections(data))
       .catch(() => {});
   }, []);
 
@@ -1010,6 +1125,122 @@ function Dashboard() {
           </motion.div>
         )}
 
+        <div className="flex flex-col lg:flex-row gap-6 items-start">
+          {/* Collections rail */}
+          {!loading && (
+            <aside className="w-full lg:w-52 shrink-0 lg:sticky lg:top-6">
+              <div className="rounded-xl border border-white/6 bg-[#111118] p-3">
+                <div className="flex items-center justify-between px-1 mb-2">
+                  <span className="text-[11px] uppercase tracking-wider font-medium text-[#4a4a54]">
+                    Collections
+                  </span>
+                  <button
+                    onClick={() => {
+                      setAddingCollection((v) => !v);
+                      setNewCollectionName("");
+                    }}
+                    className="text-[#4a4a54] hover:text-white transition-colors"
+                    title="New collection"
+                  >
+                    <FolderPlus className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                <button
+                  onClick={() => setParams({ collection: null, page: 1 })}
+                  className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-[13px] transition-colors ${
+                    !activeCollection
+                      ? "bg-white/6 text-white"
+                      : "text-[#737380] hover:bg-white/4 hover:text-white"
+                  }`}
+                >
+                  <LayoutGrid className="w-3.5 h-3.5 shrink-0" />
+                  <span className="truncate flex-1 text-left">All</span>
+                  <span className="text-[11px] text-[#4a4a54]">
+                    {thumbnails.length}
+                  </span>
+                </button>
+
+                {collections.map((c) => (
+                  <div key={c._id} className="group relative">
+                    {renameId === c._id ? (
+                      <input
+                        autoFocus
+                        value={renameValue}
+                        onChange={(e) => setRenameValue(e.target.value)}
+                        onBlur={() => handleRenameCollection(c._id)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleRenameCollection(c._id);
+                          if (e.key === "Escape") setRenameId(null);
+                        }}
+                        className="w-full h-8 px-2 rounded-lg border border-white/12 bg-white/3 text-[13px] text-white outline-none"
+                      />
+                    ) : (
+                      <button
+                        onClick={() => setParams({ collection: c._id, page: 1 })}
+                        onDoubleClick={() => {
+                          setRenameId(c._id);
+                          setRenameValue(c.name);
+                        }}
+                        className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-[13px] transition-colors ${
+                          activeCollection === c._id
+                            ? "bg-white/6 text-white"
+                            : "text-[#737380] hover:bg-white/4 hover:text-white"
+                        }`}
+                        title="Double-click to rename"
+                      >
+                        <Folder
+                          className="w-3.5 h-3.5 shrink-0"
+                          style={{ color: c.color }}
+                        />
+                        <span className="truncate flex-1 text-left">
+                          {c.name}
+                        </span>
+                        <span className="text-[11px] text-[#4a4a54] group-hover:hidden">
+                          {collectionCounts[c._id] || 0}
+                        </span>
+                      </button>
+                    )}
+                    {renameId !== c._id && (
+                      <button
+                        onClick={() => setDeleteCollectionId(c._id)}
+                        className="absolute right-1.5 top-1/2 -translate-y-1/2 hidden group-hover:flex text-[#4a4a54] hover:text-red-400 transition-colors"
+                        title="Delete collection"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+
+                {addingCollection && (
+                  <input
+                    autoFocus
+                    value={newCollectionName}
+                    onChange={(e) => setNewCollectionName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleCreateCollection();
+                      if (e.key === "Escape") setAddingCollection(false);
+                    }}
+                    onBlur={() => {
+                      if (!newCollectionName.trim()) setAddingCollection(false);
+                    }}
+                    disabled={creatingCollection}
+                    placeholder="Collection name..."
+                    className="w-full h-8 mt-1 px-2 rounded-lg border border-white/12 bg-white/3 text-[13px] text-white placeholder:text-[#4a4a54] outline-none"
+                  />
+                )}
+
+                {collections.length === 0 && !addingCollection && (
+                  <p className="px-2 py-2 text-[12px] text-[#4a4a54] leading-relaxed">
+                    No collections yet. Group thumbnails by project or client.
+                  </p>
+                )}
+              </div>
+            </aside>
+          )}
+
+          <div className="flex-1 min-w-0 w-full">
         {selectMode && (
           <motion.div
             initial={{ opacity: 0, y: -5 }}
@@ -1236,7 +1467,11 @@ function Dashboard() {
             </Button>
           </motion.div>
         ) : filtered.length === 0 &&
-          (search.trim() || activeTags.length > 0 || showStarred || dateRange !== "all") ? (
+          (search.trim() ||
+            activeTags.length > 0 ||
+            showStarred ||
+            activeCollection ||
+            dateRange !== "all") ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             {showStarred ? (
               <Star className="w-5 h-5 text-[#4a4a54] mb-3" />
@@ -1254,9 +1489,20 @@ function Dashboard() {
                     ? "No thumbnails in this date range"
                     : "No thumbnails with selected tags"}
             </p>
-            {(activeTags.length > 0 || showStarred || dateRange !== "all") && (
+            {(activeTags.length > 0 ||
+              showStarred ||
+              activeCollection ||
+              dateRange !== "all") && (
               <button
-                onClick={() => setParams({ tags: null, starred: null, range: null, page: 1 })}
+                onClick={() =>
+                  setParams({
+                    tags: null,
+                    starred: null,
+                    range: null,
+                    collection: null,
+                    page: 1,
+                  })
+                }
                 className="text-[13px] text-[#737380] hover:text-white mt-2 transition-colors"
               >
                 Clear filters
@@ -1635,6 +1881,8 @@ function Dashboard() {
             </button>
           </motion.div>
         )}
+          </div>
+        </div>
       </main>
 
       <UploadModal
@@ -1751,6 +1999,14 @@ function Dashboard() {
               {bulkAnalyzing
                 ? `Analyzing ${analyzeProgress.done}/${analyzeProgress.total}`
                 : "Analyze"}
+            </Button>
+            <Button
+              onClick={() => setBulkCollectionOpen(true)}
+              variant="outline"
+              className="h-8 text-[13px] border-white/8 text-[#737380] hover:text-white hover:border-white/12 bg-transparent font-medium gap-1.5"
+            >
+              <Folder className="w-3.5 h-3.5" />
+              Move
             </Button>
             <Button
               onClick={() => {
@@ -1870,6 +2126,119 @@ function Dashboard() {
                   className="h-8 text-[13px] bg-white text-[#0a0a0f] hover:bg-white/90 font-medium"
                 >
                   {bulkTagging ? "Saving..." : "Add Tags"}
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Move to collection modal */}
+      <AnimatePresence>
+        {bulkCollectionOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => setBulkCollectionOpen(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 10 }}
+              transition={{ duration: 0.15 }}
+              className="relative w-full max-w-sm rounded-xl border border-white/8 bg-[#111118] p-5"
+            >
+              <h3 className="font-heading text-[15px] font-semibold text-white mb-1">
+                Move to collection
+              </h3>
+              <p className="text-[13px] text-[#737380] mb-4">
+                {selectedIds.length} thumbnail
+                {selectedIds.length === 1 ? "" : "s"} selected
+              </p>
+              <div className="max-h-56 overflow-y-auto -mx-1 px-1">
+                {collections.map((c) => (
+                  <button
+                    key={c._id}
+                    onClick={() => handleBulkCollection(c._id)}
+                    disabled={bulkMoving}
+                    className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-[13px] text-[#737380] hover:bg-white/4 hover:text-white transition-colors disabled:opacity-40"
+                  >
+                    <Folder
+                      className="w-3.5 h-3.5 shrink-0"
+                      style={{ color: c.color }}
+                    />
+                    <span className="truncate">{c.name}</span>
+                  </button>
+                ))}
+                <button
+                  onClick={() => handleBulkCollection(null)}
+                  disabled={bulkMoving}
+                  className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-[13px] text-[#737380] hover:bg-white/4 hover:text-white transition-colors disabled:opacity-40"
+                >
+                  <X className="w-3.5 h-3.5 shrink-0" />
+                  <span>Remove from collection</span>
+                </button>
+              </div>
+              {collections.length === 0 && (
+                <p className="text-[13px] text-[#4a4a54] py-2">
+                  Create a collection from the sidebar first.
+                </p>
+              )}
+              <div className="flex justify-end mt-4">
+                <Button
+                  onClick={() => setBulkCollectionOpen(false)}
+                  variant="outline"
+                  className="h-8 text-[13px] border-white/8 text-[#737380] hover:text-white hover:border-white/12 bg-transparent font-medium"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Delete collection modal */}
+      <AnimatePresence>
+        {deleteCollectionId && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => setDeleteCollectionId(null)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 10 }}
+              transition={{ duration: 0.15 }}
+              className="relative w-full max-w-sm rounded-xl border border-white/8 bg-[#111118] p-5"
+            >
+              <h3 className="font-heading text-[15px] font-semibold text-white mb-1">
+                Delete collection?
+              </h3>
+              <p className="text-[13px] text-[#737380] mb-5">
+                The thumbnails inside stay in your library — they just become
+                uncategorized.
+              </p>
+              <div className="flex justify-end gap-2">
+                <Button
+                  onClick={() => setDeleteCollectionId(null)}
+                  variant="outline"
+                  className="h-8 text-[13px] border-white/8 text-[#737380] hover:text-white hover:border-white/12 bg-transparent font-medium"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleDeleteCollection}
+                  className="h-8 text-[13px] bg-red-500 text-white hover:bg-red-600 font-medium"
+                >
+                  Delete
                 </Button>
               </div>
             </motion.div>
