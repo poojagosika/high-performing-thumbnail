@@ -89,6 +89,18 @@ const thumbnailSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    // Real-world results logged by the user, newest last. `ctr` above mirrors
+    // the most recent entry so existing readers keep working unchanged.
+    performance: [
+      {
+        date: { type: String, required: true },
+        impressions: { type: Number, required: true, min: 1 },
+        clicks: { type: Number, required: true, min: 0 },
+        ctr: { type: Number, required: true, min: 0 },
+        source: { type: String, trim: true, default: "" },
+        note: { type: String, trim: true, default: "" },
+      },
+    ],
   },
   { timestamps: true },
 );

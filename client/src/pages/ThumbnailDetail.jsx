@@ -37,6 +37,7 @@ import {
   Undo2,
   Minus,
   Clock,
+  Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import DashboardNav from "../components/DashboardNav";
@@ -133,6 +134,13 @@ function ThumbnailDetail() {
   const [notesSaved, setNotesSaved] = useState(true);
   const [versionCompare, setVersionCompare] = useState(null);
   const [restoringVersion, setRestoringVersion] = useState(null);
+  const [perfOpen, setPerfOpen] = useState(false);
+  const [perfImpressions, setPerfImpressions] = useState("");
+  const [perfClicks, setPerfClicks] = useState("");
+  const [perfDate, setPerfDate] = useState("");
+  const [perfSource, setPerfSource] = useState("");
+  const [perfError, setPerfError] = useState("");
+  const [perfSaving, setPerfSaving] = useState(false);
   const [reuploading, setReuploading] = useState(false);
   const [palette, setPalette] = useState([]);
   const [analyzing, setAnalyzing] = useState(false);
@@ -372,6 +380,91 @@ function ThumbnailDetail() {
       },
     ];
   }, [thumb]);
+
+  const perfEntries = useMemo(
+    () =>
+      [...(thumb?.performance || [])].sort((a, b) =>
+        a.date < b.date ? -1 : a.date > b.date ? 1 : 0,
+      ),
+    [thumb],
+  );
+
+  const perfSummary = useMemo(() => {
+    if (perfEntries.length === 0) return null;
+    const impressions = perfEntries.reduce((n, e) => n + e.impressions, 0);
+    const clicks = perfEntries.reduce((n, e) => n + e.clicks, 0);
+    return {
+      impressions,
+      clicks,
+      // Weighted by impressions - averaging the per-entry CTRs would let a
+      // 10-impression day count as much as a 10,000-impression one.
+      overallCtr: Math.round((clicks / impressions) * 10000) / 100,
+      bestCtr: Math.max(...perfEntries.map((e) => e.ctr)),
+    };
+  }, [perfEntries]);
+
+  const pendingCtr = () => {
+    const imp = Number(perfImpressions);
+    const clk = Number(perfClicks);
+    if (!imp || imp < 1 || !Number.isFinite(clk) || clk < 0 || clk > imp) {
+      return null;
+    }
+    return Math.round((clk / imp) * 10000) / 100;
+  };
+
+  const handleLogPerformance = async (e) => {
+    e.preventDefault();
+    setPerfError("");
+
+    const imp = Number(perfImpressions);
+    const clk = Number(perfClicks);
+
+    if (!Number.isFinite(imp) || imp < 1) {
+      return setPerfError("Impressions must be at least 1");
+    }
+    if (!Number.isFinite(clk) || clk < 0) {
+      return setPerfError("Clicks must be 0 or more");
+    }
+    if (clk > imp) {
+      return setPerfError("Clicks cannot exceed impressions");
+    }
+
+    setPerfSaving(true);
+    try {
+      const updated = await api(`/thumbnails/${id}/performance`, {
+        method: "POST",
+        body: {
+          impressions: imp,
+          clicks: clk,
+          date: perfDate || undefined,
+          source: perfSource,
+        },
+      });
+      setThumb(updated);
+      setPerfImpressions("");
+      setPerfClicks("");
+      setPerfDate("");
+      setPerfSource("");
+      setPerfOpen(false);
+      toast.success("Performance logged");
+    } catch (err) {
+      setPerfError(err.message || "Failed to log performance");
+    } finally {
+      setPerfSaving(false);
+    }
+  };
+
+  const handleDeletePerformance = async (entryId) => {
+    try {
+      const updated = await api(`/thumbnails/${id}/performance/${entryId}`, {
+        method: "DELETE",
+      });
+      setThumb(updated);
+      toast.success("Entry removed");
+    } catch {
+      toast.error("Failed to remove entry");
+    }
+  };
 
   const handleRestoreVersion = async (versionIndex) => {
     setRestoringVersion(versionIndex);
@@ -1147,6 +1240,197 @@ function ThumbnailDetail() {
                   {thumb.ctr != null ? `${thumb.ctr}%` : "—"}
                 </span>
               </div>
+            </div>
+
+            {/* Real-world performance */}
+            <div className="rounded-xl border border-white/6 bg-[#111118] p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="flex items-center gap-1.5 text-[13px] text-[#737380] font-medium">
+                  <TrendingUp className="w-3.5 h-3.5" />
+                  Real Performance
+                </h3>
+                <button
+                  onClick={() => {
+                    setPerfOpen((v) => !v);
+                    setPerfError("");
+                  }}
+                  className="flex items-center gap-1 text-[11px] border border-white/8 hover:border-white/12 rounded-lg px-2.5 py-1 text-[#737380] hover:text-white transition-colors"
+                >
+                  <Plus className="w-3 h-3" />
+                  Log
+                </button>
+              </div>
+
+              {perfOpen && (
+                <form
+                  onSubmit={handleLogPerformance}
+                  className="mb-4 rounded-lg border border-white/8 bg-white/2 p-3"
+                >
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[11px] text-[#4a4a54] mb-1">
+                        Impressions
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={perfImpressions}
+                        onChange={(e) => setPerfImpressions(e.target.value)}
+                        placeholder="12500"
+                        className="w-full h-8 px-2 rounded-lg border border-white/8 bg-white/3 text-[13px] text-white placeholder:text-[#4a4a54] outline-none focus:border-white/16 transition-colors"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] text-[#4a4a54] mb-1">
+                        Clicks
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={perfClicks}
+                        onChange={(e) => setPerfClicks(e.target.value)}
+                        placeholder="740"
+                        className="w-full h-8 px-2 rounded-lg border border-white/8 bg-white/3 text-[13px] text-white placeholder:text-[#4a4a54] outline-none focus:border-white/16 transition-colors"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] text-[#4a4a54] mb-1">
+                        Date
+                      </label>
+                      <input
+                        type="date"
+                        value={perfDate}
+                        onChange={(e) => setPerfDate(e.target.value)}
+                        className="w-full h-8 px-2 rounded-lg border border-white/8 bg-white/3 text-[13px] text-white outline-none focus:border-white/16 transition-colors"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] text-[#4a4a54] mb-1">
+                        Source
+                      </label>
+                      <input
+                        type="text"
+                        value={perfSource}
+                        onChange={(e) => setPerfSource(e.target.value)}
+                        placeholder="YouTube"
+                        className="w-full h-8 px-2 rounded-lg border border-white/8 bg-white/3 text-[13px] text-white placeholder:text-[#4a4a54] outline-none focus:border-white/16 transition-colors"
+                      />
+                    </div>
+                  </div>
+
+                  {pendingCtr() !== null && (
+                    <p className="text-[11px] text-[#737380] mt-2">
+                      That&apos;s a{" "}
+                      <span className="text-white font-medium">
+                        {pendingCtr()}%
+                      </span>{" "}
+                      click-through rate
+                    </p>
+                  )}
+                  {perfError && (
+                    <p className="text-[11px] text-red-400 mt-2">{perfError}</p>
+                  )}
+
+                  <div className="flex justify-end gap-2 mt-3">
+                    <button
+                      type="button"
+                      onClick={() => setPerfOpen(false)}
+                      className="h-7 px-3 rounded-lg text-[12px] text-[#737380] hover:text-white transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={perfSaving}
+                      className="h-7 px-3 rounded-lg bg-white text-[#0a0a0f] text-[12px] font-medium hover:bg-white/90 transition-colors disabled:opacity-50"
+                    >
+                      {perfSaving ? "Saving..." : "Save"}
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {perfSummary ? (
+                <>
+                  <div className="grid grid-cols-3 gap-2 mb-3">
+                    <div>
+                      <p className="text-[10px] text-[#4a4a54] uppercase tracking-wider">
+                        Predicted
+                      </p>
+                      <p className="font-heading text-[15px] text-white">
+                        {thumb.score != null ? `${thumb.score}/100` : "—"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-[#4a4a54] uppercase tracking-wider">
+                        Actual CTR
+                      </p>
+                      <p className="font-heading text-[15px] text-white">
+                        {perfSummary.overallCtr}%
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-[#4a4a54] uppercase tracking-wider">
+                        Best
+                      </p>
+                      <p className="font-heading text-[15px] text-emerald-400">
+                        {perfSummary.bestCtr}%
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    {perfEntries.map((entry) => (
+                      <div
+                        key={entry._id}
+                        className="group/perf flex items-center gap-2"
+                      >
+                        <span className="text-[11px] text-[#4a4a54] w-14 shrink-0">
+                          {new Date(entry.date).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                          })}
+                        </span>
+                        <div className="flex-1 h-4 rounded bg-white/4 overflow-hidden">
+                          <div
+                            className="h-full bg-emerald-500/40"
+                            style={{
+                              width: `${Math.min(
+                                100,
+                                (entry.ctr / Math.max(perfSummary.bestCtr, 0.01)) * 100,
+                              )}%`,
+                            }}
+                          />
+                        </div>
+                        <span className="text-[11px] text-white w-11 text-right shrink-0">
+                          {entry.ctr}%
+                        </span>
+                        <span
+                          className="text-[10px] text-[#4a4a54] w-24 truncate shrink-0"
+                          title={`${entry.clicks.toLocaleString()} of ${entry.impressions.toLocaleString()}${entry.source ? ` · ${entry.source}` : ""}`}
+                        >
+                          {entry.clicks.toLocaleString()}/
+                          {entry.impressions.toLocaleString()}
+                        </span>
+                        <button
+                          onClick={() => handleDeletePerformance(entry._id)}
+                          className="text-[#4a4a54] hover:text-red-400 opacity-0 group-hover/perf:opacity-100 transition-all shrink-0"
+                          title="Remove entry"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                !perfOpen && (
+                  <p className="text-[12px] text-[#4a4a54]">
+                    Log impressions and clicks from YouTube to see how the
+                    predicted score held up.
+                  </p>
+                )
+              )}
             </div>
 
             {/* Color Palette */}

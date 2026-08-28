@@ -448,6 +448,92 @@ const restoreVersion = async (req, res) => {
   }
 };
 
+// Keep the top-level ctr mirroring the newest logged entry, so the existing
+// CTR tile and any sort-by-ctr reader stays correct without knowing about
+// the performance array.
+const syncLatestCtr = (thumbnail) => {
+  const entries = [...thumbnail.performance].sort((a, b) =>
+    a.date < b.date ? -1 : a.date > b.date ? 1 : 0,
+  );
+  thumbnail.ctr = entries.length > 0 ? entries[entries.length - 1].ctr : null;
+};
+
+const logPerformance = async (req, res) => {
+  try {
+    const impressions = Number(req.body.impressions);
+    const clicks = Number(req.body.clicks);
+
+    if (!Number.isFinite(impressions) || impressions < 1) {
+      return res.status(400).json({ message: "Impressions must be at least 1" });
+    }
+
+    if (!Number.isFinite(clicks) || clicks < 0) {
+      return res.status(400).json({ message: "Clicks must be 0 or more" });
+    }
+
+    if (clicks > impressions) {
+      return res
+        .status(400)
+        .json({ message: "Clicks cannot exceed impressions" });
+    }
+
+    const thumbnail = await Thumbnail.findOne({
+      _id: req.params.id,
+      user: req.user._id,
+    });
+
+    if (!thumbnail) {
+      return res.status(404).json({ message: "Thumbnail not found" });
+    }
+
+    const date = req.body.date || new Date().toISOString().split("T")[0];
+
+    thumbnail.performance.push({
+      date,
+      impressions,
+      clicks,
+      ctr: Math.round((clicks / impressions) * 10000) / 100,
+      source: req.body.source || "",
+      note: req.body.note || "",
+    });
+
+    syncLatestCtr(thumbnail);
+    await thumbnail.save();
+
+    logActivity(req.user._id, "logged", thumbnail.title, thumbnail._id);
+    res.status(201).json(thumbnail);
+  } catch (error) {
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+const deletePerformance = async (req, res) => {
+  try {
+    const thumbnail = await Thumbnail.findOne({
+      _id: req.params.id,
+      user: req.user._id,
+    });
+
+    if (!thumbnail) {
+      return res.status(404).json({ message: "Thumbnail not found" });
+    }
+
+    const entry = thumbnail.performance.id(req.params.entryId);
+
+    if (!entry) {
+      return res.status(404).json({ message: "Entry not found" });
+    }
+
+    entry.deleteOne();
+    syncLatestCtr(thumbnail);
+    await thumbnail.save();
+
+    res.json(thumbnail);
+  } catch (error) {
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 const bulkExport = async (req, res) => {
   try {
     const { ids } = req.body;
@@ -710,6 +796,8 @@ module.exports = {
   trackEvent,
   reuploadVersion,
   restoreVersion,
+  logPerformance,
+  deletePerformance,
   toggleShare,
   getPublicThumbnail,
   toggleStar,
