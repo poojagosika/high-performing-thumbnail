@@ -241,7 +241,7 @@ function ThumbnailDetail() {
   const handleDelete = async () => {
     try {
       await api(`/thumbnails/${id}`, { method: "DELETE" });
-      toast.success("Thumbnail deleted");
+      toast.success("Moved to trash");
       navigate("/dashboard");
     } catch {
       toast.error("Failed to delete thumbnail");

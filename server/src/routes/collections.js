@@ -15,7 +15,13 @@ router.get("/", async (req, res) => {
       .lean();
 
     const counts = await Thumbnail.aggregate([
-      { $match: { user: req.user._id, collectionId: { $ne: null } } },
+      {
+        $match: {
+          user: req.user._id,
+          collectionId: { $ne: null },
+          deletedAt: null,
+        },
+      },
       { $group: { _id: "$collectionId", count: { $sum: 1 } } },
     ]);
 
@@ -98,7 +104,7 @@ router.delete("/:id", async (req, res) => {
     }
 
     await Thumbnail.updateMany(
-      { user: req.user._id, collectionId: collection._id },
+      { user: req.user._id, collectionId: collection._id, deletedAt: null },
       { collectionId: null },
     );
 

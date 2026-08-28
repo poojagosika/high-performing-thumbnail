@@ -35,6 +35,7 @@ import {
   FileImage,
   Folder,
   FolderPlus,
+  RotateCcw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "../context/AuthContext";
@@ -59,6 +60,12 @@ const dashboardShortcuts = [
 
 const stagger = (i) => ({ duration: 0.4, delay: i * 0.06, ease: "easeOut" });
 const PER_PAGE = 9;
+const TRASH_RETENTION_DAYS = 30;
+
+const daysLeftInTrash = (deletedAt) => {
+  const elapsed = Date.now() - new Date(deletedAt).getTime();
+  return Math.max(0, TRASH_RETENTION_DAYS - Math.floor(elapsed / 86400000));
+};
 
 function Dashboard() {
   const { user } = useAuth();
@@ -80,6 +87,7 @@ function Dashboard() {
   const view = searchParams.get("view") || "grid";
   const dateRange = searchParams.get("range") || "all";
   const activeCollection = searchParams.get("collection") || "";
+  const trashMode = searchParams.get("trash") === "1";
 
   const setParams = useCallback((updates) => {
     setSearchParams((prev) => {
@@ -92,6 +100,7 @@ function Dashboard() {
           (key === "sort" && val === "newest") ||
           (key === "page" && (val === 1 || val === "1")) ||
           (key === "starred" && !val) ||
+          (key === "trash" && !val) ||
           (key === "view" && val === "grid") ||
           (key === "range" && (val === "all" || !val))
         ) {
@@ -133,6 +142,10 @@ function Dashboard() {
   const [deleteCollectionId, setDeleteCollectionId] = useState(null);
   const [bulkCollectionOpen, setBulkCollectionOpen] = useState(false);
   const [bulkMoving, setBulkMoving] = useState(false);
+  const [trashed, setTrashed] = useState(null);
+  const [purgeId, setPurgeId] = useState(null);
+  const [purging, setPurging] = useState(false);
+  const [bulkPurgeOpen, setBulkPurgeOpen] = useState(false);
   const searchRef = useRef(null);
   const searchDropdownRef = useRef(null);
 
@@ -521,7 +534,11 @@ function Dashboard() {
   };
 
   const canDrag =
-    sort === "custom" && !compareMode && !selectMode && !search.trim();
+    sort === "custom" &&
+    !compareMode &&
+    !selectMode &&
+    !trashMode &&
+    !search.trim();
 
   const handleDrop = async (targetId) => {
     if (!dragId || dragId === targetId) {
@@ -595,12 +612,77 @@ function Dashboard() {
     try {
       await api(`/thumbnails/${deleteId}`, { method: "DELETE" });
       setThumbnails((prev) => prev.filter((t) => t._id !== deleteId));
-      toast.success("Thumbnail deleted");
+      toast.success("Moved to trash");
     } catch {
-      toast.error("Failed to delete thumbnail");
+      toast.error("Failed to move thumbnail to trash");
     } finally {
       setDeleting(false);
       setDeleteId(null);
+    }
+  };
+
+  const handleRestore = async (thumb) => {
+    try {
+      const restored = await api(`/thumbnails/${thumb._id}/restore`, {
+        method: "POST",
+      });
+      setTrashed((prev) => prev.filter((t) => t._id !== thumb._id));
+      setThumbnails((prev) => [restored, ...prev]);
+      toast.success(`"${thumb.title}" restored`);
+    } catch {
+      toast.error("Failed to restore thumbnail");
+    }
+  };
+
+  const handlePurge = async () => {
+    if (!purgeId) return;
+    setPurging(true);
+    try {
+      await api(`/thumbnails/${purgeId}/purge`, { method: "DELETE" });
+      setTrashed((prev) => prev.filter((t) => t._id !== purgeId));
+      toast.success("Permanently deleted");
+    } catch {
+      toast.error("Failed to delete thumbnail");
+    } finally {
+      setPurging(false);
+      setPurgeId(null);
+    }
+  };
+
+  const handleBulkRestore = async () => {
+    try {
+      await api("/thumbnails/bulk-restore", {
+        method: "POST",
+        body: { ids: selectedIds },
+      });
+      const restored = trashItems.filter((t) => selectedIds.includes(t._id));
+      setTrashed((prev) => prev.filter((t) => !selectedIds.includes(t._id)));
+      setThumbnails((prev) => [
+        ...restored.map((t) => ({ ...t, deletedAt: null })),
+        ...prev,
+      ]);
+      toast.success(`${selectedIds.length} thumbnails restored`);
+      exitSelect();
+    } catch {
+      toast.error("Failed to restore thumbnails");
+    }
+  };
+
+  const handleBulkPurge = async () => {
+    setPurging(true);
+    try {
+      await api("/thumbnails/bulk-purge", {
+        method: "POST",
+        body: { ids: selectedIds },
+      });
+      setTrashed((prev) => prev.filter((t) => !selectedIds.includes(t._id)));
+      toast.success(`${selectedIds.length} thumbnails permanently deleted`);
+      setBulkPurgeOpen(false);
+      exitSelect();
+    } catch {
+      toast.error("Failed to delete thumbnails");
+    } finally {
+      setPurging(false);
     }
   };
 
@@ -643,8 +725,19 @@ function Dashboard() {
     return [...titleMatches, ...tagMatches];
   }, [search, thumbnails, allTags, activeTags]);
 
-  const filtered = thumbnails
+  const trashItems = trashed ?? [];
+
+  const filtered = (trashMode ? trashItems : thumbnails)
     .filter((t) => {
+      // Tag, star, collection and date filters don't apply to the trash view
+      if (trashMode) {
+        if (!search.trim()) return true;
+        const q = search.toLowerCase();
+        return (
+          t.title.toLowerCase().includes(q) ||
+          t.tags?.some((tag) => tag.toLowerCase().includes(q))
+        );
+      }
       if (showStarred && !t.starred) return false;
       if (activeCollection && String(t.collectionId || "") !== activeCollection)
         return false;
@@ -681,6 +774,7 @@ function Dashboard() {
       return true;
     })
     .sort((a, b) => {
+      if (trashMode) return new Date(b.deletedAt) - new Date(a.deletedAt);
       switch (sort) {
         case "oldest":
           return new Date(a.createdAt) - new Date(b.createdAt);
@@ -767,6 +861,26 @@ function Dashboard() {
       .then((data) => setActivities(data))
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (!trashMode) return;
+    let cancelled = false;
+    api("/thumbnails/trash")
+      .then((data) => {
+        if (cancelled) return;
+        setTrashed(
+          data.map((t) => ({ ...t, daysLeft: daysLeftInTrash(t.deletedAt) })),
+        );
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setTrashed([]);
+        toast.error("Failed to load trash");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [trashMode, toast]);
 
   useEffect(() => {
     api("/collections")
@@ -1147,9 +1261,11 @@ function Dashboard() {
                 </div>
 
                 <button
-                  onClick={() => setParams({ collection: null, page: 1 })}
+                  onClick={() =>
+                    setParams({ collection: null, trash: null, page: 1 })
+                  }
                   className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-[13px] transition-colors ${
-                    !activeCollection
+                    !activeCollection && !trashMode
                       ? "bg-white/6 text-white"
                       : "text-[#737380] hover:bg-white/4 hover:text-white"
                   }`}
@@ -1159,6 +1275,26 @@ function Dashboard() {
                   <span className="text-[11px] text-[#4a4a54]">
                     {thumbnails.length}
                   </span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    exitSelect();
+                    setParams({ trash: "1", collection: null, page: 1 });
+                  }}
+                  className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-[13px] transition-colors ${
+                    trashMode
+                      ? "bg-white/6 text-white"
+                      : "text-[#737380] hover:bg-white/4 hover:text-white"
+                  }`}
+                >
+                  <Trash2 className="w-3.5 h-3.5 shrink-0" />
+                  <span className="truncate flex-1 text-left">Trash</span>
+                  {trashItems.length > 0 && (
+                    <span className="text-[11px] text-[#4a4a54]">
+                      {trashItems.length}
+                    </span>
+                  )}
                 </button>
 
                 {collections.map((c) => (
@@ -1322,6 +1458,7 @@ function Dashboard() {
                 </div>
               )}
             </div>
+            {!trashMode && (
             <button
               onClick={() => setParams({ starred: !showStarred ? "1" : null, page: 1 })}
               className={`shrink-0 h-9 w-9 rounded-lg border flex items-center justify-center transition-all ${
@@ -1336,6 +1473,9 @@ function Dashboard() {
                 fill={showStarred ? "currentColor" : "none"}
               />
             </button>
+            )}
+            {!trashMode && (
+            <>
             <div className="relative shrink-0">
               <ArrowUpDown className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#4a4a54] pointer-events-none" />
               <select
@@ -1364,6 +1504,8 @@ function Dashboard() {
                 <option value="year">This Year</option>
               </select>
             </div>
+            </>
+            )}
             <div className="shrink-0 flex items-center rounded-lg border border-white/8 bg-white/3 overflow-hidden">
               <button
                 onClick={() => setParams({ view: "grid" })}
@@ -1391,7 +1533,7 @@ function Dashboard() {
           </motion.div>
         )}
 
-        {!loading && allTags.length > 0 && (
+        {!loading && !trashMode && allTags.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -1426,7 +1568,7 @@ function Dashboard() {
           </motion.div>
         )}
 
-        {loading ? (
+        {loading || (trashMode && trashed === null) ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {[...Array(6)].map((_, i) => (
               <div
@@ -1441,7 +1583,15 @@ function Dashboard() {
               </div>
             ))}
           </div>
-        ) : thumbnails.length === 0 ? (
+        ) : trashMode && trashItems.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <Trash2 className="w-5 h-5 text-[#4a4a54] mb-3" />
+            <p className="text-[14px] text-[#737380]">Trash is empty</p>
+            <p className="text-[13px] text-[#4a4a54] mt-1">
+              Deleted thumbnails stay here for {TRASH_RETENTION_DAYS} days
+            </p>
+          </div>
+        ) : !trashMode && thumbnails.length === 0 ? (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -1741,7 +1891,25 @@ function Dashboard() {
                   {selectMode && !selectedIds.includes(thumb._id) && (
                     <div className="absolute top-2 left-2 w-5 h-5 rounded-full border-2 border-white/30 bg-black/30" />
                   )}
-                  {!compareMode && !selectMode && (
+                  {trashMode && !selectMode && (
+                    <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                      <button
+                        onClick={() => handleRestore(thumb)}
+                        title="Restore"
+                        className="p-1.5 rounded-md bg-black/50 text-white/70 hover:text-emerald-400 hover:bg-black/70 transition-all"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => setPurgeId(thumb._id)}
+                        title="Delete forever"
+                        className="p-1.5 rounded-md bg-black/50 text-white/70 hover:text-red-400 hover:bg-black/70 transition-all"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
+                  {!trashMode && !compareMode && !selectMode && (
                     <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
                       {canDrag && (
                         <div className="p-1.5 rounded-md bg-black/50 text-white/70">
@@ -1786,20 +1954,29 @@ function Dashboard() {
                     >
                       {thumb.title}
                     </h3>
-                    <div className="flex items-center gap-1.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button
-                        onClick={() => setEditThumb(thumb)}
-                        className="text-[#4a4a54] hover:text-white transition-colors"
+                    {trashMode ? (
+                      <span
+                        className="text-[11px] text-[#4a4a54] shrink-0"
+                        title={`Permanently deleted after ${TRASH_RETENTION_DAYS} days in trash`}
                       >
-                        <Pencil className="w-3 h-3" />
-                      </button>
-                      <button
-                        onClick={() => setDeleteId(thumb._id)}
-                        className="text-[#4a4a54] hover:text-red-400 transition-colors"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
+                        {thumb.daysLeft}d left
+                      </span>
+                    ) : (
+                      <div className="flex items-center gap-1.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => setEditThumb(thumb)}
+                          className="text-[#4a4a54] hover:text-white transition-colors"
+                        >
+                          <Pencil className="w-3 h-3" />
+                        </button>
+                        <button
+                          onClick={() => setDeleteId(thumb._id)}
+                          className="text-[#4a4a54] hover:text-red-400 transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
                   </div>
                   <div className="flex items-center gap-3 mt-2">
                     <button
@@ -1913,11 +2090,12 @@ function Dashboard() {
               className="relative w-full max-w-sm rounded-xl border border-white/6 bg-[#111118] shadow-2xl p-5"
             >
               <h2 className="font-heading text-[15px] font-semibold text-white">
-                Delete thumbnail?
+                Move to trash?
               </h2>
               <p className="text-[13px] text-[#737380] mt-1.5">
-                This action cannot be undone. The thumbnail will be permanently
-                removed.
+                You can restore it from Trash for the next{" "}
+                {TRASH_RETENTION_DAYS} days, after which it is deleted
+                permanently.
               </p>
               <div className="flex items-center justify-end gap-2 mt-5">
                 <Button
@@ -1932,7 +2110,7 @@ function Dashboard() {
                   disabled={deleting}
                   className="h-8 text-[13px] bg-red-500 text-white hover:bg-red-600 font-medium"
                 >
-                  {deleting ? "Deleting..." : "Delete"}
+                  {deleting ? "Moving..." : "Move to trash"}
                 </Button>
               </div>
             </motion.div>
@@ -1980,6 +2158,27 @@ function Dashboard() {
             <span className="text-[13px] text-[#737380]">
               {selectedIds.length} selected
             </span>
+            {trashMode && (
+              <>
+                <Button
+                  onClick={handleBulkRestore}
+                  variant="outline"
+                  className="h-8 text-[13px] border-white/8 text-[#737380] hover:text-white hover:border-white/12 bg-transparent font-medium gap-1.5"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  Restore
+                </Button>
+                <Button
+                  onClick={() => setBulkPurgeOpen(true)}
+                  className="h-8 text-[13px] bg-red-500 text-white hover:bg-red-600 font-medium gap-1.5"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Delete forever
+                </Button>
+              </>
+            )}
+            {!trashMode && (
+            <>
             <Button
               onClick={handleBulkExport}
               disabled={bulkExporting}
@@ -2026,6 +2225,8 @@ function Dashboard() {
               <Trash2 className="w-3.5 h-3.5" />
               Delete
             </Button>
+            </>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
@@ -2126,6 +2327,60 @@ function Dashboard() {
                   className="h-8 text-[13px] bg-white text-[#0a0a0f] hover:bg-white/90 font-medium"
                 >
                   {bulkTagging ? "Saving..." : "Add Tags"}
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Permanent delete modals */}
+      <AnimatePresence>
+        {(purgeId || bulkPurgeOpen) && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => {
+                setPurgeId(null);
+                setBulkPurgeOpen(false);
+              }}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 10 }}
+              transition={{ duration: 0.15 }}
+              className="relative w-full max-w-sm rounded-xl border border-red-500/20 bg-[#111118] p-5"
+            >
+              <h3 className="font-heading text-[15px] font-semibold text-white mb-1">
+                Delete forever?
+              </h3>
+              <p className="text-[13px] text-[#737380] mb-5">
+                {bulkPurgeOpen
+                  ? `${selectedIds.length} thumbnails and their image files`
+                  : "This thumbnail and its image file"}{" "}
+                will be erased from disk. This cannot be undone.
+              </p>
+              <div className="flex justify-end gap-2">
+                <Button
+                  onClick={() => {
+                    setPurgeId(null);
+                    setBulkPurgeOpen(false);
+                  }}
+                  variant="outline"
+                  className="h-8 text-[13px] border-white/8 text-[#737380] hover:text-white hover:border-white/12 bg-transparent font-medium"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={bulkPurgeOpen ? handleBulkPurge : handlePurge}
+                  disabled={purging}
+                  className="h-8 text-[13px] bg-red-500 text-white hover:bg-red-600 font-medium"
+                >
+                  {purging ? "Deleting..." : "Delete forever"}
                 </Button>
               </div>
             </motion.div>
