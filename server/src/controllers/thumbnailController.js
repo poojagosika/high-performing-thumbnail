@@ -1,6 +1,7 @@
 const crypto = require("crypto");
 const Thumbnail = require("../models/Thumbnail");
 const Activity = require("../models/Activity");
+const Collection = require("../models/Collection");
 const fs = require("fs");
 const path = require("path");
 const archiver = require("archiver");
@@ -72,6 +73,9 @@ const updateThumbnail = async (req, res) => {
       updates.tags = req.body.tags.split(",").map((t) => t.trim());
     }
     if (req.body.notes !== undefined) updates.notes = req.body.notes;
+    if (req.body.collectionId !== undefined) {
+      updates.collectionId = req.body.collectionId || null;
+    }
 
     const thumbnail = await Thumbnail.findOneAndUpdate(
       { _id: req.params.id, user: req.user._id },
@@ -496,6 +500,40 @@ const analyzeThumbnail = async (req, res) => {
   }
 };
 
+const bulkCollection = async (req, res) => {
+  try {
+    const { ids, collectionId } = req.body;
+
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: "No thumbnails selected" });
+    }
+
+    if (collectionId) {
+      const collection = await Collection.findOne({
+        _id: collectionId,
+        user: req.user._id,
+      });
+      if (!collection) {
+        return res.status(404).json({ message: "Collection not found" });
+      }
+    }
+
+    await Thumbnail.updateMany(
+      { _id: { $in: ids }, user: req.user._id },
+      { collectionId: collectionId || null },
+    );
+
+    const updated = await Thumbnail.find({
+      _id: { $in: ids },
+      user: req.user._id,
+    });
+
+    res.json(updated);
+  } catch (error) {
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 module.exports = {
   createThumbnail,
   getThumbnails,
@@ -504,6 +542,7 @@ module.exports = {
   deleteThumbnail,
   bulkDelete,
   bulkTag,
+  bulkCollection,
   bulkExport,
   trackEvent,
   reuploadVersion,

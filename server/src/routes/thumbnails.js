@@ -9,6 +9,7 @@ const {
   deleteThumbnail,
   bulkDelete,
   bulkTag,
+  bulkCollection,
   bulkExport,
   trackEvent,
   reuploadVersion,
@@ -30,6 +31,7 @@ router.use(auth);
 router.post("/", upload.single("image"), createThumbnail);
 router.post("/bulk-delete", bulkDelete);
 router.post("/bulk-tag", bulkTag);
+router.post("/bulk-collection", bulkCollection);
 router.post("/bulk-export", bulkExport);
 router.post("/reorder", reorder);
 router.get("/", getThumbnails);

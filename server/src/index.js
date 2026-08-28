@@ -31,6 +31,7 @@ app.use("/api/auth", require("./routes/auth"));
 app.use("/api/thumbnails", require("./routes/thumbnails"));
 app.use("/api/activities", require("./routes/activities"));
 app.use("/api/comparisons", require("./routes/comparisons"));
+app.use("/api/collections", require("./routes/collections"));
 
 // Health check route
 app.get("/api/health", (req, res) => {
