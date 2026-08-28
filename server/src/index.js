@@ -33,6 +33,10 @@ app.use("/api/activities", require("./routes/activities"));
 app.use("/api/comparisons", require("./routes/comparisons"));
 app.use("/api/collections", require("./routes/collections"));
 
+// Sweep thumbnails that have outlived the trash retention window
+const { purgeExpired } = require("./controllers/thumbnailController");
+purgeExpired().catch(() => {});
+
 // Health check route
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok", message: "Server is running" });

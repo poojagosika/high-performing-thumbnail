@@ -85,8 +85,25 @@ const thumbnailSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    deletedAt: {
+      type: Date,
+      default: null,
+    },
   },
   { timestamps: true },
 );
+
+thumbnailSchema.index({ user: 1, deletedAt: 1 });
+
+// Trashed thumbnails stay out of every query unless a caller opts in with
+// .setOptions({ withDeleted: true }). Covers find, findOne, findOneAndUpdate,
+// findOneAndDelete and populate — but not aggregate or updateMany, which
+// filter on deletedAt explicitly at their call sites.
+thumbnailSchema.pre(/^find/, function (next) {
+  if (!this.getOptions().withDeleted) {
+    this.where({ deletedAt: null });
+  }
+  next();
+});
 
 module.exports = mongoose.model("Thumbnail", thumbnailSchema);

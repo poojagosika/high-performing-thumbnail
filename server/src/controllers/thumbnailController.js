@@ -10,6 +10,37 @@ const logActivity = (user, type, thumbnailTitle, thumbnailId) => {
   Activity.create({ user, type, thumbnailTitle, thumbnailId }).catch(() => {});
 };
 
+const TRASH_RETENTION_DAYS = 30;
+
+const removeFile = (imageUrl) => {
+  const filePath = path.join(__dirname, "../../", imageUrl);
+  if (fs.existsSync(filePath)) {
+    fs.unlinkSync(filePath);
+  }
+};
+
+// Hard-delete trashed thumbnails past the retention window, along with every
+// image file they own. Runs on boot and whenever the trash is opened, so the
+// project stays free of a scheduler dependency.
+const purgeExpired = async (user) => {
+  const cutoff = new Date(Date.now() - TRASH_RETENTION_DAYS * 24 * 60 * 60 * 1000);
+  const filter = { deletedAt: { $ne: null, $lt: cutoff } };
+  if (user) filter.user = user;
+
+  const expired = await Thumbnail.find(filter).setOptions({ withDeleted: true });
+
+  for (const thumb of expired) {
+    removeFile(thumb.imageUrl);
+    (thumb.versions || []).forEach((v) => removeFile(v.imageUrl));
+  }
+
+  if (expired.length > 0) {
+    await Thumbnail.deleteMany({ _id: { $in: expired.map((t) => t._id) } });
+  }
+
+  return expired.length;
+};
+
 const createThumbnail = async (req, res) => {
   try {
     if (!req.file) {
@@ -98,23 +129,18 @@ const updateThumbnail = async (req, res) => {
 
 const deleteThumbnail = async (req, res) => {
   try {
-    const thumbnail = await Thumbnail.findOneAndDelete({
-      _id: req.params.id,
-      user: req.user._id,
-    });
+    const thumbnail = await Thumbnail.findOneAndUpdate(
+      { _id: req.params.id, user: req.user._id },
+      { deletedAt: new Date() },
+      { new: true },
+    );
 
     if (!thumbnail) {
       return res.status(404).json({ message: "Thumbnail not found" });
     }
 
-    // Remove file from disk
-    const filePath = path.join(__dirname, "../../", thumbnail.imageUrl);
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-    }
-
-    logActivity(req.user._id, "deleted", thumbnail.title, null);
-    res.json({ message: "Thumbnail deleted" });
+    logActivity(req.user._id, "trashed", thumbnail.title, thumbnail._id);
+    res.json({ message: "Thumbnail moved to trash", thumbnail });
   } catch (error) {
     res.status(500).json({ message: "Server error" });
   }
@@ -128,24 +154,13 @@ const bulkDelete = async (req, res) => {
       return res.status(400).json({ message: "No thumbnails selected" });
     }
 
-    const thumbnails = await Thumbnail.find({
-      _id: { $in: ids },
-      user: req.user._id,
-    });
+    const result = await Thumbnail.updateMany(
+      { _id: { $in: ids }, user: req.user._id, deletedAt: null },
+      { deletedAt: new Date() },
+    );
 
-    for (const thumb of thumbnails) {
-      const filePath = path.join(__dirname, "../../", thumb.imageUrl);
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-      }
-    }
-
-    await Thumbnail.deleteMany({
-      _id: { $in: ids },
-      user: req.user._id,
-    });
-
-    res.json({ message: `${thumbnails.length} thumbnails deleted` });
+    logActivity(req.user._id, "trashed", `${result.modifiedCount} thumbnails`, null);
+    res.json({ message: `${result.modifiedCount} thumbnails moved to trash` });
   } catch (error) {
     res.status(500).json({ message: "Server error" });
   }
@@ -534,6 +549,112 @@ const bulkCollection = async (req, res) => {
   }
 };
 
+const getTrash = async (req, res) => {
+  try {
+    await purgeExpired(req.user._id);
+
+    const thumbnails = await Thumbnail.find({
+      user: req.user._id,
+      deletedAt: { $ne: null },
+    })
+      .setOptions({ withDeleted: true })
+      .sort({ deletedAt: -1 });
+
+    res.json(thumbnails);
+  } catch (error) {
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+const restoreThumbnail = async (req, res) => {
+  try {
+    const thumbnail = await Thumbnail.findOneAndUpdate(
+      { _id: req.params.id, user: req.user._id, deletedAt: { $ne: null } },
+      { deletedAt: null },
+      { new: true },
+    ).setOptions({ withDeleted: true });
+
+    if (!thumbnail) {
+      return res.status(404).json({ message: "Thumbnail not found in trash" });
+    }
+
+    logActivity(req.user._id, "restored", thumbnail.title, thumbnail._id);
+    res.json(thumbnail);
+  } catch (error) {
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+const purgeThumbnail = async (req, res) => {
+  try {
+    const thumbnail = await Thumbnail.findOneAndDelete({
+      _id: req.params.id,
+      user: req.user._id,
+      deletedAt: { $ne: null },
+    }).setOptions({ withDeleted: true });
+
+    if (!thumbnail) {
+      return res.status(404).json({ message: "Thumbnail not found in trash" });
+    }
+
+    removeFile(thumbnail.imageUrl);
+    (thumbnail.versions || []).forEach((v) => removeFile(v.imageUrl));
+
+    logActivity(req.user._id, "purged", thumbnail.title, null);
+    res.json({ message: "Thumbnail permanently deleted" });
+  } catch (error) {
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+const bulkRestore = async (req, res) => {
+  try {
+    const { ids } = req.body;
+
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: "No thumbnails selected" });
+    }
+
+    const result = await Thumbnail.updateMany(
+      { _id: { $in: ids }, user: req.user._id, deletedAt: { $ne: null } },
+      { deletedAt: null },
+    );
+
+    logActivity(req.user._id, "restored", `${result.modifiedCount} thumbnails`, null);
+    res.json({ message: `${result.modifiedCount} thumbnails restored` });
+  } catch (error) {
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+const bulkPurge = async (req, res) => {
+  try {
+    const { ids } = req.body;
+
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: "No thumbnails selected" });
+    }
+
+    const thumbnails = await Thumbnail.find({
+      _id: { $in: ids },
+      user: req.user._id,
+      deletedAt: { $ne: null },
+    }).setOptions({ withDeleted: true });
+
+    for (const thumb of thumbnails) {
+      removeFile(thumb.imageUrl);
+      (thumb.versions || []).forEach((v) => removeFile(v.imageUrl));
+    }
+
+    await Thumbnail.deleteMany({ _id: { $in: thumbnails.map((t) => t._id) } });
+
+    logActivity(req.user._id, "purged", `${thumbnails.length} thumbnails`, null);
+    res.json({ message: `${thumbnails.length} thumbnails permanently deleted` });
+  } catch (error) {
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 module.exports = {
   createThumbnail,
   getThumbnails,
@@ -541,6 +662,12 @@ module.exports = {
   updateThumbnail,
   deleteThumbnail,
   bulkDelete,
+  getTrash,
+  restoreThumbnail,
+  purgeThumbnail,
+  bulkRestore,
+  bulkPurge,
+  purgeExpired,
   bulkTag,
   bulkCollection,
   bulkExport,
