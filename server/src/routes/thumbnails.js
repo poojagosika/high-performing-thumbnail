@@ -18,6 +18,7 @@ const {
   bulkExport,
   trackEvent,
   reuploadVersion,
+  restoreVersion,
   toggleShare,
   getPublicThumbnail,
   toggleStar,
@@ -46,6 +47,7 @@ router.get("/", getThumbnails);
 router.get("/:id", getThumbnail);
 router.post("/:id/duplicate", duplicateThumbnail);
 router.post("/:id/reupload", upload.single("image"), reuploadVersion);
+router.post("/:id/versions/:index/restore", restoreVersion);
 router.post("/:id/track", trackEvent);
 router.post("/:id/analyze", analyzeThumbnail);
 router.post("/:id/restore", restoreThumbnail);
