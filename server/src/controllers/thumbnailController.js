@@ -412,6 +412,42 @@ const reuploadVersion = async (req, res) => {
   }
 };
 
+// Promote an archived version back to current. The image being replaced is
+// pushed onto the history rather than discarded, so restoring is itself
+// reversible and no upload is ever lost.
+const restoreVersion = async (req, res) => {
+  try {
+    const index = Number(req.params.index);
+
+    const thumbnail = await Thumbnail.findOne({
+      _id: req.params.id,
+      user: req.user._id,
+    });
+
+    if (!thumbnail) {
+      return res.status(404).json({ message: "Thumbnail not found" });
+    }
+
+    if (!Number.isInteger(index) || index < 0 || index >= thumbnail.versions.length) {
+      return res.status(400).json({ message: "Version not found" });
+    }
+
+    const target = thumbnail.versions[index];
+    const current = thumbnail.imageUrl;
+
+    thumbnail.imageUrl = target.imageUrl;
+    thumbnail.versions.splice(index, 1);
+    thumbnail.versions.push({ imageUrl: current, uploadedAt: new Date() });
+
+    await thumbnail.save();
+
+    logActivity(req.user._id, "restored", thumbnail.title, thumbnail._id);
+    res.json(thumbnail);
+  } catch (error) {
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 const bulkExport = async (req, res) => {
   try {
     const { ids } = req.body;
@@ -673,6 +709,7 @@ module.exports = {
   bulkExport,
   trackEvent,
   reuploadVersion,
+  restoreVersion,
   toggleShare,
   getPublicThumbnail,
   toggleStar,

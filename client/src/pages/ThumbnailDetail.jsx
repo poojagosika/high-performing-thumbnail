@@ -23,6 +23,7 @@ import {
   TrendingUp,
   StickyNote,
   History,
+  RotateCcw,
   Upload,
   Share2,
   Link2,
@@ -130,7 +131,8 @@ function ThumbnailDetail() {
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [notesInput, setNotesInput] = useState("");
   const [notesSaved, setNotesSaved] = useState(true);
-  const [comparingVersion, setComparingVersion] = useState(null);
+  const [versionCompare, setVersionCompare] = useState(null);
+  const [restoringVersion, setRestoringVersion] = useState(null);
   const [reuploading, setReuploading] = useState(false);
   const [palette, setPalette] = useState([]);
   const [analyzing, setAnalyzing] = useState(false);
@@ -347,6 +349,43 @@ function ThumbnailDetail() {
       toast.success("Notes saved");
     } catch {
       toast.error("Failed to save notes");
+    }
+  };
+
+  const allVersions = useMemo(() => {
+    const archived = (thumb?.versions || []).map((v, i) => ({
+      imageUrl: v.imageUrl,
+      uploadedAt: v.uploadedAt,
+      label: `v${i + 1}`,
+      versionIndex: i,
+      isCurrent: false,
+    }));
+    if (!thumb) return archived;
+    return [
+      ...archived,
+      {
+        imageUrl: thumb.imageUrl,
+        uploadedAt: thumb.updatedAt || thumb.createdAt,
+        label: `v${archived.length + 1}`,
+        versionIndex: null,
+        isCurrent: true,
+      },
+    ];
+  }, [thumb]);
+
+  const handleRestoreVersion = async (versionIndex) => {
+    setRestoringVersion(versionIndex);
+    try {
+      const updated = await api(`/thumbnails/${id}/versions/${versionIndex}/restore`, {
+        method: "POST",
+      });
+      setThumb(updated);
+      setVersionCompare(null);
+      toast.success("Version restored");
+    } catch {
+      toast.error("Failed to restore version");
+    } finally {
+      setRestoringVersion(null);
     }
   };
 
@@ -912,34 +951,54 @@ function ThumbnailDetail() {
                 </div>
                 {thumb.versions?.length > 0 ? (
                   <div className="flex gap-2 overflow-x-auto scrollbar-none pb-1">
-                    {[...thumb.versions].reverse().map((v, i) => (
-                      <button
-                        key={i}
-                        onClick={() => setComparingVersion(v)}
+                    {[...thumb.versions]
+                      .map((v, i) => ({ ...v, versionIndex: i }))
+                      .reverse()
+                      .map((v) => (
+                      <div
+                        key={v.versionIndex}
                         className="shrink-0 rounded-lg border border-white/6 hover:border-white/16 overflow-hidden transition-all group/ver"
                       >
-                        <div className="relative w-28 aspect-video bg-[#1a1a24]">
-                          <img
-                            src={`http://localhost:5000${v.imageUrl}`}
-                            alt={`Version ${thumb.versions.length - i}`}
-                            className="w-full h-full object-cover"
-                          />
-                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/ver:opacity-100 transition-opacity flex items-center justify-center">
-                            <span className="text-[10px] text-white font-medium">
-                              Compare
-                            </span>
+                        <button
+                          onClick={() =>
+                            setVersionCompare({
+                              left: v.versionIndex,
+                              right: allVersions.length - 1,
+                            })
+                          }
+                          className="block w-full"
+                        >
+                          <div className="relative w-28 aspect-video bg-[#1a1a24]">
+                            <img
+                              src={`http://localhost:5000${v.imageUrl}`}
+                              alt={`Version ${v.versionIndex + 1}`}
+                              className="w-full h-full object-cover"
+                            />
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/ver:opacity-100 transition-opacity flex items-center justify-center">
+                              <span className="text-[10px] text-white font-medium">
+                                Compare
+                              </span>
+                            </div>
                           </div>
-                        </div>
-                        <div className="px-2 py-1.5">
+                        </button>
+                        <div className="flex items-center justify-between gap-1 px-2 py-1.5">
                           <span className="text-[10px] text-[#4a4a54]">
-                            v{thumb.versions.length - i} ·{" "}
+                            v{v.versionIndex + 1} ·{" "}
                             {new Date(v.uploadedAt).toLocaleDateString("en-US", {
                               month: "short",
                               day: "numeric",
                             })}
                           </span>
+                          <button
+                            onClick={() => handleRestoreVersion(v.versionIndex)}
+                            disabled={restoringVersion !== null}
+                            title="Restore this version"
+                            className="text-[#4a4a54] hover:text-emerald-400 transition-colors disabled:opacity-40"
+                          >
+                            <RotateCcw className="w-3 h-3" />
+                          </button>
                         </div>
-                      </button>
+                      </div>
                     ))}
                   </div>
                 ) : (
@@ -1740,14 +1799,14 @@ function ThumbnailDetail() {
 
       {/* Version compare overlay */}
       <AnimatePresence>
-        {comparingVersion && (
+        {versionCompare && (
           <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="absolute inset-0 bg-black/80 backdrop-blur-sm"
-              onClick={() => setComparingVersion(null)}
+              onClick={() => setVersionCompare(null)}
             />
             <motion.div
               initial={{ opacity: 0, scale: 0.96, y: 10 }}
@@ -1761,44 +1820,62 @@ function ThumbnailDetail() {
                   Version Comparison
                 </h2>
                 <button
-                  onClick={() => setComparingVersion(null)}
+                  onClick={() => setVersionCompare(null)}
                   className="text-[#4a4a54] hover:text-white transition-colors"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-[11px] text-[#4a4a54] mb-2 text-center">
-                    Previous · v{thumb.versions?.findIndex(
-                      (v) => v.imageUrl === comparingVersion.imageUrl
-                    ) + 1}{" "}
-                    · {new Date(comparingVersion.uploadedAt).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric",
-                    })}
-                  </p>
-                  <div className="rounded-lg border border-white/6 overflow-hidden bg-[#1a1a24]">
-                    <img
-                      src={`http://localhost:5000${comparingVersion.imageUrl}`}
-                      alt="Previous version"
-                      className="w-full aspect-video object-cover"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <p className="text-[11px] text-[#4a4a54] mb-2 text-center">
-                    Current · v{(thumb.versions?.length || 0) + 1} · Latest
-                  </p>
-                  <div className="rounded-lg border border-white/6 overflow-hidden bg-[#1a1a24]">
-                    <img
-                      src={`http://localhost:5000${thumb.imageUrl}`}
-                      alt="Current version"
-                      className="w-full aspect-video object-cover"
-                    />
-                  </div>
-                </div>
+                {["left", "right"].map((side) => {
+                  const entry = allVersions[versionCompare[side]];
+                  if (!entry) return null;
+                  return (
+                    <div key={side}>
+                      <select
+                        value={versionCompare[side]}
+                        onChange={(e) =>
+                          setVersionCompare({
+                            ...versionCompare,
+                            [side]: Number(e.target.value),
+                          })
+                        }
+                        className="w-full h-8 mb-2 px-2 rounded-lg border border-white/8 bg-white/3 text-[12px] text-[#737380] outline-none focus:border-white/16 transition-colors cursor-pointer"
+                      >
+                        {allVersions.map((v, i) => (
+                          <option key={i} value={i}>
+                            {v.label}
+                            {v.isCurrent ? " · Current" : ""} ·{" "}
+                            {new Date(v.uploadedAt).toLocaleDateString("en-US", {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                            })}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="rounded-lg border border-white/6 overflow-hidden bg-[#1a1a24]">
+                        <img
+                          src={`http://localhost:5000${entry.imageUrl}`}
+                          alt={`Version ${entry.label}`}
+                          className="w-full aspect-video object-cover"
+                        />
+                      </div>
+                      {!entry.isCurrent && (
+                        <button
+                          onClick={() => handleRestoreVersion(entry.versionIndex)}
+                          disabled={restoringVersion !== null}
+                          className="w-full mt-2 flex items-center justify-center gap-1.5 h-8 rounded-lg border border-white/8 text-[12px] text-[#737380] hover:text-emerald-400 hover:border-emerald-500/30 transition-colors disabled:opacity-40"
+                        >
+                          <RotateCcw className="w-3 h-3" />
+                          {restoringVersion === entry.versionIndex
+                            ? "Restoring..."
+                            : `Restore ${entry.label}`}
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </motion.div>
           </div>
