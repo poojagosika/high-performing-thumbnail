@@ -1,6 +1,7 @@
 const express = require("express");
 const auth = require("../middleware/auth");
 const upload = require("../config/upload");
+const { persistImage, uploadErrorHandler } = require("../config/upload");
 const {
   createThumbnail,
   getThumbnails,
@@ -36,7 +37,7 @@ router.get("/public/:token", getPublicThumbnail);
 
 router.use(auth);
 
-router.post("/", upload.single("image"), createThumbnail);
+router.post("/", upload.single("image"), uploadErrorHandler, persistImage, createThumbnail);
 router.post("/bulk-delete", bulkDelete);
 router.post("/bulk-restore", bulkRestore);
 router.post("/bulk-purge", bulkPurge);
@@ -48,7 +49,7 @@ router.get("/trash", getTrash);
 router.get("/", getThumbnails);
 router.get("/:id", getThumbnail);
 router.post("/:id/duplicate", duplicateThumbnail);
-router.post("/:id/reupload", upload.single("image"), reuploadVersion);
+router.post("/:id/reupload", upload.single("image"), uploadErrorHandler, persistImage, reuploadVersion);
 router.post("/:id/versions/:index/restore", restoreVersion);
 router.post("/:id/performance", logPerformance);
 router.delete("/:id/performance/:entryId", deletePerformance);
