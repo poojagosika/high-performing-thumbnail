@@ -7,7 +7,13 @@ const connectDB = require("./config/db");
 
 dotenv.config();
 
+require("./config/security");
+
+const { serveUploadsGuard, UPLOAD_DIR } = require("./config/upload");
+
 const app = express();
+
+app.set("trust proxy", 1);
 
 // Middleware
 app.use(
@@ -24,7 +30,15 @@ app.use(express.urlencoded({ extended: true }));
 connectDB();
 
 // Static files
-app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
+app.use("/uploads", serveUploadsGuard, express.static(UPLOAD_DIR, {
+  index: false,
+  dotfiles: "deny",
+  setHeaders: (res) => {
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("Content-Security-Policy", "default-src 'none'; sandbox");
+    res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+  },
+}));
 
 // Routes
 app.use("/api/auth", require("./routes/auth"));

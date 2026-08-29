@@ -1,21 +1,15 @@
 const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
 const fs = require("fs");
 const path = require("path");
 const User = require("../models/User");
+const {
+  cookieOptions,
+  clearCookieOptions,
+  signToken,
+  BCRYPT_ROUNDS,
+} = require("../config/security");
 
-const generateToken = (userId) => {
-  return jwt.sign({ id: userId }, process.env.JWT_SECRET, {
-    expiresIn: "7d",
-  });
-};
-
-const cookieOptions = {
-  httpOnly: true,
-  secure: process.env.NODE_ENV === "production",
-  sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-};
+const generateToken = (userId) => signToken(userId);
 
 const register = async (req, res) => {
   try {
@@ -36,7 +30,7 @@ const register = async (req, res) => {
       return res.status(409).json({ message: "Email already in use" });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(password, BCRYPT_ROUNDS);
 
     const user = await User.create({
       name,
@@ -71,7 +65,7 @@ const login = async (req, res) => {
       return res.status(400).json({ message: "All fields are required" });
     }
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email }).select("+password");
     if (!user) {
       return res.status(401).json({ message: "Invalid credentials" });
     }
@@ -155,14 +149,14 @@ const changePassword = async (req, res) => {
         .json({ message: "New password must be at least 8 characters" });
     }
 
-    const user = await User.findById(req.user._id);
+    const user = await User.findById(req.user._id).select("+password");
     const isMatch = await bcrypt.compare(currentPassword, user.password);
 
     if (!isMatch) {
       return res.status(401).json({ message: "Current password is incorrect" });
     }
 
-    user.password = await bcrypt.hash(newPassword, 10);
+    user.password = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
     await user.save();
 
     res.json({ message: "Password updated" });
@@ -203,13 +197,7 @@ const uploadAvatar = async (req, res) => {
 };
 
 const logout = (req, res) => {
-  res
-    .clearCookie("token", {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-    })
-    .json({ message: "Logged out" });
+  res.clearCookie("token", clearCookieOptions).json({ message: "Logged out" });
 };
 
 module.exports = {
