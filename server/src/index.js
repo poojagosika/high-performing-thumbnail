@@ -7,7 +7,11 @@ const connectDB = require("./config/db");
 
 dotenv.config();
 
+require("./config/security");
+
 const app = express();
+
+app.set("trust proxy", 1);
 
 // Middleware
 app.use(
