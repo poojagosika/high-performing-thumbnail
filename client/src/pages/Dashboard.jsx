@@ -89,6 +89,11 @@ function Dashboard() {
   const dateRange = searchParams.get("range") || "all";
   const activeCollection = searchParams.get("collection") || "";
   const trashMode = searchParams.get("trash") === "1";
+  // The command palette navigates here with a flag rather than reaching into
+  // this page's state. Read as derived state and cleared on close, so a refresh
+  // or back navigation doesn't reopen the modal.
+  const uploadParam = searchParams.get("upload") === "1";
+  const shortcutsParam = searchParams.get("shortcuts") === "1";
 
   const setParams = useCallback((updates) => {
     setSearchParams((prev) => {
@@ -2178,8 +2183,11 @@ function Dashboard() {
       </main>
 
       <UploadModal
-        open={uploadOpen}
-        onClose={() => setUploadOpen(false)}
+        open={uploadOpen || uploadParam}
+        onClose={() => {
+          setUploadOpen(false);
+          if (uploadParam) setParams({ upload: null });
+        }}
         onUploaded={(thumb) => {
           setThumbnails((prev) => [thumb, ...prev]);
           toast.success("Thumbnail uploaded");
@@ -2641,8 +2649,11 @@ function Dashboard() {
       </AnimatePresence>
 
       <ShortcutsModal
-        open={shortcutsOpen}
-        onClose={() => setShortcutsOpen(false)}
+        open={shortcutsOpen || shortcutsParam}
+        onClose={() => {
+          setShortcutsOpen(false);
+          if (shortcutsParam) setParams({ shortcuts: null });
+        }}
         shortcuts={dashboardShortcuts}
       />
 

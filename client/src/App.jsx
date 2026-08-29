@@ -14,6 +14,7 @@ import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ScrollToTop from "./components/ScrollToTop";
 import PageTransition from "./components/PageTransition";
+import CommandPalette from "./components/CommandPalette";
 
 function AppRoutes() {
   const location = useLocation();
@@ -112,6 +113,7 @@ function App() {
       <ToastProvider>
         <AuthProvider>
           <ScrollToTop />
+          <CommandPalette />
           <AppRoutes />
         </AuthProvider>
       </ToastProvider>
