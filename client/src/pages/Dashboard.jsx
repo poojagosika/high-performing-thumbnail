@@ -36,6 +36,7 @@ import {
   Folder,
   FolderPlus,
   RotateCcw,
+  MousePointerClick,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "../context/AuthContext";
@@ -725,6 +726,37 @@ function Dashboard() {
     return [...titleMatches, ...tagMatches];
   }, [search, thumbnails, allTags, activeTags]);
 
+  const withPerformance = useMemo(
+    () =>
+      thumbnails
+        .filter((t) => (t.performance || []).length > 0)
+        .map((t) => {
+          const impressions = t.performance.reduce((n, e) => n + e.impressions, 0);
+          const clicks = t.performance.reduce((n, e) => n + e.clicks, 0);
+          return {
+            ...t,
+            realCtr: Math.round((clicks / impressions) * 10000) / 100,
+            totalImpressions: impressions,
+            totalClicks: clicks,
+          };
+        })
+        .sort((a, b) => b.realCtr - a.realCtr),
+    [thumbnails],
+  );
+
+  // Where the top-scoring thumbnail actually landed once real numbers came in.
+  const scoreAccuracy = useMemo(() => {
+    const scored = withPerformance.filter((t) => t.score != null);
+    if (scored.length < 2) return null;
+    const topScored = scored.reduce((a, b) => (a.score > b.score ? a : b));
+    return {
+      title: topScored.title,
+      score: topScored.score,
+      ctrRank: withPerformance.findIndex((t) => t._id === topScored._id) + 1,
+      total: withPerformance.length,
+    };
+  }, [withPerformance]);
+
   const trashItems = trashed ?? [];
 
   const filtered = (trashMode ? trashItems : thumbnails)
@@ -782,6 +814,15 @@ function Dashboard() {
           return a.title.localeCompare(b.title);
         case "score":
           return (b.score ?? -1) - (a.score ?? -1);
+        case "ctr": {
+          const ctrOf = (t) => {
+            if (!(t.performance || []).length) return -1;
+            const imp = t.performance.reduce((n, e) => n + e.impressions, 0);
+            const clk = t.performance.reduce((n, e) => n + e.clicks, 0);
+            return (clk / imp) * 100;
+          };
+          return ctrOf(b) - ctrOf(a);
+        }
         case "custom":
           return (a.order ?? 0) - (b.order ?? 0);
         default:
@@ -1389,6 +1430,79 @@ function Dashboard() {
           </motion.div>
         )}
 
+        {!loading && withPerformance.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={stagger(2)}
+            className="mb-6 rounded-xl border border-white/6 bg-[#111118] p-5"
+          >
+            <div className="flex items-baseline justify-between mb-1">
+              <h3 className="flex items-center gap-1.5 text-[13px] text-[#737380] font-medium">
+                <MousePointerClick className="w-3.5 h-3.5" />
+                Top Performers
+              </h3>
+              <span className="text-[11px] text-[#4a4a54]">
+                by measured click-through rate
+              </span>
+            </div>
+
+            {scoreAccuracy && (
+              <p className="text-[12px] text-[#4a4a54] mb-4">
+                Highest predicted score{" "}
+                <span className="text-[#737380]">
+                  &ldquo;{scoreAccuracy.title}&rdquo; ({scoreAccuracy.score}/100)
+                </span>{" "}
+                ranks{" "}
+                <span className="text-white">
+                  #{scoreAccuracy.ctrRank} of {scoreAccuracy.total}
+                </span>{" "}
+                on real CTR
+              </p>
+            )}
+
+            <div className="flex flex-col gap-2.5">
+              {withPerformance.slice(0, 5).map((t) => {
+                const widthPct = Math.max(
+                  2,
+                  (t.realCtr / withPerformance[0].realCtr) * 100,
+                );
+                return (
+                  <button
+                    key={t._id}
+                    onClick={() => navigate(`/thumbnail/${t._id}`)}
+                    className="group flex items-center gap-3 text-left"
+                    title={`${t.title} — ${t.totalClicks.toLocaleString()} clicks from ${t.totalImpressions.toLocaleString()} impressions${t.score != null ? ` · predicted ${t.score}/100` : ""}`}
+                  >
+                    <div className="w-9 h-6 rounded bg-[#1a1a24] overflow-hidden shrink-0">
+                      <img
+                        src={`http://localhost:5000${t.imageUrl}`}
+                        alt=""
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <span className="text-[13px] text-[#737380] group-hover:text-white transition-colors truncate w-28 shrink-0">
+                      {t.title}
+                    </span>
+                    <div className="flex-1 min-w-0 h-2.5">
+                      <div
+                        className="h-full rounded-sm bg-emerald-500/50 group-hover:bg-emerald-500/70 transition-colors"
+                        style={{ width: `${widthPct}%` }}
+                      />
+                    </div>
+                    <span className="text-[13px] text-white w-12 text-right shrink-0 tabular-nums">
+                      {t.realCtr}%
+                    </span>
+                    <span className="text-[11px] text-[#4a4a54] w-12 text-right shrink-0 tabular-nums">
+                      {t.score != null ? `${t.score}/100` : "—"}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
+
         {!loading && thumbnails.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
@@ -1487,6 +1601,7 @@ function Dashboard() {
                 <option value="oldest">Oldest</option>
                 <option value="title">Title</option>
                 <option value="score">Score</option>
+                <option value="ctr">Real CTR</option>
                 <option value="custom">Custom</option>
               </select>
             </div>
