@@ -8,22 +8,13 @@ const connectDB = require("./config/db");
 
 dotenv.config();
 
-require("./config/security");
+const { allowedOrigins } = require("./config/security");
 
 const { serveUploadsGuard, UPLOAD_DIR } = require("./config/upload");
 
 const app = express();
 
 app.set("trust proxy", 1);
-
-const allowedOrigins = (
-  process.env.CORS_ORIGINS ||
-  process.env.CLIENT_URL ||
-  "http://localhost:5173"
-)
-  .split(",")
-  .map((origin) => origin.trim())
-  .filter(Boolean);
 
 app.use(helmet());
 
@@ -45,6 +36,7 @@ app.use(
 app.use(cookieParser());
 app.use(express.json({ limit: "100kb" }));
 app.use(express.urlencoded({ extended: true, limit: "100kb" }));
+app.use(require("./middleware/csrf").requireCsrf);
 
 // Connect to MongoDB
 connectDB();

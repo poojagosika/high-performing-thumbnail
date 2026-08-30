@@ -47,6 +47,27 @@ const clearCookieOptions = {
   ...(cookieOptions.domain ? { domain: cookieOptions.domain } : {}),
 };
 
+const allowedOrigins = (
+  process.env.CORS_ORIGINS ||
+  process.env.CLIENT_URL ||
+  "http://localhost:5173"
+)
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+const CSRF_SECRET_COOKIE = "csrfSecret";
+const CSRF_HEADER = "x-csrf-token";
+
+const csrfCookieOptions = {
+  httpOnly: true,
+  secure: cookieOptions.secure,
+  sameSite: cookieOptions.sameSite,
+  maxAge: cookieOptions.maxAge,
+  path: "/",
+  ...(cookieOptions.domain ? { domain: cookieOptions.domain } : {}),
+};
+
 const signToken = (userId) =>
   jwt.sign({ id: userId }, JWT_SECRET, {
     algorithm: JWT_ALGORITHM,
@@ -69,4 +90,9 @@ module.exports = {
   signToken,
   verifyToken,
   BCRYPT_ROUNDS,
+  allowedOrigins,
+  csrfCookieOptions,
+  CSRF_SECRET_COOKIE,
+  CSRF_HEADER,
+  JWT_SECRET,
 };
