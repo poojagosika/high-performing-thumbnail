@@ -37,6 +37,7 @@ app.use(cookieParser());
 app.use(express.json({ limit: "100kb" }));
 app.use(express.urlencoded({ extended: true, limit: "100kb" }));
 app.use(require("./middleware/csrf").requireCsrf);
+app.use("/api", require("./middleware/rateLimit").apiLimiter);
 
 // Connect to MongoDB
 connectDB();
