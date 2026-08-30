@@ -1,4 +1,5 @@
 const express = require("express");
+const helmet = require("helmet");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const path = require("path");
@@ -15,16 +16,35 @@ const app = express();
 
 app.set("trust proxy", 1);
 
-// Middleware
+const allowedOrigins = (
+  process.env.CORS_ORIGINS ||
+  process.env.CLIENT_URL ||
+  "http://localhost:5173"
+)
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+app.use(helmet());
+
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || "http://localhost:5173",
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(null, false);
+    },
     credentials: true,
+    methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "X-CSRF-Token"],
+    maxAge: 600,
   }),
 );
+
 app.use(cookieParser());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: "100kb" }));
+app.use(express.urlencoded({ extended: true, limit: "100kb" }));
 
 // Connect to MongoDB
 connectDB();
@@ -54,6 +74,21 @@ purgeExpired().catch(() => {});
 // Health check route
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok", message: "Server is running" });
+});
+
+app.use((req, res) => {
+  res.status(404).json({ message: "Not found" });
+});
+
+app.use((err, req, res, next) => {
+  console.error(err);
+  const status = err.status || err.statusCode || 500;
+  const body = { message: status === 500 ? "Server error" : err.message };
+  if (process.env.NODE_ENV !== "production") {
+    body.error = err.message;
+    body.stack = err.stack;
+  }
+  res.status(status).json(body);
 });
 
 const PORT = process.env.PORT || 5000;
