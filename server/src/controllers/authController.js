@@ -11,6 +11,9 @@ const {
 
 const generateToken = (userId) => signToken(userId);
 
+const MAX_LOGIN_ATTEMPTS = 5;
+const LOCK_DURATION_MS = 15 * 60 * 1000;
+
 const register = async (req, res) => {
   try {
     const { name, email, password } = req.body;
@@ -65,14 +68,34 @@ const login = async (req, res) => {
       return res.status(400).json({ message: "All fields are required" });
     }
 
-    const user = await User.findOne({ email }).select("+password");
+    const user = await User.findOne({ email }).select(
+      "+password +failedLoginAttempts +lockUntil",
+    );
     if (!user) {
+      return res.status(401).json({ message: "Invalid credentials" });
+    }
+
+    if (user.lockUntil && user.lockUntil > Date.now()) {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
+      const attempts = (user.failedLoginAttempts || 0) + 1;
+      const update = { failedLoginAttempts: attempts };
+      if (attempts >= MAX_LOGIN_ATTEMPTS) {
+        update.lockUntil = new Date(Date.now() + LOCK_DURATION_MS);
+        update.failedLoginAttempts = 0;
+      }
+      await User.updateOne({ _id: user._id }, update);
       return res.status(401).json({ message: "Invalid credentials" });
+    }
+
+    if (user.failedLoginAttempts > 0 || user.lockUntil) {
+      await User.updateOne(
+        { _id: user._id },
+        { failedLoginAttempts: 0, lockUntil: null },
+      );
     }
 
     const token = generateToken(user._id);

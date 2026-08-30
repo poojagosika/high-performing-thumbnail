@@ -2,6 +2,7 @@ const express = require("express");
 const auth = require("../middleware/auth");
 const upload = require("../config/upload");
 const { persistImage, uploadErrorHandler } = require("../config/upload");
+const { uploadLimiter, analyzeLimiter } = require("../middleware/rateLimit");
 const {
   createThumbnail,
   getThumbnails,
@@ -37,7 +38,7 @@ router.get("/public/:token", getPublicThumbnail);
 
 router.use(auth);
 
-router.post("/", upload.single("image"), uploadErrorHandler, persistImage, createThumbnail);
+router.post("/", uploadLimiter, upload.single("image"), uploadErrorHandler, persistImage, createThumbnail);
 router.post("/bulk-delete", bulkDelete);
 router.post("/bulk-restore", bulkRestore);
 router.post("/bulk-purge", bulkPurge);
@@ -49,12 +50,12 @@ router.get("/trash", getTrash);
 router.get("/", getThumbnails);
 router.get("/:id", getThumbnail);
 router.post("/:id/duplicate", duplicateThumbnail);
-router.post("/:id/reupload", upload.single("image"), uploadErrorHandler, persistImage, reuploadVersion);
+router.post("/:id/reupload", uploadLimiter, upload.single("image"), uploadErrorHandler, persistImage, reuploadVersion);
 router.post("/:id/versions/:index/restore", restoreVersion);
 router.post("/:id/performance", logPerformance);
 router.delete("/:id/performance/:entryId", deletePerformance);
 router.post("/:id/track", trackEvent);
-router.post("/:id/analyze", analyzeThumbnail);
+router.post("/:id/analyze", analyzeLimiter, analyzeThumbnail);
 router.post("/:id/restore", restoreThumbnail);
 router.patch("/:id/share", toggleShare);
 router.patch("/:id/star", toggleStar);
