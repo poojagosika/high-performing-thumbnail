@@ -17,17 +17,24 @@ const {
   uploadLimiter,
   authSlowDown,
 } = require("../middleware/rateLimit");
+const { validate } = require("../middleware/validate");
+const {
+  registerSchema,
+  loginSchema,
+  updateProfileSchema,
+  changePasswordSchema,
+} = require("../schemas");
 const { persistImage, uploadErrorHandler } = require("../config/upload");
 
 const router = express.Router();
 
-router.post("/register", authSlowDown, registerLimiter, register);
-router.post("/login", authSlowDown, loginLimiter, login);
+router.post("/register", authSlowDown, registerLimiter, validate(registerSchema), register);
+router.post("/login", authSlowDown, loginLimiter, validate(loginSchema), login);
 router.post("/logout", logout);
 router.get("/csrf", issueCsrfToken);
 router.get("/me", auth, getMe);
-router.patch("/profile", auth, updateProfile);
-router.patch("/password", auth, changePassword);
+router.patch("/profile", auth, validate(updateProfileSchema), updateProfile);
+router.patch("/password", auth, validate(changePasswordSchema), changePassword);
 router.post("/avatar", auth, uploadLimiter, upload.single("avatar"), uploadErrorHandler, persistImage, uploadAvatar);
 
 module.exports = router;
