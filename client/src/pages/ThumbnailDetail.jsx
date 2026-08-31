@@ -43,7 +43,8 @@ import { Button } from "@/components/ui/button";
 import DashboardNav from "../components/DashboardNav";
 import ShortcutsModal from "../components/ShortcutsModal";
 import { useToast } from "../context/ToastContext";
-import api from "../lib/api";
+import api, { uploadFile } from "../lib/api";
+import { assetUrl } from "../lib/assetUrl";
 
 const detailShortcuts = [
   { key: "d", label: "Download thumbnail" },
@@ -219,7 +220,7 @@ function ThumbnailDetail() {
     if (!thumb?.imageUrl) return;
     const img = new window.Image();
     img.crossOrigin = "anonymous";
-    img.src = `http://localhost:5000${thumb.imageUrl}`;
+    img.src = assetUrl(thumb.imageUrl);
     img.onload = () => {
       const canvas = document.createElement("canvas");
       const size = 64;
@@ -308,7 +309,7 @@ function ThumbnailDetail() {
 
   const handleDownload = async () => {
     try {
-      const res = await fetch(`http://localhost:5000${thumb.imageUrl}`);
+      const res = await fetch(assetUrl(thumb.imageUrl));
       const blob = await res.blob();
       const ext = thumb.imageUrl.split(".").pop();
       const url = URL.createObjectURL(blob);
@@ -489,13 +490,7 @@ function ThumbnailDetail() {
     try {
       const formData = new FormData();
       formData.append("image", file);
-      const res = await fetch(`http://localhost:5000/api/thumbnails/${id}/reupload`, {
-        method: "POST",
-        credentials: "include",
-        body: formData,
-      });
-      if (!res.ok) throw new Error("Upload failed");
-      const updated = await res.json();
+      const updated = await uploadFile(`/thumbnails/${id}/reupload`, formData);
       setThumb(updated);
       toast.success("New version uploaded");
     } catch {
@@ -1002,7 +997,7 @@ function ThumbnailDetail() {
               onClick={() => setZoomed(true)}
             >
               <img
-                src={`http://localhost:5000${thumb.imageUrl}`}
+                src={assetUrl(thumb.imageUrl)}
                 alt={thumb.title}
                 className="w-full aspect-video object-cover"
               />
@@ -1063,7 +1058,7 @@ function ThumbnailDetail() {
                         >
                           <div className="relative w-28 aspect-video bg-[#1a1a24]">
                             <img
-                              src={`http://localhost:5000${v.imageUrl}`}
+                              src={assetUrl(v.imageUrl)}
                               alt={`Version ${v.versionIndex + 1}`}
                               className="w-full h-full object-cover"
                             />
@@ -1955,7 +1950,7 @@ function ThumbnailDetail() {
                 >
                   <div className="aspect-video bg-[#1a1a24] overflow-hidden">
                     <img
-                      src={`http://localhost:5000${r.imageUrl}`}
+                      src={assetUrl(r.imageUrl)}
                       alt={r.title}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />
@@ -2023,7 +2018,7 @@ function ThumbnailDetail() {
                 animate={{ scale: 1 }}
                 exit={{ scale: 0.9 }}
                 transition={{ duration: 0.2 }}
-                src={`http://localhost:5000${thumb.imageUrl}`}
+                src={assetUrl(thumb.imageUrl)}
                 alt={thumb.title}
                 className="max-w-full max-h-full object-contain rounded-lg"
                 draggable={false}
@@ -2140,7 +2135,7 @@ function ThumbnailDetail() {
                       </select>
                       <div className="rounded-lg border border-white/6 overflow-hidden bg-[#1a1a24]">
                         <img
-                          src={`http://localhost:5000${entry.imageUrl}`}
+                          src={assetUrl(entry.imageUrl)}
                           alt={`Version ${entry.label}`}
                           className="w-full aspect-video object-cover"
                         />
@@ -2280,7 +2275,7 @@ function ThumbnailDetail() {
               >
                 <img
                   ref={annoImgRef}
-                  src={`http://localhost:5000${thumb.imageUrl}`}
+                  src={assetUrl(thumb.imageUrl)}
                   alt={thumb.title}
                   crossOrigin="anonymous"
                   className="w-full object-contain invisible absolute"
@@ -2420,7 +2415,7 @@ function ThumbnailDetail() {
               >
                 <img
                   ref={cropImgRef}
-                  src={`http://localhost:5000${thumb.imageUrl}`}
+                  src={assetUrl(thumb.imageUrl)}
                   alt={thumb.title}
                   crossOrigin="anonymous"
                   className="w-full object-contain"

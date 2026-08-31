@@ -11,6 +11,8 @@ import {
   Heart,
   Layout,
 } from "lucide-react";
+import { assetUrl } from "../lib/assetUrl";
+import api from "../lib/api";
 
 const stagger = (i) => ({ duration: 0.4, delay: i * 0.06, ease: "easeOut" });
 
@@ -28,11 +30,7 @@ function SharedThumbnail() {
   const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
-    fetch(`http://localhost:5000/api/thumbnails/public/${token}`)
-      .then((res) => {
-        if (!res.ok) throw new Error();
-        return res.json();
-      })
+    api(`/thumbnails/public/${token}`)
       .then((data) => setThumb(data))
       .catch(() => setNotFound(true))
       .finally(() => setLoading(false));
@@ -104,7 +102,7 @@ function SharedThumbnail() {
           className="rounded-xl border border-white/6 bg-[#111118] overflow-hidden"
         >
           <img
-            src={`http://localhost:5000${thumb.imageUrl}`}
+            src={assetUrl(thumb.imageUrl)}
             alt={thumb.title}
             className="w-full aspect-video object-cover"
           />
@@ -249,7 +247,7 @@ function SharedThumbnail() {
                 >
                   <div className="w-28 aspect-video bg-[#1a1a24]">
                     <img
-                      src={`http://localhost:5000${v.imageUrl}`}
+                      src={assetUrl(v.imageUrl)}
                       alt={`Version ${thumb.versions.length - i}`}
                       className="w-full h-full object-cover"
                     />

@@ -47,7 +47,8 @@ import ScoreChart from "../components/ScoreChart";
 import AnalyticsChart from "../components/AnalyticsChart";
 import ShortcutsModal from "../components/ShortcutsModal";
 import EditModal from "../components/EditModal";
-import api from "../lib/api";
+import api, { requestRaw } from "../lib/api";
+import { assetUrl } from "../lib/assetUrl";
 
 const dashboardShortcuts = [
   { key: "/", label: "Focus search" },
@@ -322,10 +323,9 @@ function Dashboard() {
   const handleBulkExport = async () => {
     setBulkExporting(true);
     try {
-      const res = await fetch("http://localhost:5000/api/thumbnails/bulk-export", {
+      const res = await requestRaw("/thumbnails/bulk-export", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify({ ids: selectedIds }),
       });
       if (!res.ok) throw new Error("Export failed");
@@ -597,7 +597,7 @@ function Dashboard() {
 
   const handleDownload = async (thumb) => {
     try {
-      const res = await fetch(`http://localhost:5000${thumb.imageUrl}`);
+      const res = await fetch(assetUrl(thumb.imageUrl));
       const blob = await res.blob();
       const ext = thumb.imageUrl.split(".").pop();
       const url = URL.createObjectURL(blob);
@@ -957,7 +957,7 @@ function Dashboard() {
           <div className="flex items-center gap-4">
             {user?.avatar ? (
               <img
-                src={`http://localhost:5000${user.avatar}`}
+                src={assetUrl(user.avatar)}
                 alt={user.name}
                 className="w-10 h-10 rounded-full object-cover shrink-0"
               />
@@ -1481,7 +1481,7 @@ function Dashboard() {
                   >
                     <div className="w-9 h-6 rounded bg-[#1a1a24] overflow-hidden shrink-0">
                       <img
-                        src={`http://localhost:5000${t.imageUrl}`}
+                        src={assetUrl(t.imageUrl)}
                         alt=""
                         className="w-full h-full object-cover"
                       />
@@ -1547,7 +1547,7 @@ function Dashboard() {
                         <>
                           <div className="w-10 h-6 rounded bg-[#1a1a24] overflow-hidden shrink-0">
                             <img
-                              src={`http://localhost:5000${s.imageUrl}`}
+                              src={assetUrl(s.imageUrl)}
                               alt=""
                               className="w-full h-full object-cover"
                             />
@@ -1847,14 +1847,14 @@ function Dashboard() {
                 <div className="relative w-11 h-7 rounded overflow-hidden bg-[#1a1a24] shrink-0">
                   {compareMode || selectMode ? (
                     <img
-                      src={`http://localhost:5000${thumb.imageUrl}`}
+                      src={assetUrl(thumb.imageUrl)}
                       alt={thumb.title}
                       className="w-full h-full object-cover cursor-pointer"
                     />
                   ) : (
                     <Link to={`/thumbnail/${thumb._id}`}>
                       <img
-                        src={`http://localhost:5000${thumb.imageUrl}`}
+                        src={assetUrl(thumb.imageUrl)}
                         alt={thumb.title}
                         className="w-full h-full object-cover"
                       />
@@ -1969,7 +1969,7 @@ function Dashboard() {
                 >
                   {compareMode || selectMode ? (
                     <img
-                      src={`http://localhost:5000${thumb.imageUrl}`}
+                      src={assetUrl(thumb.imageUrl)}
                       alt={thumb.title}
                       className={`w-full h-full object-cover cursor-pointer transition-opacity ${
                         compareMode
@@ -1987,7 +1987,7 @@ function Dashboard() {
                       className="block w-full h-full"
                     >
                       <img
-                        src={`http://localhost:5000${thumb.imageUrl}`}
+                        src={assetUrl(thumb.imageUrl)}
                         alt={thumb.title}
                         className="w-full h-full object-cover"
                       />
@@ -2056,7 +2056,7 @@ function Dashboard() {
                       </button>
                       <button
                         onClick={() =>
-                          setZoomUrl(`http://localhost:5000${thumb.imageUrl}`)
+                          setZoomUrl(assetUrl(thumb.imageUrl))
                         }
                         className="p-1.5 rounded-md bg-black/50 text-white/70 hover:text-white hover:bg-black/70 transition-all"
                       >

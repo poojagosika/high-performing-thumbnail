@@ -17,6 +17,7 @@ import {
 import { useAuth } from "../context/AuthContext";
 import { matchThumbnails } from "../lib/paletteSearch";
 import api from "../lib/api";
+import { assetUrl } from "../lib/assetUrl";
 
 function CommandPalette() {
   const { user, logout } = useAuth();
@@ -248,7 +249,7 @@ function CommandPalette() {
                         {item.imageUrl ? (
                           <div className="w-9 h-6 rounded bg-[#1a1a24] overflow-hidden shrink-0">
                             <img
-                              src={`http://localhost:5000${item.imageUrl}`}
+                              src={assetUrl(item.imageUrl)}
                               alt=""
                               className="w-full h-full object-cover"
                             />

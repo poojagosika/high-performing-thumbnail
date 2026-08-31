@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { LogOut, Menu, X, LayoutDashboard, Home, Settings } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import LogoutModal from "./LogoutModal";
+import { assetUrl } from "../lib/assetUrl";
 
 function DashboardNav() {
   const { user, logout } = useAuth();
@@ -44,7 +45,7 @@ function DashboardNav() {
           <div className="flex items-center gap-2">
             {user?.avatar ? (
               <img
-                src={`http://localhost:5000${user.avatar}`}
+                src={assetUrl(user.avatar)}
                 alt={user.name}
                 className="w-6 h-6 rounded-full object-cover"
               />
