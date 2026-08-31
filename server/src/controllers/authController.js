@@ -9,7 +9,7 @@ const {
   BCRYPT_ROUNDS,
 } = require("../config/security");
 
-const generateToken = (userId) => signToken(userId);
+const generateToken = (userId, tokenVersion) => signToken(userId, tokenVersion);
 
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCK_DURATION_MS = 15 * 60 * 1000;
@@ -69,7 +69,7 @@ const login = async (req, res) => {
     }
 
     const user = await User.findOne({ email }).select(
-      "+password +failedLoginAttempts +lockUntil",
+      "+password +failedLoginAttempts +lockUntil +tokenVersion",
     );
     if (!user) {
       return res.status(401).json({ message: "Invalid credentials" });
@@ -98,7 +98,7 @@ const login = async (req, res) => {
       );
     }
 
-    const token = generateToken(user._id);
+    const token = generateToken(user._id, user.tokenVersion);
 
     res.cookie("token", token, cookieOptions).json({
       user: {
@@ -172,7 +172,9 @@ const changePassword = async (req, res) => {
         .json({ message: "New password must be at least 8 characters" });
     }
 
-    const user = await User.findById(req.user._id).select("+password");
+    const user = await User.findById(req.user._id).select(
+      "+password +tokenVersion",
+    );
     const isMatch = await bcrypt.compare(currentPassword, user.password);
 
     if (!isMatch) {
@@ -180,9 +182,14 @@ const changePassword = async (req, res) => {
     }
 
     user.password = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+    user.tokenVersion = (user.tokenVersion || 0) + 1;
     await user.save();
 
-    res.json({ message: "Password updated" });
+    const token = generateToken(user._id, user.tokenVersion);
+
+    res.cookie("token", token, cookieOptions).json({
+      message: "Password updated. Other sessions have been signed out.",
+    });
   } catch (error) {
     res.status(500).json({ message: "Server error" });
   }
@@ -219,6 +226,17 @@ const uploadAvatar = async (req, res) => {
   }
 };
 
+const logoutAll = async (req, res) => {
+  try {
+    await User.updateOne({ _id: req.user._id }, { $inc: { tokenVersion: 1 } });
+    res
+      .clearCookie("token", clearCookieOptions)
+      .json({ message: "Signed out of all sessions" });
+  } catch (error) {
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 const logout = (req, res) => {
   res.clearCookie("token", clearCookieOptions).json({ message: "Logged out" });
 };
@@ -231,4 +249,5 @@ module.exports = {
   changePassword,
   uploadAvatar,
   logout,
+  logoutAll,
 };

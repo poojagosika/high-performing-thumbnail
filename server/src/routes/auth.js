@@ -7,6 +7,7 @@ const {
   changePassword,
   uploadAvatar,
   logout,
+  logoutAll,
 } = require("../controllers/authController");
 const auth = require("../middleware/auth");
 const upload = require("../config/upload");
@@ -31,6 +32,7 @@ const router = express.Router();
 router.post("/register", authSlowDown, registerLimiter, validate(registerSchema), register);
 router.post("/login", authSlowDown, loginLimiter, validate(loginSchema), login);
 router.post("/logout", logout);
+router.post("/logout-all", auth, logoutAll);
 router.get("/csrf", issueCsrfToken);
 router.get("/me", auth, getMe);
 router.patch("/profile", auth, validate(updateProfileSchema), updateProfile);
