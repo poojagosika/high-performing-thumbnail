@@ -19,6 +19,7 @@ const {
   authSlowDown,
 } = require("../middleware/rateLimit");
 const { validate } = require("../middleware/validate");
+const { verifyTurnstile } = require("../middleware/turnstile");
 const {
   registerSchema,
   loginSchema,
@@ -29,8 +30,8 @@ const { persistImage, uploadErrorHandler } = require("../config/upload");
 
 const router = express.Router();
 
-router.post("/register", authSlowDown, registerLimiter, validate(registerSchema), register);
-router.post("/login", authSlowDown, loginLimiter, validate(loginSchema), login);
+router.post("/register", authSlowDown, registerLimiter, verifyTurnstile, validate(registerSchema), register);
+router.post("/login", authSlowDown, loginLimiter, verifyTurnstile, validate(loginSchema), login);
 router.post("/logout", logout);
 router.post("/logout-all", auth, logoutAll);
 router.get("/csrf", issueCsrfToken);

@@ -14,19 +14,19 @@ export function AuthProvider({ children }) {
       .finally(() => setLoading(false));
   }, []);
 
-  const login = async (email, password) => {
+  const login = async (email, password, turnstileToken) => {
     const data = await api("/auth/login", {
       method: "POST",
-      body: { email, password },
+      body: { email, password, turnstileToken },
     });
     setUser(data.user);
     return data;
   };
 
-  const register = async (name, email, password) => {
+  const register = async (name, email, password, turnstileToken) => {
     const data = await api("/auth/register", {
       method: "POST",
-      body: { name, email, password },
+      body: { name, email, password, turnstileToken },
     });
     setUser(data.user);
     return data;
