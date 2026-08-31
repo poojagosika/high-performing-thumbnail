@@ -2,6 +2,8 @@ const express = require("express");
 const auth = require("../middleware/auth");
 const Collection = require("../models/Collection");
 const Thumbnail = require("../models/Thumbnail");
+const { validate, validateObjectId } = require("../middleware/validate");
+const { collectionSchema, collectionUpdateSchema } = require("../schemas");
 
 const router = express.Router();
 
@@ -39,7 +41,7 @@ router.get("/", async (req, res) => {
 });
 
 // Create a collection
-router.post("/", async (req, res) => {
+router.post("/", validate(collectionSchema), async (req, res) => {
   try {
     const name = (req.body.name || "").trim();
     if (!name) {
@@ -65,7 +67,7 @@ router.post("/", async (req, res) => {
 });
 
 // Rename or recolor a collection
-router.patch("/:id", async (req, res) => {
+router.patch("/:id", validateObjectId(), validate(collectionUpdateSchema), async (req, res) => {
   try {
     const updates = {};
     if (req.body.name !== undefined) {
@@ -92,7 +94,7 @@ router.patch("/:id", async (req, res) => {
 });
 
 // Delete a collection, leaving its thumbnails uncategorized
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", validateObjectId(), async (req, res) => {
   try {
     const collection = await Collection.findOneAndDelete({
       _id: req.params.id,
