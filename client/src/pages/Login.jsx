@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { motion } from "framer-motion";
 import { ArrowLeft, Eye, EyeOff, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
+import Turnstile from "../components/Turnstile";
 
 const stagger = (i) => ({ duration: 0.4, delay: i * 0.06, ease: "easeOut" });
 
@@ -20,6 +21,9 @@ function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState("");
+  const [turnstileReset, setTurnstileReset] = useState(0);
+  const handleTurnstileToken = useCallback((t) => setTurnstileToken(t), []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -27,11 +31,12 @@ function Login() {
     setSubmitting(true);
 
     try {
-      await login(email, password);
+      await login(email, password, turnstileToken);
       toast.success("Welcome back!");
       navigate("/dashboard");
     } catch (err) {
       setError(err.message);
+      setTurnstileReset((n) => n + 1);
     } finally {
       setSubmitting(false);
     }
@@ -134,6 +139,11 @@ function Login() {
                 </button>
               </div>
             </div>
+
+            <Turnstile
+              onToken={handleTurnstileToken}
+              resetSignal={turnstileReset}
+            />
 
             {/* Submit */}
             <Button
