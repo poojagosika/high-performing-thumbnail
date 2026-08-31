@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Tag, Pencil, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import api from "../lib/api";
+import { assetUrl } from "../lib/assetUrl";
 
 function EditModal({ open, thumb, onClose, onSaved }) {
   const [title, setTitle] = useState("");
@@ -83,7 +84,7 @@ function EditModal({ open, thumb, onClose, onSaved }) {
             <div className="px-5 pt-4">
               <div className="rounded-lg border border-white/6 overflow-hidden">
                 <img
-                  src={`http://localhost:5000${thumb.imageUrl}`}
+                  src={assetUrl(thumb.imageUrl)}
                   alt={thumb.title}
                   className="w-full aspect-video object-cover"
                 />

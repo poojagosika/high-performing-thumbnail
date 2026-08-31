@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import DashboardNav from "../components/DashboardNav";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
-import api from "../lib/api";
+import api, { uploadFile } from "../lib/api";
+import { assetUrl } from "../lib/assetUrl";
 
 const stagger = (i) => ({ duration: 0.4, delay: i * 0.06, ease: "easeOut" });
 
@@ -31,13 +32,7 @@ function Settings() {
 
     setAvatarUploading(true);
     try {
-      const res = await fetch("http://localhost:5000/api/auth/avatar", {
-        method: "POST",
-        body: formData,
-        credentials: "include",
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message);
+      const data = await uploadFile("/auth/avatar", formData);
       setUser(data.user);
       toast.success("Avatar updated");
     } catch (err) {
@@ -168,7 +163,7 @@ function Settings() {
             <div className="relative group">
               {user?.avatar ? (
                 <img
-                  src={`http://localhost:5000${user.avatar}`}
+                  src={assetUrl(user.avatar)}
                   alt={user.name}
                   className="w-16 h-16 rounded-full object-cover border border-white/6"
                 />

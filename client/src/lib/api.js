@@ -61,6 +61,20 @@ async function request(endpoint, { method = "GET", headers = {}, body } = {}) {
   return data;
 }
 
+export async function requestRaw(endpoint, { method = "POST", headers = {}, body } = {}) {
+  let res = await send(endpoint, { method, headers, body });
+
+  if (res.status === 403 && !SAFE_METHODS.has(method)) {
+    const maybe = await res.clone().json().catch(() => null);
+    if (maybe?.code === "CSRF_INVALID") {
+      await getCsrfToken(true);
+      res = await send(endpoint, { method, headers, body });
+    }
+  }
+
+  return res;
+}
+
 async function api(endpoint, { method = "GET", body } = {}) {
   return request(endpoint, {
     method,

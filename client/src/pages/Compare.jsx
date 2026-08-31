@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import DashboardNav from "../components/DashboardNav";
 import { useToast } from "../context/ToastContext";
 import api from "../lib/api";
+import { assetUrl } from "../lib/assetUrl";
 
 const stagger = (i) => ({ duration: 0.4, delay: i * 0.06, ease: "easeOut" });
 
@@ -371,7 +372,7 @@ function Compare() {
                     <div className={`rounded-xl border overflow-hidden ${isBest ? "border-emerald-500/30" : "border-white/6"}`}>
                       <div className="relative">
                         <img
-                          src={`http://localhost:5000${t.imageUrl}`}
+                          src={assetUrl(t.imageUrl)}
                           alt={t.title}
                           className="w-full aspect-video object-cover"
                         />
@@ -568,7 +569,7 @@ function Compare() {
             >
               {/* Image B (full, bottom layer) */}
               <img
-                src={`http://localhost:5000${thumbB.imageUrl}`}
+                src={assetUrl(thumbB.imageUrl)}
                 alt={thumbB.title}
                 className="w-full aspect-video object-cover"
                 draggable={false}
@@ -579,7 +580,7 @@ function Compare() {
                 style={{ width: `${sliderPos}%` }}
               >
                 <img
-                  src={`http://localhost:5000${thumbA.imageUrl}`}
+                  src={assetUrl(thumbA.imageUrl)}
                   alt={thumbA.title}
                   className="aspect-video object-cover"
                   style={{ width: sliderContainerRef.current?.offsetWidth || "100%" }}
@@ -633,7 +634,7 @@ function Compare() {
               >
                 <div className="relative">
                   <img
-                    src={`http://localhost:5000${thumbA.imageUrl}`}
+                    src={assetUrl(thumbA.imageUrl)}
                     alt={thumbA.title}
                     className="w-full aspect-video object-cover"
                   />
@@ -668,7 +669,7 @@ function Compare() {
               >
                 <div className="relative">
                   <img
-                    src={`http://localhost:5000${thumbB.imageUrl}`}
+                    src={assetUrl(thumbB.imageUrl)}
                     alt={thumbB.title}
                     className="w-full aspect-video object-cover"
                   />
@@ -898,7 +899,7 @@ function Compare() {
                             {comp.thumbnailA ? (
                               <div className={`w-14 h-9 rounded overflow-hidden border ${comp.winner === "A" ? "border-emerald-500/40" : "border-white/6"}`}>
                                 <img
-                                  src={`http://localhost:5000${comp.thumbnailA.imageUrl}`}
+                                  src={assetUrl(comp.thumbnailA.imageUrl)}
                                   alt={comp.thumbnailA.title}
                                   className="w-full h-full object-cover"
                                 />
@@ -912,7 +913,7 @@ function Compare() {
                             {comp.thumbnailB ? (
                               <div className={`w-14 h-9 rounded overflow-hidden border ${comp.winner === "B" ? "border-emerald-500/40" : "border-white/6"}`}>
                                 <img
-                                  src={`http://localhost:5000${comp.thumbnailB.imageUrl}`}
+                                  src={assetUrl(comp.thumbnailB.imageUrl)}
                                   alt={comp.thumbnailB.title}
                                   className="w-full h-full object-cover"
                                 />
