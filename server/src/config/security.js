@@ -68,8 +68,8 @@ const csrfCookieOptions = {
   ...(cookieOptions.domain ? { domain: cookieOptions.domain } : {}),
 };
 
-const signToken = (userId) =>
-  jwt.sign({ id: userId }, JWT_SECRET, {
+const signToken = (userId, tokenVersion = 0) =>
+  jwt.sign({ id: userId, v: tokenVersion }, JWT_SECRET, {
     algorithm: JWT_ALGORITHM,
     expiresIn: JWT_EXPIRES_IN,
     issuer: JWT_ISSUER,

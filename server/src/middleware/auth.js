@@ -10,10 +10,14 @@ const auth = async (req, res, next) => {
     }
 
     const decoded = verifyToken(token);
-    const user = await User.findById(decoded.id);
+    const user = await User.findById(decoded.id).select("+tokenVersion");
 
     if (!user) {
       return res.status(401).json({ message: "User not found" });
+    }
+
+    if ((decoded.v ?? 0) !== (user.tokenVersion ?? 0)) {
+      return res.status(401).json({ message: "Invalid token" });
     }
 
     req.user = user;
