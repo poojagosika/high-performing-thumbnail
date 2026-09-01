@@ -1,4 +1,7 @@
-const isUnsafeKey = (key) => key.startsWith("$") || key.includes(".");
+const PROTOTYPE_KEYS = new Set(["__proto__", "constructor", "prototype"]);
+
+const isUnsafeKey = (key) =>
+  key.startsWith("$") || key.includes(".") || PROTOTYPE_KEYS.has(key);
 
 function stripOperators(value, depth = 0) {
   if (depth > 20 || value === null || typeof value !== "object") return value;
@@ -10,7 +13,12 @@ function stripOperators(value, depth = 0) {
   const clean = {};
   for (const key of Object.keys(value)) {
     if (isUnsafeKey(key)) continue;
-    clean[key] = stripOperators(value[key], depth + 1);
+    Object.defineProperty(clean, key, {
+      value: stripOperators(value[key], depth + 1),
+      writable: true,
+      enumerable: true,
+      configurable: true,
+    });
   }
   return clean;
 }
