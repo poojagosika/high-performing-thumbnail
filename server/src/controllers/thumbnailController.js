@@ -105,6 +105,15 @@ const updateThumbnail = async (req, res) => {
     }
     if (req.body.notes !== undefined) updates.notes = req.body.notes;
     if (req.body.collectionId !== undefined) {
+      if (req.body.collectionId) {
+        const collection = await Collection.findOne({
+          _id: req.body.collectionId,
+          user: req.user._id,
+        });
+        if (!collection) {
+          return res.status(404).json({ message: "Collection not found" });
+        }
+      }
       updates.collectionId = req.body.collectionId || null;
     }
 
@@ -368,7 +377,7 @@ const getPublicThumbnail = async (req, res) => {
   try {
     const thumbnail = await Thumbnail.findOne({
       shareToken: req.params.token,
-    }).select("title imageUrl score ctr analysis tags createdAt shareToken versions");
+    }).select("title imageUrl score ctr analysis tags createdAt shareToken");
 
     if (!thumbnail) {
       return res.status(404).json({ message: "Thumbnail not found" });
