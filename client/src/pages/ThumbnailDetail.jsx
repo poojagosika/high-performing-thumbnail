@@ -515,6 +515,26 @@ function ThumbnailDetail() {
     }
   };
 
+  const [shareExpiryDays, setShareExpiryDays] = useState("");
+  const [savingExpiry, setSavingExpiry] = useState(false);
+
+  const handleShareExpiry = async (value) => {
+    setShareExpiryDays(value);
+    setSavingExpiry(true);
+    try {
+      const updated = await api(`/thumbnails/${id}/share/expiry`, {
+        method: "PATCH",
+        body: { expiresInDays: value ? Number(value) : null },
+      });
+      setThumb(updated);
+      toast.success(value ? "Link expiry updated" : "Link no longer expires");
+    } catch {
+      toast.error("Failed to update link expiry");
+    } finally {
+      setSavingExpiry(false);
+    }
+  };
+
   const handleCopyShareLink = () => {
     const url = `${window.location.origin}/shared/${thumb.shareToken}`;
     navigator.clipboard.writeText(url);
@@ -1796,6 +1816,35 @@ function ThumbnailDetail() {
                   )}
                 </button>
               </div>
+              {thumb.shareToken && (
+                <div className="mt-3 flex items-center justify-between gap-2 text-[11px] text-[#4a4a54]">
+                  <span>
+                    {thumb.shareViews || 0}{" "}
+                    {thumb.shareViews === 1 ? "view" : "views"}
+                  </span>
+                  <select
+                    value={shareExpiryDays}
+                    onChange={(e) => handleShareExpiry(e.target.value)}
+                    disabled={savingExpiry}
+                    className="h-7 px-2 rounded-lg border border-white/8 bg-white/3 text-[11px] text-[#737380] outline-none focus:border-white/16 transition-colors cursor-pointer disabled:opacity-50"
+                  >
+                    <option value="">Never expires</option>
+                    <option value="1">Expires in 1 day</option>
+                    <option value="7">Expires in 7 days</option>
+                    <option value="30">Expires in 30 days</option>
+                  </select>
+                </div>
+              )}
+              {thumb.shareToken && thumb.shareExpiresAt && (
+                <p className="mt-1.5 text-[11px] text-[#4a4a54]">
+                  Expires{" "}
+                  {new Date(thumb.shareExpiresAt).toLocaleDateString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  })}
+                </p>
+              )}
               {thumb.shareToken && (
                 <div className="mt-3 flex items-center gap-2">
                   <div className="flex-1 h-8 px-3 rounded-lg border border-white/8 bg-white/3 flex items-center overflow-hidden">

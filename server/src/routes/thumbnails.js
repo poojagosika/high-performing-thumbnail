@@ -11,6 +11,7 @@ const {
   updateThumbnailSchema,
   performanceSchema,
   trackEventSchema,
+  shareExpirySchema,
 } = require("../schemas");
 const {
   createThumbnail,
@@ -33,6 +34,7 @@ const {
   logPerformance,
   deletePerformance,
   toggleShare,
+  updateShareExpiry,
   getPublicThumbnail,
   toggleStar,
   reorder,
@@ -66,7 +68,8 @@ router.delete("/:id/performance/:entryId", deletePerformance);
 router.post("/:id/track", validateObjectId(), validate(trackEventSchema), trackEvent);
 router.post("/:id/analyze", validateObjectId(), analyzeLimiter, analyzeThumbnail);
 router.post("/:id/restore", validateObjectId(), restoreThumbnail);
-router.patch("/:id/share", validateObjectId(), toggleShare);
+router.patch("/:id/share", validateObjectId(), validate(shareExpirySchema), toggleShare);
+router.patch("/:id/share/expiry", validateObjectId(), validate(shareExpirySchema), updateShareExpiry);
 router.patch("/:id/star", validateObjectId(), toggleStar);
 router.patch("/:id", validateObjectId(), validate(updateThumbnailSchema), updateThumbnail);
 router.delete("/:id/purge", validateObjectId(), purgeThumbnail);

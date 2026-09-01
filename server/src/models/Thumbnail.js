@@ -74,6 +74,14 @@ const thumbnailSchema = new mongoose.Schema(
       sparse: true,
       default: null,
     },
+    shareViews: {
+      type: Number,
+      default: 0,
+    },
+    shareExpiresAt: {
+      type: Date,
+      default: null,
+    },
     suggestions: [
       {
         category: { type: String, required: true },
