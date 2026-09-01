@@ -66,6 +66,13 @@ const performanceSchema = z.object({
 
 const trackEventSchema = z.object({ type: z.enum(["view", "click"]) });
 
+const comparisonSchema = z.object({
+  thumbnailA: objectId,
+  thumbnailB: objectId,
+  winner: z.enum(["A", "B", "tie"]).nullable().optional(),
+  notes: z.string().trim().max(2000, "is too long").optional(),
+});
+
 const collectionSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(60),
   color: z.string().regex(/^#[0-9a-f]{6}$/i).optional(),
@@ -87,6 +94,7 @@ module.exports = {
   updateThumbnailSchema,
   performanceSchema,
   trackEventSchema,
+  comparisonSchema,
   collectionSchema,
   collectionUpdateSchema,
 };

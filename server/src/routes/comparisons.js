@@ -1,15 +1,29 @@
 const express = require("express");
 const auth = require("../middleware/auth");
 const Comparison = require("../models/Comparison");
+const Thumbnail = require("../models/Thumbnail");
+const { validate, validateObjectId } = require("../middleware/validate");
+const { comparisonSchema } = require("../schemas");
 
 const router = express.Router();
 
 router.use(auth);
 
-// Save a comparison
-router.post("/", async (req, res) => {
+router.post("/", validate(comparisonSchema), async (req, res) => {
   try {
     const { thumbnailA, thumbnailB, winner, notes } = req.body;
+
+    const owned = await Thumbnail.countDocuments({
+      _id: { $in: [thumbnailA, thumbnailB] },
+      user: req.user._id,
+    });
+
+    const required = thumbnailA === thumbnailB ? 1 : 2;
+
+    if (owned !== required) {
+      return res.status(404).json({ message: "Thumbnail not found" });
+    }
+
     const comparison = await Comparison.create({
       user: req.user._id,
       thumbnailA,
@@ -17,16 +31,17 @@ router.post("/", async (req, res) => {
       winner: winner || null,
       notes: notes || "",
     });
+
     const populated = await Comparison.findById(comparison._id)
       .populate("thumbnailA", "title imageUrl score")
       .populate("thumbnailB", "title imageUrl score");
+
     res.status(201).json(populated);
   } catch (err) {
     res.status(500).json({ message: "Failed to save comparison" });
   }
 });
 
-// Get all comparisons for user
 router.get("/", async (req, res) => {
   try {
     const comparisons = await Comparison.find({ user: req.user._id })
@@ -40,8 +55,7 @@ router.get("/", async (req, res) => {
   }
 });
 
-// Delete a comparison
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", validateObjectId(), async (req, res) => {
   try {
     const comparison = await Comparison.findOneAndDelete({
       _id: req.params.id,
