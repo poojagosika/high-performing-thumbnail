@@ -10,6 +10,7 @@ import {
   Type,
   Heart,
   Layout,
+  Download,
 } from "lucide-react";
 import { assetUrl } from "../lib/assetUrl";
 import api from "../lib/api";
@@ -58,7 +59,7 @@ function SharedThumbnail() {
       <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
         <div className="text-center">
           <h1 className="font-heading text-2xl font-semibold text-white mb-2">
-            Thumbnail not found
+            This link is no longer available
           </h1>
           <p className="text-[14px] text-[#737380] mb-6">
             This link may have expired or been revoked.
@@ -99,13 +100,21 @@ function SharedThumbnail() {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={stagger(0)}
-          className="rounded-xl border border-white/6 bg-[#111118] overflow-hidden"
+          className="relative rounded-xl border border-white/6 bg-[#111118] overflow-hidden"
         >
           <img
             src={assetUrl(thumb.imageUrl)}
             alt={thumb.title}
             className="w-full aspect-video object-cover"
           />
+            <a
+              href={assetUrl(thumb.imageUrl)}
+              download
+              className="absolute bottom-3 right-3 flex items-center gap-1.5 h-8 px-3 rounded-lg bg-black/60 backdrop-blur-sm border border-white/10 text-[12px] text-white/80 hover:text-white hover:bg-black/70 transition-colors"
+            >
+              <Download className="w-3.5 h-3.5" />
+              Download
+            </a>
         </motion.div>
 
         {/* Info */}

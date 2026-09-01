@@ -356,8 +356,14 @@ const toggleShare = async (req, res) => {
 
     if (thumbnail.shareToken) {
       thumbnail.shareToken = null;
+      thumbnail.shareExpiresAt = null;
     } else {
       thumbnail.shareToken = crypto.randomBytes(16).toString("hex");
+      thumbnail.shareViews = 0;
+      const days = req.body?.expiresInDays;
+      thumbnail.shareExpiresAt = days
+        ? new Date(Date.now() + days * 24 * 60 * 60 * 1000)
+        : null;
     }
 
     await thumbnail.save();
@@ -377,13 +383,33 @@ const getPublicThumbnail = async (req, res) => {
   try {
     const thumbnail = await Thumbnail.findOne({
       shareToken: req.params.token,
-    }).select("title imageUrl score ctr analysis tags createdAt shareToken");
+    }).select(
+      "title imageUrl score ctr analysis tags createdAt shareToken shareExpiresAt",
+    );
 
     if (!thumbnail) {
       return res.status(404).json({ message: "Thumbnail not found" });
     }
 
-    res.json(thumbnail);
+    if (thumbnail.shareExpiresAt && thumbnail.shareExpiresAt <= Date.now()) {
+      return res.status(404).json({ message: "Thumbnail not found" });
+    }
+
+    Thumbnail.updateOne({ _id: thumbnail._id }, { $inc: { shareViews: 1 } })
+      .exec()
+      .catch(() => {});
+
+    res.json({
+      _id: thumbnail._id,
+      title: thumbnail.title,
+      imageUrl: thumbnail.imageUrl,
+      score: thumbnail.score,
+      ctr: thumbnail.ctr,
+      analysis: thumbnail.analysis,
+      tags: thumbnail.tags,
+      createdAt: thumbnail.createdAt,
+      shareToken: thumbnail.shareToken,
+    });
   } catch (error) {
     res.status(500).json({ message: "Server error" });
   }
@@ -535,6 +561,30 @@ const deletePerformance = async (req, res) => {
 
     entry.deleteOne();
     syncLatestCtr(thumbnail);
+    await thumbnail.save();
+
+    res.json(thumbnail);
+  } catch (error) {
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+const updateShareExpiry = async (req, res) => {
+  try {
+    const days = req.body?.expiresInDays;
+
+    const thumbnail = await Thumbnail.findOne({
+      _id: req.params.id,
+      user: req.user._id,
+    });
+
+    if (!thumbnail || !thumbnail.shareToken) {
+      return res.status(404).json({ message: "Share link not found" });
+    }
+
+    thumbnail.shareExpiresAt = days
+      ? new Date(Date.now() + days * 24 * 60 * 60 * 1000)
+      : null;
     await thumbnail.save();
 
     res.json(thumbnail);
@@ -808,6 +858,7 @@ module.exports = {
   logPerformance,
   deletePerformance,
   toggleShare,
+  updateShareExpiry,
   getPublicThumbnail,
   toggleStar,
   reorder,

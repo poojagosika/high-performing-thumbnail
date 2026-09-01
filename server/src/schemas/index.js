@@ -73,6 +73,10 @@ const comparisonSchema = z.object({
   notes: z.string().trim().max(2000, "is too long").optional(),
 });
 
+const shareExpirySchema = z.object({
+  expiresInDays: z.coerce.number().int().min(1).max(365).nullable().optional(),
+});
+
 const collectionSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(60),
   color: z.string().regex(/^#[0-9a-f]{6}$/i).optional(),
@@ -95,6 +99,7 @@ module.exports = {
   performanceSchema,
   trackEventSchema,
   comparisonSchema,
+  shareExpirySchema,
   collectionSchema,
   collectionUpdateSchema,
 };
