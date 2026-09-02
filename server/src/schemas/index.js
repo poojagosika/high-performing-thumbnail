@@ -77,6 +77,13 @@ const shareExpirySchema = z.object({
   expiresInDays: z.coerce.number().int().min(1).max(365).nullable().optional(),
 });
 
+const tagRenameSchema = z.object({
+  from: z.array(z.string({ error: "must be a string" }).trim().min(1, "cannot be empty").max(50, "is too long")).min(1, "No tags selected").max(50),
+  to: z.string({ error: "must be a string" }).trim().min(1, "cannot be empty").max(50, "is too long"),
+});
+
+const tagDeleteSchema = z.object({ tag: z.string({ error: "must be a string" }).trim().min(1, "cannot be empty").max(50, "is too long") });
+
 const collectionReorderSchema = z.object({
   ids: z.array(objectId).min(1, "No collections provided").max(200),
 });
@@ -104,6 +111,8 @@ module.exports = {
   trackEventSchema,
   comparisonSchema,
   shareExpirySchema,
+  tagRenameSchema,
+  tagDeleteSchema,
   collectionReorderSchema,
   collectionSchema,
   collectionUpdateSchema,

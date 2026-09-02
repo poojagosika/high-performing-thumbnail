@@ -35,6 +35,7 @@ import {
   FileImage,
   Folder,
   FolderPlus,
+  Settings2,
   RotateCcw,
   MousePointerClick,
 } from "lucide-react";
@@ -157,6 +158,11 @@ function Dashboard() {
     COLLECTION_COLORS[0],
   );
   const [colorPickerId, setColorPickerId] = useState(null);
+  const [tagPanelOpen, setTagPanelOpen] = useState(false);
+  const [tagRenameFrom, setTagRenameFrom] = useState(null);
+  const [tagRenameValue, setTagRenameValue] = useState("");
+  const [tagDeleteTarget, setTagDeleteTarget] = useState(null);
+  const [tagBusy, setTagBusy] = useState(false);
   const [dragCollectionId, setDragCollectionId] = useState(null);
   const [dragOverCollectionId, setDragOverCollectionId] = useState(null);
   const [creatingCollection, setCreatingCollection] = useState(false);
@@ -265,6 +271,97 @@ function Dashboard() {
       toast.error("Failed to rename collection");
     } finally {
       setRenameId(null);
+    }
+  };
+
+  const tagStats = useMemo(() => {
+    const counts = {};
+    thumbnails.forEach((t) =>
+      (t.tags || []).forEach((tag) => {
+        counts[tag] = (counts[tag] || 0) + 1;
+      }),
+    );
+    return Object.entries(counts)
+      .map(([tag, count]) => ({ tag, count }))
+      .sort((a, b) => a.tag.localeCompare(b.tag));
+  }, [thumbnails]);
+
+  const caseDuplicates = useMemo(() => {
+    const groups = {};
+    tagStats.forEach((entry) => {
+      const key = entry.tag.toLowerCase();
+      (groups[key] = groups[key] || []).push(entry);
+    });
+    return Object.values(groups)
+      .filter((g) => g.length > 1)
+      .map((g) =>
+        [...g]
+          .sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag))
+          .map((e) => e.tag),
+      );
+  }, [tagStats]);
+
+  const applyTagChange = async (endpoint, body, successMessage) => {
+    setTagBusy(true);
+    try {
+      await api(endpoint, { method: "POST", body });
+      const data = await api("/thumbnails");
+      setThumbnails(data);
+      toast.success(successMessage);
+      return true;
+    } catch (err) {
+      toast.error(err.message || "Failed to update tags");
+      return false;
+    } finally {
+      setTagBusy(false);
+    }
+  };
+
+  const handleRenameTag = async (from) => {
+    const to = tagRenameValue.trim();
+    if (!to || to === from) {
+      setTagRenameFrom(null);
+      return;
+    }
+    const ok = await applyTagChange(
+      "/thumbnails/tags/rename",
+      { from: [from], to },
+      `Renamed to "${to}"`,
+    );
+    if (ok) {
+      setTagRenameFrom(null);
+      if (activeTags.includes(from)) {
+        setParams({
+          tags: activeTags.map((t) => (t === from ? to : t)).join(","),
+          page: 1,
+        });
+      }
+    }
+  };
+
+  const handleMergeTags = async (group) => {
+    const to = group[0];
+    await applyTagChange(
+      "/thumbnails/tags/rename",
+      { from: group, to },
+      `Merged into "${to}"`,
+    );
+  };
+
+  const handleDeleteTag = async () => {
+    const tag = tagDeleteTarget;
+    if (!tag) return;
+    const ok = await applyTagChange(
+      "/thumbnails/tags/delete",
+      { tag },
+      `Removed "${tag}" everywhere`,
+    );
+    if (ok) {
+      setTagDeleteTarget(null);
+      if (activeTags.includes(tag)) {
+        const rest = activeTags.filter((t) => t !== tag);
+        setParams({ tags: rest.length ? rest.join(",") : null, page: 1 });
+      }
     }
   };
 
@@ -1787,6 +1884,16 @@ function Dashboard() {
             className="mb-6 flex items-center gap-2 overflow-x-auto scrollbar-none"
           >
             <span className="text-[12px] text-[#4a4a54] shrink-0">Tags</span>
+            <button
+              onClick={() => setTagPanelOpen(true)}
+              className="shrink-0 flex items-center gap-1 rounded-full border border-white/8 px-2.5 py-1 text-[12px] text-[#737380] hover:text-white hover:border-white/12 transition-colors"
+            >
+              <Settings2 className="w-3 h-3" />
+              Manage
+              {caseDuplicates.length > 0 && (
+                <span className="ml-0.5 w-1.5 h-1.5 rounded-full bg-amber-400" />
+              )}
+            </button>
             <div className="flex items-center gap-1.5">
               {allTags.map((tag) => (
                 <button
@@ -2576,6 +2683,178 @@ function Dashboard() {
                   className="h-8 text-[13px] bg-white text-[#0a0a0f] hover:bg-white/90 font-medium"
                 >
                   {bulkTagging ? "Saving..." : "Add Tags"}
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Tag management panel */}
+      <AnimatePresence>
+        {tagPanelOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => setTagPanelOpen(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 10 }}
+              transition={{ duration: 0.15 }}
+              className="relative w-full max-w-md rounded-xl border border-white/8 bg-[#111118] shadow-2xl overflow-hidden"
+            >
+              <div className="flex items-center justify-between px-5 py-4 border-b border-white/6">
+                <h2 className="font-heading text-[15px] font-semibold text-white">
+                  Manage tags
+                </h2>
+                <button
+                  onClick={() => setTagPanelOpen(false)}
+                  className="text-[#4a4a54] hover:text-white transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {caseDuplicates.length > 0 && (
+                <div className="px-5 py-3 border-b border-white/6 bg-amber-400/5">
+                  <p className="text-[12px] text-amber-400/90 mb-2">
+                    {caseDuplicates.length} tag
+                    {caseDuplicates.length === 1 ? "" : "s"} differ only by case
+                  </p>
+                  {caseDuplicates.map((group) => (
+                    <div
+                      key={group.join("|")}
+                      className="flex items-center gap-2 py-1"
+                    >
+                      <span className="text-[13px] text-[#737380] flex-1 truncate">
+                        {group.join("  ·  ")}
+                      </span>
+                      <button
+                        onClick={() => handleMergeTags(group)}
+                        disabled={tagBusy}
+                        className="shrink-0 text-[12px] text-white/80 hover:text-white border border-white/12 rounded-lg px-2 py-0.5 transition-colors disabled:opacity-40"
+                      >
+                        Merge into &ldquo;{group[0]}&rdquo;
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="max-h-80 overflow-y-auto py-1">
+                {tagStats.map(({ tag, count }) => (
+                  <div
+                    key={tag}
+                    className="group flex items-center gap-2 px-5 py-2 hover:bg-white/2"
+                  >
+                    {tagRenameFrom === tag ? (
+                      <input
+                        autoFocus
+                        value={tagRenameValue}
+                        onChange={(e) => setTagRenameValue(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleRenameTag(tag);
+                          if (e.key === "Escape") setTagRenameFrom(null);
+                        }}
+                        disabled={tagBusy}
+                        className="flex-1 h-7 px-2 rounded-lg border border-white/12 bg-white/3 text-[13px] text-white outline-none"
+                      />
+                    ) : (
+                      <>
+                        <span className="text-[13px] text-white truncate flex-1">
+                          {tag}
+                        </span>
+                        <span className="text-[11px] text-[#4a4a54] shrink-0">
+                          {count}
+                        </span>
+                      </>
+                    )}
+                    {tagRenameFrom === tag ? (
+                      <button
+                        onClick={() => handleRenameTag(tag)}
+                        disabled={tagBusy}
+                        className="shrink-0 text-[12px] text-white/80 hover:text-white disabled:opacity-40"
+                      >
+                        Save
+                      </button>
+                    ) : (
+                      <div className="shrink-0 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => {
+                            setTagRenameFrom(tag);
+                            setTagRenameValue(tag);
+                          }}
+                          className="text-[#4a4a54] hover:text-white transition-colors"
+                          title="Rename everywhere"
+                        >
+                          <Pencil className="w-3 h-3" />
+                        </button>
+                        <button
+                          onClick={() => setTagDeleteTarget(tag)}
+                          className="text-[#4a4a54] hover:text-red-400 transition-colors"
+                          title="Remove everywhere"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {tagStats.length === 0 && (
+                  <p className="px-5 py-6 text-center text-[13px] text-[#4a4a54]">
+                    No tags yet
+                  </p>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Confirm tag delete */}
+      <AnimatePresence>
+        {tagDeleteTarget && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center px-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => setTagDeleteTarget(null)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 10 }}
+              transition={{ duration: 0.15 }}
+              className="relative w-full max-w-sm rounded-xl border border-red-500/20 bg-[#111118] p-5"
+            >
+              <h3 className="font-heading text-[15px] font-semibold text-white mb-1">
+                Remove &ldquo;{tagDeleteTarget}&rdquo;?
+              </h3>
+              <p className="text-[13px] text-[#737380] mb-5">
+                It will be removed from every thumbnail that uses it. The
+                thumbnails themselves are not deleted.
+              </p>
+              <div className="flex justify-end gap-2">
+                <Button
+                  onClick={() => setTagDeleteTarget(null)}
+                  variant="outline"
+                  className="h-8 text-[13px] border-white/8 text-[#737380] hover:text-white hover:border-white/12 bg-transparent font-medium"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleDeleteTag}
+                  disabled={tagBusy}
+                  className="h-8 text-[13px] bg-red-500 text-white hover:bg-red-600 font-medium"
+                >
+                  {tagBusy ? "Removing..." : "Remove"}
                 </Button>
               </div>
             </motion.div>

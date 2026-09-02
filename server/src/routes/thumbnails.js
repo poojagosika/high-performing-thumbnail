@@ -8,6 +8,8 @@ const {
   bulkIdsSchema,
   bulkTagSchema,
   bulkCollectionSchema,
+  tagRenameSchema,
+  tagDeleteSchema,
   updateThumbnailSchema,
   performanceSchema,
   trackEventSchema,
@@ -26,6 +28,8 @@ const {
   bulkRestore,
   bulkPurge,
   bulkTag,
+  renameTags,
+  deleteTag,
   bulkCollection,
   bulkExport,
   trackEvent,
@@ -54,6 +58,8 @@ router.post("/bulk-delete", validate(bulkIdsSchema), bulkDelete);
 router.post("/bulk-restore", validate(bulkIdsSchema), bulkRestore);
 router.post("/bulk-purge", validate(bulkIdsSchema), bulkPurge);
 router.post("/bulk-tag", validate(bulkTagSchema), bulkTag);
+router.post("/tags/rename", validate(tagRenameSchema), renameTags);
+router.post("/tags/delete", validate(tagDeleteSchema), deleteTag);
 router.post("/bulk-collection", validate(bulkCollectionSchema), bulkCollection);
 router.post("/bulk-export", validate(bulkIdsSchema), bulkExport);
 router.post("/reorder", reorder);
