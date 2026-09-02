@@ -593,6 +593,63 @@ const updateShareExpiry = async (req, res) => {
   }
 };
 
+const renameTags = async (req, res) => {
+  try {
+    const { from, to } = req.body;
+
+    const result = await Thumbnail.updateMany(
+      { user: req.user._id, tags: { $in: from } },
+      [
+        {
+          $set: {
+            tags: {
+              $setUnion: [
+                {
+                  $map: {
+                    input: "$tags",
+                    in: {
+                      $cond: [{ $in: ["$$this", from] }, to, "$$this"],
+                    },
+                  },
+                },
+                [],
+              ],
+            },
+          },
+        },
+      ],
+    );
+
+    const updated = await Thumbnail.find({ user: req.user._id, tags: to });
+
+    res.json({
+      message: `${result.modifiedCount} thumbnails updated`,
+      modifiedCount: result.modifiedCount,
+      thumbnails: updated,
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+const deleteTag = async (req, res) => {
+  try {
+    const { tag } = req.body;
+
+    const result = await Thumbnail.updateMany(
+      { user: req.user._id, tags: tag },
+      { $pull: { tags: tag } },
+    );
+
+    res.json({
+      message: `${result.modifiedCount} thumbnails updated`,
+      modifiedCount: result.modifiedCount,
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 const bulkExport = async (req, res) => {
   try {
     const { ids } = req.body;
@@ -850,6 +907,8 @@ module.exports = {
   bulkPurge,
   purgeExpired,
   bulkTag,
+  renameTags,
+  deleteTag,
   bulkCollection,
   bulkExport,
   trackEvent,
