@@ -64,6 +64,17 @@ const stagger = (i) => ({ duration: 0.4, delay: i * 0.06, ease: "easeOut" });
 const PER_PAGE = 9;
 const TRASH_RETENTION_DAYS = 30;
 
+const COLLECTION_COLORS = [
+  "#6366f1",
+  "#0ea5e9",
+  "#14b8a6",
+  "#10b981",
+  "#f59e0b",
+  "#f43f5e",
+  "#a855f7",
+  "#94a3b8",
+];
+
 const daysLeftInTrash = (deletedAt) => {
   const elapsed = Date.now() - new Date(deletedAt).getTime();
   return Math.max(0, TRASH_RETENTION_DAYS - Math.floor(elapsed / 86400000));
@@ -142,6 +153,12 @@ function Dashboard() {
   const [searchFocused, setSearchFocused] = useState(false);
   const [collections, setCollections] = useState([]);
   const [newCollectionName, setNewCollectionName] = useState("");
+  const [newCollectionColor, setNewCollectionColor] = useState(
+    COLLECTION_COLORS[0],
+  );
+  const [colorPickerId, setColorPickerId] = useState(null);
+  const [dragCollectionId, setDragCollectionId] = useState(null);
+  const [dragOverCollectionId, setDragOverCollectionId] = useState(null);
   const [creatingCollection, setCreatingCollection] = useState(false);
   const [addingCollection, setAddingCollection] = useState(false);
   const [renameId, setRenameId] = useState(null);
@@ -218,10 +235,11 @@ function Dashboard() {
     try {
       const created = await api("/collections", {
         method: "POST",
-        body: { name },
+        body: { name, color: newCollectionColor },
       });
       setCollections((prev) => [...prev, created]);
       setNewCollectionName("");
+      setNewCollectionColor(COLLECTION_COLORS[0]);
       setAddingCollection(false);
       toast.success(`Collection "${created.name}" created`);
     } catch {
@@ -247,6 +265,48 @@ function Dashboard() {
       toast.error("Failed to rename collection");
     } finally {
       setRenameId(null);
+    }
+  };
+
+  const handleSetCollectionColor = async (id, color) => {
+    const previous = collections;
+    setCollections((prev) =>
+      prev.map((c) => (c._id === id ? { ...c, color } : c)),
+    );
+    setColorPickerId(null);
+    try {
+      await api(`/collections/${id}`, { method: "PATCH", body: { color } });
+    } catch {
+      setCollections(previous);
+      toast.error("Failed to update colour");
+    }
+  };
+
+  const handleCollectionDrop = async (targetId) => {
+    if (!dragCollectionId || dragCollectionId === targetId) {
+      setDragCollectionId(null);
+      setDragOverCollectionId(null);
+      return;
+    }
+
+    const ids = collections.map((c) => c._id);
+    const from = ids.indexOf(dragCollectionId);
+    const to = ids.indexOf(targetId);
+    if (from === -1 || to === -1) return;
+
+    ids.splice(from, 1);
+    ids.splice(to, 0, dragCollectionId);
+
+    const previous = collections;
+    setCollections(ids.map((id) => collections.find((c) => c._id === id)));
+    setDragCollectionId(null);
+    setDragOverCollectionId(null);
+
+    try {
+      await api("/collections/reorder", { method: "POST", body: { ids } });
+    } catch {
+      setCollections(previous);
+      toast.error("Failed to save order");
     }
   };
 
@@ -1344,7 +1404,26 @@ function Dashboard() {
                 </button>
 
                 {collections.map((c) => (
-                  <div key={c._id} className="group relative">
+                  <div
+                    key={c._id}
+                    draggable={renameId !== c._id}
+                    onDragStart={() => setDragCollectionId(c._id)}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      setDragOverCollectionId(c._id);
+                    }}
+                    onDragLeave={() => setDragOverCollectionId(null)}
+                    onDrop={() => handleCollectionDrop(c._id)}
+                    onDragEnd={() => {
+                      setDragCollectionId(null);
+                      setDragOverCollectionId(null);
+                    }}
+                    className={`group relative rounded-lg transition-all ${
+                      dragOverCollectionId === c._id && dragCollectionId !== c._id
+                        ? "ring-1 ring-white/20"
+                        : ""
+                    } ${dragCollectionId === c._id ? "opacity-40" : ""}`}
+                  >
                     {renameId === c._id ? (
                       <input
                         autoFocus
@@ -1384,13 +1463,41 @@ function Dashboard() {
                       </button>
                     )}
                     {renameId !== c._id && (
-                      <button
-                        onClick={() => setDeleteCollectionId(c._id)}
-                        className="absolute right-1.5 top-1/2 -translate-y-1/2 hidden group-hover:flex text-[#4a4a54] hover:text-red-400 transition-colors"
-                        title="Delete collection"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
+                      <div className="absolute right-1.5 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center gap-1.5">
+                        <button
+                          onClick={() =>
+                            setColorPickerId(colorPickerId === c._id ? null : c._id)
+                          }
+                          className="w-3 h-3 rounded-full border border-white/20 shrink-0"
+                          style={{ backgroundColor: c.color }}
+                          title="Change colour"
+                        />
+                        <button
+                          onClick={() => setDeleteCollectionId(c._id)}
+                          className="text-[#4a4a54] hover:text-red-400 transition-colors"
+                          title="Delete collection"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    )}
+
+                    {colorPickerId === c._id && (
+                      <div className="flex flex-wrap gap-1.5 px-2 py-2">
+                        {COLLECTION_COLORS.map((color) => (
+                          <button
+                            key={color}
+                            onClick={() => handleSetCollectionColor(c._id, color)}
+                            className={`w-4 h-4 rounded-full transition-transform hover:scale-110 ${
+                              c.color === color
+                                ? "ring-2 ring-white/60 ring-offset-1 ring-offset-[#111118]"
+                                : ""
+                            }`}
+                            style={{ backgroundColor: color }}
+                            title={color}
+                          />
+                        ))}
+                      </div>
                     )}
                   </div>
                 ))}
@@ -1411,6 +1518,25 @@ function Dashboard() {
                     placeholder="Collection name..."
                     className="w-full h-8 mt-1 px-2 rounded-lg border border-white/12 bg-white/3 text-[13px] text-white placeholder:text-[#4a4a54] outline-none"
                   />
+                )}
+
+                {addingCollection && (
+                  <div className="flex flex-wrap gap-1.5 px-2 py-2">
+                    {COLLECTION_COLORS.map((color) => (
+                      <button
+                        key={color}
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => setNewCollectionColor(color)}
+                        className={`w-4 h-4 rounded-full transition-transform hover:scale-110 ${
+                          newCollectionColor === color
+                            ? "ring-2 ring-white/60 ring-offset-1 ring-offset-[#111118]"
+                            : ""
+                        }`}
+                        style={{ backgroundColor: color }}
+                        title={color}
+                      />
+                    ))}
+                  </div>
                 )}
 
                 {collections.length === 0 && !addingCollection && (

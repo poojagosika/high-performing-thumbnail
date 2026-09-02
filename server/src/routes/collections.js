@@ -3,7 +3,11 @@ const auth = require("../middleware/auth");
 const Collection = require("../models/Collection");
 const Thumbnail = require("../models/Thumbnail");
 const { validate, validateObjectId } = require("../middleware/validate");
-const { collectionSchema, collectionUpdateSchema } = require("../schemas");
+const {
+  collectionSchema,
+  collectionUpdateSchema,
+  collectionReorderSchema,
+} = require("../schemas");
 
 const router = express.Router();
 
@@ -67,6 +71,23 @@ router.post("/", validate(collectionSchema), async (req, res) => {
 });
 
 // Rename or recolor a collection
+router.post("/reorder", validate(collectionReorderSchema), async (req, res) => {
+  try {
+    const ops = req.body.ids.map((id, i) => ({
+      updateOne: {
+        filter: { _id: id, user: req.user._id },
+        update: { order: i },
+      },
+    }));
+
+    await Collection.bulkWrite(ops);
+
+    res.json({ message: "Order updated" });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to reorder collections" });
+  }
+});
+
 router.patch("/:id", validateObjectId(), validate(collectionUpdateSchema), async (req, res) => {
   try {
     const updates = {};
