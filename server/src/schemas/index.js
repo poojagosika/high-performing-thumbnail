@@ -77,6 +77,10 @@ const shareExpirySchema = z.object({
   expiresInDays: z.coerce.number().int().min(1).max(365).nullable().optional(),
 });
 
+const collectionReorderSchema = z.object({
+  ids: z.array(objectId).min(1, "No collections provided").max(200),
+});
+
 const collectionSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(60),
   color: z.string().regex(/^#[0-9a-f]{6}$/i).optional(),
@@ -100,6 +104,7 @@ module.exports = {
   trackEventSchema,
   comparisonSchema,
   shareExpirySchema,
+  collectionReorderSchema,
   collectionSchema,
   collectionUpdateSchema,
 };
