@@ -110,12 +110,12 @@ function Login() {
             <div className="flex flex-col gap-1.5">
               <div className="flex items-center justify-between">
                 <label className="text-[13px] text-[#737380]">Password</label>
-                <a
-                  href="#"
+                <Link
+                  to="/forgot-password"
                   className="text-[12px] text-[#737380] hover:text-white transition-colors"
                 >
                   Forgot password?
-                </a>
+                </Link>
               </div>
               <div className="relative">
                 <input
