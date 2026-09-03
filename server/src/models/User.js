@@ -44,6 +44,16 @@ const userSchema = new mongoose.Schema(
       default: 0,
       select: false,
     },
+    resetTokenHash: {
+      type: String,
+      default: null,
+      select: false,
+    },
+    resetTokenExpires: {
+      type: Date,
+      default: null,
+      select: false,
+    },
   },
   { timestamps: true },
 );

@@ -1,4 +1,5 @@
 const bcrypt = require("bcryptjs");
+const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
 const User = require("../models/User");
@@ -7,12 +8,21 @@ const {
   clearCookieOptions,
   signToken,
   BCRYPT_ROUNDS,
+  isProduction,
 } = require("../config/security");
+const { isMailConfigured, sendPasswordReset } = require("../config/mailer");
 
 const generateToken = (userId, tokenVersion) => signToken(userId, tokenVersion);
 
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCK_DURATION_MS = 15 * 60 * 1000;
+const RESET_TTL_MS = 30 * 60 * 1000;
+const RESET_RESEND_MS = 60 * 1000;
+const RESET_SENT_MESSAGE =
+  "If an account exists for that email, a reset link is on its way.";
+
+const hashResetToken = (token) =>
+  crypto.createHash("sha256").update(token).digest("hex");
 
 const register = async (req, res) => {
   try {
@@ -195,6 +205,82 @@ const changePassword = async (req, res) => {
   }
 };
 
+const forgotPassword = async (req, res) => {
+  if (isProduction && !isMailConfigured()) {
+    return res
+      .status(503)
+      .json({ message: "Password reset is not available right now" });
+  }
+
+  try {
+    const { email } = req.body;
+
+    const user = await User.findOne({ email }).select("+resetTokenExpires");
+
+    if (user) {
+      const issuedAt = user.resetTokenExpires
+        ? user.resetTokenExpires.getTime() - RESET_TTL_MS
+        : 0;
+
+      if (Date.now() - issuedAt >= RESET_RESEND_MS) {
+        const token = crypto.randomBytes(32).toString("hex");
+
+        await User.updateOne(
+          { _id: user._id },
+          {
+            $set: {
+              resetTokenHash: hashResetToken(token),
+              resetTokenExpires: new Date(Date.now() + RESET_TTL_MS),
+            },
+          },
+        );
+
+        await sendPasswordReset(user.email, user.name, token);
+      }
+    }
+
+    res.json({ message: RESET_SENT_MESSAGE });
+  } catch (error) {
+    console.error(error);
+    res.json({ message: RESET_SENT_MESSAGE });
+  }
+};
+
+const resetPassword = async (req, res) => {
+  try {
+    const { token, password } = req.body;
+
+    const hashedPassword = await bcrypt.hash(password, BCRYPT_ROUNDS);
+
+    const user = await User.findOneAndUpdate(
+      {
+        resetTokenHash: hashResetToken(token),
+        resetTokenExpires: { $gt: new Date() },
+      },
+      {
+        $set: {
+          password: hashedPassword,
+          resetTokenHash: null,
+          resetTokenExpires: null,
+          failedLoginAttempts: 0,
+          lockUntil: null,
+        },
+        $inc: { tokenVersion: 1 },
+      },
+    );
+
+    if (!user) {
+      return res
+        .status(400)
+        .json({ message: "Reset link is invalid or has expired" });
+    }
+
+    res.json({ message: "Password updated. You can log in now." });
+  } catch (error) {
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 const uploadAvatar = async (req, res) => {
   try {
     if (!req.file) {
@@ -247,6 +333,8 @@ module.exports = {
   getMe,
   updateProfile,
   changePassword,
+  forgotPassword,
+  resetPassword,
   uploadAvatar,
   logout,
   logoutAll,

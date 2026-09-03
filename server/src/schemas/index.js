@@ -35,6 +35,15 @@ const changePasswordSchema = z.object({
   newPassword: password,
 });
 
+const forgotPasswordSchema = z.object({ email });
+
+const resetPasswordSchema = z.object({
+  token: z
+    .string({ error: "must be a string" })
+    .regex(/^[a-f0-9]{64}$/, "is invalid"),
+  password,
+});
+
 const bulkIdsSchema = z.object({
   ids: z.array(objectId).min(1, "No thumbnails selected").max(500),
 });
@@ -103,6 +112,8 @@ module.exports = {
   loginSchema,
   updateProfileSchema,
   changePasswordSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
   bulkIdsSchema,
   bulkTagSchema,
   bulkCollectionSchema,

@@ -39,6 +39,24 @@ const registerLimiter = rateLimit({
   handler: jsonLimitHandler("Too many accounts created. Try again later."),
 });
 
+const forgotPasswordLimiter = rateLimit({
+  ...baseOptions,
+  windowMs: 60 * MINUTE,
+  limit: 3,
+  keyGenerator: (req) => {
+    const email = String(req.body?.email || "").toLowerCase().trim();
+    return `${ipKeyGenerator(req.ip)}:${email}`;
+  },
+  handler: jsonLimitHandler("Too many reset requests. Try again later."),
+});
+
+const resetPasswordLimiter = rateLimit({
+  ...baseOptions,
+  windowMs: 60 * MINUTE,
+  limit: 10,
+  handler: jsonLimitHandler("Too many reset attempts. Try again later."),
+});
+
 const uploadLimiter = rateLimit({
   ...baseOptions,
   windowMs: 60 * MINUTE,
@@ -64,6 +82,8 @@ module.exports = {
   apiLimiter,
   loginLimiter,
   registerLimiter,
+  forgotPasswordLimiter,
+  resetPasswordLimiter,
   uploadLimiter,
   analyzeLimiter,
   authSlowDown,

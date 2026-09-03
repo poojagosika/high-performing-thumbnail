@@ -5,6 +5,8 @@ const {
   getMe,
   updateProfile,
   changePassword,
+  forgotPassword,
+  resetPassword,
   uploadAvatar,
   logout,
   logoutAll,
@@ -15,6 +17,8 @@ const { issueCsrfToken } = require("../middleware/csrf");
 const {
   loginLimiter,
   registerLimiter,
+  forgotPasswordLimiter,
+  resetPasswordLimiter,
   uploadLimiter,
   authSlowDown,
 } = require("../middleware/rateLimit");
@@ -25,6 +29,8 @@ const {
   loginSchema,
   updateProfileSchema,
   changePasswordSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
 } = require("../schemas");
 const { persistImage, uploadErrorHandler } = require("../config/upload");
 
@@ -32,6 +38,8 @@ const router = express.Router();
 
 router.post("/register", authSlowDown, registerLimiter, verifyTurnstile, validate(registerSchema), register);
 router.post("/login", authSlowDown, loginLimiter, verifyTurnstile, validate(loginSchema), login);
+router.post("/forgot-password", authSlowDown, forgotPasswordLimiter, verifyTurnstile, validate(forgotPasswordSchema), forgotPassword);
+router.post("/reset-password", authSlowDown, resetPasswordLimiter, validate(resetPasswordSchema), resetPassword);
 router.post("/logout", logout);
 router.post("/logout-all", auth, logoutAll);
 router.get("/csrf", issueCsrfToken);

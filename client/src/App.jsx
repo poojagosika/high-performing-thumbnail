@@ -5,6 +5,8 @@ import { ToastProvider } from "./context/ToastContext";
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
 import ThumbnailDetail from "./pages/ThumbnailDetail";
 import Compare from "./pages/Compare";
@@ -43,6 +45,22 @@ function AppRoutes() {
           element={
             <PageTransition>
               <Signup />
+            </PageTransition>
+          }
+        />
+        <Route
+          path="/forgot-password"
+          element={
+            <PageTransition>
+              <ForgotPassword />
+            </PageTransition>
+          }
+        />
+        <Route
+          path="/reset-password"
+          element={
+            <PageTransition>
+              <ResetPassword />
             </PageTransition>
           }
         />
