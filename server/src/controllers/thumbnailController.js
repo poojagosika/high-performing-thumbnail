@@ -5,19 +5,13 @@ const Collection = require("../models/Collection");
 const fs = require("fs");
 const path = require("path");
 const archiver = require("archiver");
+const { removeUpload } = require("../config/upload");
 
 const logActivity = (user, type, thumbnailTitle, thumbnailId) => {
   Activity.create({ user, type, thumbnailTitle, thumbnailId }).catch(() => {});
 };
 
 const TRASH_RETENTION_DAYS = 30;
-
-const removeFile = (imageUrl) => {
-  const filePath = path.join(__dirname, "../../", imageUrl);
-  if (fs.existsSync(filePath)) {
-    fs.unlinkSync(filePath);
-  }
-};
 
 // Hard-delete trashed thumbnails past the retention window, along with every
 // image file they own. Runs on boot and whenever the trash is opened, so the
@@ -30,8 +24,8 @@ const purgeExpired = async (user) => {
   const expired = await Thumbnail.find(filter).setOptions({ withDeleted: true });
 
   for (const thumb of expired) {
-    removeFile(thumb.imageUrl);
-    (thumb.versions || []).forEach((v) => removeFile(v.imageUrl));
+    removeUpload(thumb.imageUrl);
+    (thumb.versions || []).forEach((v) => removeUpload(v.imageUrl));
   }
 
   if (expired.length > 0) {
@@ -835,8 +829,8 @@ const purgeThumbnail = async (req, res) => {
       return res.status(404).json({ message: "Thumbnail not found in trash" });
     }
 
-    removeFile(thumbnail.imageUrl);
-    (thumbnail.versions || []).forEach((v) => removeFile(v.imageUrl));
+    removeUpload(thumbnail.imageUrl);
+    (thumbnail.versions || []).forEach((v) => removeUpload(v.imageUrl));
 
     logActivity(req.user._id, "purged", thumbnail.title, null);
     res.json({ message: "Thumbnail permanently deleted" });
@@ -880,8 +874,8 @@ const bulkPurge = async (req, res) => {
     }).setOptions({ withDeleted: true });
 
     for (const thumb of thumbnails) {
-      removeFile(thumb.imageUrl);
-      (thumb.versions || []).forEach((v) => removeFile(v.imageUrl));
+      removeUpload(thumb.imageUrl);
+      (thumb.versions || []).forEach((v) => removeUpload(v.imageUrl));
     }
 
     await Thumbnail.deleteMany({ _id: { $in: thumbnails.map((t) => t._id) } });

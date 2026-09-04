@@ -39,6 +39,15 @@ const registerLimiter = rateLimit({
   handler: jsonLimitHandler("Too many accounts created. Try again later."),
 });
 
+const deleteAccountLimiter = rateLimit({
+  ...baseOptions,
+  windowMs: 60 * MINUTE,
+  limit: 5,
+  keyGenerator: (req) =>
+    req.user?._id ? String(req.user._id) : ipKeyGenerator(req.ip),
+  handler: jsonLimitHandler("Too many attempts. Try again later."),
+});
+
 const forgotPasswordLimiter = rateLimit({
   ...baseOptions,
   windowMs: 60 * MINUTE,
@@ -82,6 +91,7 @@ module.exports = {
   apiLimiter,
   loginLimiter,
   registerLimiter,
+  deleteAccountLimiter,
   forgotPasswordLimiter,
   resetPasswordLimiter,
   uploadLimiter,

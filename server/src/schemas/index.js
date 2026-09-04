@@ -35,6 +35,10 @@ const changePasswordSchema = z.object({
   newPassword: password,
 });
 
+const deleteAccountSchema = z.object({
+  password: z.string({ error: "is required" }).min(1, "is required").max(200),
+});
+
 const forgotPasswordSchema = z.object({ email });
 
 const resetPasswordSchema = z.object({
@@ -112,6 +116,7 @@ module.exports = {
   loginSchema,
   updateProfileSchema,
   changePasswordSchema,
+  deleteAccountSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
   bulkIdsSchema,

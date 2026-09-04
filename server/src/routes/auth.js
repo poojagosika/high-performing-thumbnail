@@ -8,6 +8,7 @@ const {
   forgotPassword,
   resetPassword,
   uploadAvatar,
+  deleteAccount,
   logout,
   logoutAll,
 } = require("../controllers/authController");
@@ -17,6 +18,7 @@ const { issueCsrfToken } = require("../middleware/csrf");
 const {
   loginLimiter,
   registerLimiter,
+  deleteAccountLimiter,
   forgotPasswordLimiter,
   resetPasswordLimiter,
   uploadLimiter,
@@ -29,6 +31,7 @@ const {
   loginSchema,
   updateProfileSchema,
   changePasswordSchema,
+  deleteAccountSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
 } = require("../schemas");
@@ -46,6 +49,7 @@ router.get("/csrf", issueCsrfToken);
 router.get("/me", auth, getMe);
 router.patch("/profile", auth, validate(updateProfileSchema), updateProfile);
 router.patch("/password", auth, validate(changePasswordSchema), changePassword);
+router.delete("/account", auth, deleteAccountLimiter, validate(deleteAccountSchema), deleteAccount);
 router.post("/avatar", auth, uploadLimiter, upload.single("avatar"), uploadErrorHandler, persistImage, uploadAvatar);
 
 module.exports = router;

@@ -86,6 +86,21 @@ function persistImage(req, res, next) {
   next();
 }
 
+function removeUpload(imageUrl) {
+  if (!imageUrl || typeof imageUrl !== "string") return;
+
+  const name = path.basename(imageUrl);
+  if (!name || name === "." || name === "..") return;
+
+  const filePath = path.resolve(UPLOAD_DIR, name);
+
+  try {
+    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+  } catch {
+    return;
+  }
+}
+
 function serveUploadsGuard(req, res, next) {
   const ext = path.extname(req.path).slice(1).toLowerCase();
   if (!ALLOWED_EXTENSIONS.has(ext)) {
@@ -112,6 +127,7 @@ module.exports.upload = upload;
 module.exports.persistImage = persistImage;
 module.exports.uploadErrorHandler = uploadErrorHandler;
 module.exports.serveUploadsGuard = serveUploadsGuard;
+module.exports.removeUpload = removeUpload;
 module.exports.detectImage = detectImage;
 module.exports.ALLOWED_EXTENSIONS = ALLOWED_EXTENSIONS;
 module.exports.UPLOAD_DIR = UPLOAD_DIR;

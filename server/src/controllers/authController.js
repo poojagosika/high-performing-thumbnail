@@ -1,8 +1,11 @@
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
-const fs = require("fs");
-const path = require("path");
 const User = require("../models/User");
+const Thumbnail = require("../models/Thumbnail");
+const Collection = require("../models/Collection");
+const Comparison = require("../models/Comparison");
+const Activity = require("../models/Activity");
+const { removeUpload } = require("../config/upload");
 const {
   cookieOptions,
   clearCookieOptions,
@@ -287,12 +290,8 @@ const uploadAvatar = async (req, res) => {
       return res.status(400).json({ message: "Image file is required" });
     }
 
-    // Remove old avatar file if exists
     if (req.user.avatar) {
-      const oldPath = path.join(__dirname, "../../", req.user.avatar);
-      if (fs.existsSync(oldPath)) {
-        fs.unlinkSync(oldPath);
-      }
+      removeUpload(req.user.avatar);
     }
 
     req.user.avatar = `/uploads/${req.file.filename}`;
@@ -323,6 +322,60 @@ const logoutAll = async (req, res) => {
   }
 };
 
+const deleteAccount = async (req, res) => {
+  try {
+    const { password } = req.body;
+
+    const user = await User.findById(req.user._id).select("+password");
+
+    if (!user) {
+      return res.status(401).json({ message: "Invalid credentials" });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+
+    if (!isMatch) {
+      return res.status(401).json({ message: "Password is incorrect" });
+    }
+
+    const thumbnails = await Thumbnail.find({ user: user._id })
+      .setOptions({ withDeleted: true })
+      .select("imageUrl versions")
+      .lean();
+
+    const files = [];
+
+    for (const thumb of thumbnails) {
+      if (thumb.imageUrl) files.push(thumb.imageUrl);
+      for (const version of thumb.versions || []) {
+        if (version.imageUrl) files.push(version.imageUrl);
+      }
+    }
+
+    if (user.avatar) files.push(user.avatar);
+
+    await Thumbnail.deleteMany({ user: user._id });
+    await Collection.deleteMany({ user: user._id });
+    await Comparison.deleteMany({ user: user._id });
+    await Activity.deleteMany({ user: user._id });
+    await User.deleteOne({ _id: user._id });
+
+    for (const file of files) {
+      try {
+        removeUpload(file);
+      } catch {
+        continue;
+      }
+    }
+
+    res
+      .clearCookie("token", clearCookieOptions)
+      .json({ message: "Account deleted" });
+  } catch (error) {
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 const logout = (req, res) => {
   res.clearCookie("token", clearCookieOptions).json({ message: "Logged out" });
 };
@@ -336,6 +389,7 @@ module.exports = {
   forgotPassword,
   resetPassword,
   uploadAvatar,
+  deleteAccount,
   logout,
   logoutAll,
 };

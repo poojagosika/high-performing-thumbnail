@@ -1,9 +1,18 @@
 import { useState, useRef } from "react";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { motion } from "framer-motion";
-import { ArrowLeft, User, Lock, Loader2, Camera } from "lucide-react";
+import {
+  ArrowLeft,
+  User,
+  Lock,
+  Loader2,
+  Camera,
+  MonitorSmartphone,
+  AlertTriangle,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import DashboardNav from "../components/DashboardNav";
+import DeleteAccountModal from "../components/DeleteAccountModal";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import api, { uploadFile } from "../lib/api";
@@ -12,8 +21,30 @@ import { assetUrl } from "../lib/assetUrl";
 const stagger = (i) => ({ duration: 0.4, delay: i * 0.06, ease: "easeOut" });
 
 function Settings() {
-  const { user, setUser } = useAuth();
+  const { user, setUser, logoutAll, deleteAccount } = useAuth();
   const toast = useToast();
+  const navigate = useNavigate();
+
+  const [signingOutAll, setSigningOutAll] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+
+  const handleSignOutEverywhere = async () => {
+    setSigningOutAll(true);
+    try {
+      await logoutAll();
+      toast.success("Signed out of all devices");
+      navigate("/login");
+    } catch (err) {
+      toast.error(err.message || "Failed to sign out");
+      setSigningOutAll(false);
+    }
+  };
+
+  const handleDeleteAccount = async (password) => {
+    await deleteAccount(password);
+    toast.success("Your account has been deleted");
+    navigate("/");
+  };
 
   const [name, setName] = useState(user?.name || "");
   const [email, setEmail] = useState(user?.email || "");
@@ -323,7 +354,70 @@ function Settings() {
             </Button>
           </div>
         </motion.form>
+
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={stagger(5)}
+          className="rounded-xl border border-white/6 bg-[#111118] p-5 mt-6"
+        >
+          <div className="flex items-center gap-2 mb-4">
+            <MonitorSmartphone className="w-4 h-4 text-[#737380]" />
+            <h2 className="text-[14px] font-medium text-white">Sessions</h2>
+          </div>
+
+          <p className="text-[13px] text-[#737380]">
+            Signs out every browser and device where you are logged in,
+            including this one. Use it if you have signed in somewhere you no
+            longer trust.
+          </p>
+
+          <div className="flex justify-end mt-4">
+            <Button
+              onClick={handleSignOutEverywhere}
+              disabled={signingOutAll}
+              variant="outline"
+              className="h-8 text-[13px] border-white/8 text-[#737380] hover:text-white hover:border-white/12 bg-transparent font-medium gap-1.5"
+            >
+              {signingOutAll && <Loader2 className="w-3 h-3 animate-spin" />}
+              Sign Out Everywhere
+            </Button>
+          </div>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={stagger(6)}
+          className="rounded-xl border border-red-400/20 bg-[#111118] p-5 mt-6"
+        >
+          <div className="flex items-center gap-2 mb-4">
+            <AlertTriangle className="w-4 h-4 text-red-400" />
+            <h2 className="text-[14px] font-medium text-white">Danger Zone</h2>
+          </div>
+
+          <p className="text-[13px] text-[#737380]">
+            Permanently delete your account and everything in it — thumbnails,
+            versions, collections, comparisons and share links. This cannot be
+            undone.
+          </p>
+
+          <div className="flex justify-end mt-4">
+            <Button
+              onClick={() => setDeleteOpen(true)}
+              className="h-8 text-[13px] bg-red-500 text-white hover:bg-red-500/90 font-medium"
+            >
+              Delete Account
+            </Button>
+          </div>
+        </motion.div>
       </main>
+
+      <DeleteAccountModal
+        open={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+        onConfirm={handleDeleteAccount}
+      />
     </div>
   );
 }
