@@ -50,7 +50,7 @@
   --secondary: #1a1a24;
   --secondary-foreground: #fafafa;
   --muted: #151520;
-  --muted-foreground: #737380;
+  --muted-foreground: #7b7b88;
   --accent: #1a1a24;
   --accent-foreground: #fafafa;
   --destructive: #ef4444;
@@ -93,4 +93,28 @@ body {
   * {
     @apply border-border outline-ring/50;
   }
+
+  :where(button, a, summary, [role="button"], [tabindex]):focus-visible {
+    outline: 2px solid #7b7b88;
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+}
+
+.skip-link {
+  position: absolute;
+  left: 0.75rem;
+  top: -3rem;
+  z-index: 200;
+  padding: 0.5rem 0.875rem;
+  border-radius: 0.5rem;
+  background: #ffffff;
+  color: #0a0a0f;
+  font-size: 13px;
+  font-weight: 500;
+  transition: top 0.15s ease;
+}
+
+.skip-link:focus {
+  top: 0.75rem;
 }

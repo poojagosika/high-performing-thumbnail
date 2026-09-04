@@ -37,7 +37,7 @@ function Testimonials() {
           transition={{ duration: 0.4 }}
           className="text-center mb-14"
         >
-          <p className="text-[13px] text-[#737380] font-medium uppercase tracking-widest mb-3">
+          <p className="text-[13px] text-[#7b7b88] font-medium uppercase tracking-widest mb-3">
             Testimonials
           </p>
           <h2 className="font-heading text-2xl sm:text-3xl font-semibold text-white tracking-[-0.01em]">
@@ -67,7 +67,7 @@ function Testimonials() {
               </div>
 
               {/* Quote */}
-              <p className="text-[13px] text-[#737380] leading-relaxed flex-1">
+              <p className="text-[13px] text-[#7b7b88] leading-relaxed flex-1">
                 &ldquo;{t.quote}&rdquo;
               </p>
 
@@ -80,7 +80,7 @@ function Testimonials() {
                 </div>
                 <div>
                   <p className="text-[13px] font-medium text-white">{t.name}</p>
-                  <p className="text-[11px] text-[#4a4a54]">
+                  <p className="text-[11px] text-[#61616b]">
                     {t.role} &middot; {t.channel}
                   </p>
                 </div>

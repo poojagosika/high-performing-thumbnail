@@ -45,6 +45,7 @@ import ShortcutsModal from "../components/ShortcutsModal";
 import { useToast } from "../context/ToastContext";
 import api, { uploadFile } from "../lib/api";
 import { assetUrl } from "../lib/assetUrl";
+import { useDialog } from "../hooks/useDialog";
 
 const detailShortcuts = [
   { key: "d", label: "Download thumbnail" },
@@ -74,10 +75,10 @@ const activityMeta = {
   edited: { color: "text-blue-400", bg: "bg-blue-400" },
   deleted: { color: "text-red-400", bg: "bg-red-400" },
   starred: { color: "text-amber-400", bg: "bg-amber-400" },
-  unstarred: { color: "text-[#4a4a54]", bg: "bg-[#4a4a54]" },
+  unstarred: { color: "text-[#61616b]", bg: "bg-[#61616b]" },
   duplicated: { color: "text-purple-400", bg: "bg-purple-400" },
   shared: { color: "text-blue-400", bg: "bg-blue-400" },
-  unshared: { color: "text-[#4a4a54]", bg: "bg-[#4a4a54]" },
+  unshared: { color: "text-[#61616b]", bg: "bg-[#61616b]" },
   reuploaded: { color: "text-cyan-400", bg: "bg-cyan-400" },
 };
 
@@ -152,6 +153,12 @@ function ThumbnailDetail() {
   const [cropPreset, setCropPreset] = useState(null);
   const [cropDragging, setCropDragging] = useState(null);
   const [annotateOpen, setAnnotateOpen] = useState(false);
+
+  const zoomDialog = useDialog(zoomed, () => { setZoomed(false); setZoomLevel(1); setPanOffset({ x: 0, y: 0 }); }, { label: "Zoomed thumbnail" });
+  const versionCompareDialog = useDialog(!!versionCompare, () => setVersionCompare(null), { labelledBy: "detail-version-compare-title" });
+  const annotateDialog = useDialog(annotateOpen, () => setAnnotateOpen(false), { labelledBy: "detail-annotate-title" });
+  const cropDialog = useDialog(cropOpen, () => setCropOpen(false), { labelledBy: "detail-crop-title" });
+
   const [annoTool, setAnnoTool] = useState("freehand");
   const [annoColor, setAnnoColor] = useState("#ef4444");
   const [annoStroke, setAnnoStroke] = useState(3);
@@ -852,11 +859,6 @@ function ThumbnailDetail() {
           break;
         case "Escape":
           if (shortcutsOpen) setShortcutsOpen(false);
-          else if (zoomed) {
-            setZoomed(false);
-            setZoomLevel(1);
-            setPanOffset({ x: 0, y: 0 });
-          }
           break;
         case "z":
           setZoomed((v) => !v);
@@ -875,7 +877,7 @@ function ThumbnailDetail() {
           break;
       }
     },
-    [zoomed, shortcutsOpen, navigate],
+    [shortcutsOpen, navigate],
   );
 
   useEffect(() => {
@@ -887,7 +889,7 @@ function ThumbnailDetail() {
     return (
       <div className="min-h-screen">
         <DashboardNav />
-        <main className="max-w-4xl mx-auto px-6 py-10">
+        <main id="main" className="max-w-4xl mx-auto px-6 py-10">
           <div className="h-4 w-32 rounded bg-white/4 animate-pulse mb-6" />
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
             <div className="lg:col-span-3">
@@ -959,7 +961,7 @@ function ThumbnailDetail() {
     <div className="min-h-screen">
       <DashboardNav />
 
-      <main className="max-w-4xl mx-auto px-6 py-10">
+      <main id="main" className="max-w-4xl mx-auto px-6 py-10">
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -968,7 +970,7 @@ function ThumbnailDetail() {
         >
           <Link
             to="/dashboard"
-            className="inline-flex items-center gap-1.5 text-[13px] text-[#737380] hover:text-white transition-colors"
+            className="inline-flex items-center gap-1.5 text-[13px] text-[#7b7b88] hover:text-white transition-colors"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             Back to Dashboard
@@ -979,22 +981,22 @@ function ThumbnailDetail() {
                 to={prevThumb ? `/thumbnail/${prevThumb._id}` : "#"}
                 className={`h-7 w-7 rounded-lg border border-white/8 bg-white/3 flex items-center justify-center transition-colors ${
                   prevThumb
-                    ? "text-[#737380] hover:text-white hover:border-white/12"
-                    : "text-[#4a4a54]/30 pointer-events-none"
+                    ? "text-[#7b7b88] hover:text-white hover:border-white/12"
+                    : "text-[#61616b]/30 pointer-events-none"
                 }`}
                 title={prevThumb?.title}
               >
                 <ChevronLeft className="w-3.5 h-3.5" />
               </Link>
-              <span className="text-[11px] text-[#4a4a54] px-1.5">
+              <span className="text-[11px] text-[#61616b] px-1.5">
                 {currentIdx + 1}/{allThumbs.length}
               </span>
               <Link
                 to={nextThumb ? `/thumbnail/${nextThumb._id}` : "#"}
                 className={`h-7 w-7 rounded-lg border border-white/8 bg-white/3 flex items-center justify-center transition-colors ${
                   nextThumb
-                    ? "text-[#737380] hover:text-white hover:border-white/12"
-                    : "text-[#4a4a54]/30 pointer-events-none"
+                    ? "text-[#7b7b88] hover:text-white hover:border-white/12"
+                    : "text-[#61616b]/30 pointer-events-none"
                 }`}
                 title={nextThumb?.title}
               >
@@ -1022,7 +1024,7 @@ function ThumbnailDetail() {
                 className="w-full aspect-video object-cover"
               />
             </div>
-            <p className="text-[11px] text-[#4a4a54] mt-2 text-center">
+            <p className="text-[11px] text-[#61616b] mt-2 text-center">
               Click image to zoom
             </p>
 
@@ -1030,11 +1032,11 @@ function ThumbnailDetail() {
             {(thumb.versions?.length > 0 || true) && (
               <div className="mt-4 rounded-xl border border-white/6 bg-[#111118] p-4">
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="flex items-center gap-1.5 text-[13px] text-[#737380] font-medium">
+                  <h3 className="flex items-center gap-1.5 text-[13px] text-[#7b7b88] font-medium">
                     <History className="w-3.5 h-3.5" />
                     Version History
                     {thumb.versions?.length > 0 && (
-                      <span className="text-[11px] text-[#4a4a54] font-normal ml-1">
+                      <span className="text-[11px] text-[#61616b] font-normal ml-1">
                         ({thumb.versions.length + 1} versions)
                       </span>
                     )}
@@ -1042,8 +1044,8 @@ function ThumbnailDetail() {
                   <label
                     className={`flex items-center gap-1.5 text-[11px] border border-white/8 hover:border-white/12 rounded-lg px-2.5 py-1 transition-colors cursor-pointer ${
                       reuploading
-                        ? "text-[#4a4a54] pointer-events-none"
-                        : "text-[#737380] hover:text-white"
+                        ? "text-[#61616b] pointer-events-none"
+                        : "text-[#7b7b88] hover:text-white"
                     }`}
                   >
                     <Upload className="w-3 h-3" />
@@ -1090,7 +1092,7 @@ function ThumbnailDetail() {
                           </div>
                         </button>
                         <div className="flex items-center justify-between gap-1 px-2 py-1.5">
-                          <span className="text-[10px] text-[#4a4a54]">
+                          <span className="text-[10px] text-[#61616b]">
                             v{v.versionIndex + 1} ·{" "}
                             {new Date(v.uploadedAt).toLocaleDateString("en-US", {
                               month: "short",
@@ -1098,10 +1100,11 @@ function ThumbnailDetail() {
                             })}
                           </span>
                           <button
+                            aria-label="Restore this version"
                             onClick={() => handleRestoreVersion(v.versionIndex)}
                             disabled={restoringVersion !== null}
                             title="Restore this version"
-                            className="text-[#4a4a54] hover:text-emerald-400 transition-colors disabled:opacity-40"
+                            className="text-[#61616b] hover:text-emerald-400 transition-colors disabled:opacity-40"
                           >
                             <RotateCcw className="w-3 h-3" />
                           </button>
@@ -1110,7 +1113,7 @@ function ThumbnailDetail() {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-[12px] text-[#4a4a54]">
+                  <p className="text-[12px] text-[#61616b]">
                     Upload a new version to start tracking changes
                   </p>
                 )}
@@ -1139,7 +1142,7 @@ function ThumbnailDetail() {
                       if (e.key === "Enter") saveTitle();
                       if (e.key === "Escape") setEditingTitle(false);
                     }}
-                    className="flex-1 min-w-0 font-heading text-xl font-semibold text-white tracking-[-0.01em] bg-transparent border-b border-white/20 outline-none pb-0.5"
+                    className="flex-1 min-w-0 font-heading text-xl font-semibold text-white tracking-[-0.01em] bg-transparent border-b border-white/20 outline-none focus:border-white/16 transition-colors pb-0.5"
                   />
                 ) : (
                   <h1
@@ -1147,15 +1150,16 @@ function ThumbnailDetail() {
                     onClick={startEditingTitle}
                   >
                     {thumb.title}
-                    <Pencil className="w-3 h-3 text-[#4a4a54] opacity-0 group-hover/title:opacity-100 transition-opacity shrink-0" />
+                    <Pencil className="w-3 h-3 text-[#61616b] opacity-0 group-hover/title:opacity-100 transition-opacity shrink-0" />
                   </h1>
                 )}
                 <button
+                  aria-label={thumb.starred ? "Remove star" : "Add star"}
                   onClick={handleToggleStar}
                   className={`shrink-0 mt-0.5 transition-colors ${
                     thumb.starred
                       ? "text-amber-400"
-                      : "text-[#4a4a54] hover:text-amber-400"
+                      : "text-[#61616b] hover:text-amber-400"
                   }`}
                 >
                   <Star
@@ -1164,7 +1168,7 @@ function ThumbnailDetail() {
                   />
                 </button>
               </div>
-              <div className="flex items-center gap-1.5 mt-2 text-[12px] text-[#737380]">
+              <div className="flex items-center gap-1.5 mt-2 text-[12px] text-[#7b7b88]">
                 <Calendar className="w-3 h-3" />
                 {new Date(thumb.createdAt).toLocaleDateString("en-US", {
                   year: "numeric",
@@ -1176,7 +1180,7 @@ function ThumbnailDetail() {
               <div className="mt-3">
                 {editingTags ? (
                   <div className="flex items-center gap-2">
-                    <Tag className="w-3 h-3 text-[#4a4a54] shrink-0" />
+                    <Tag className="w-3 h-3 text-[#61616b] shrink-0" />
                     <input
                       type="text"
                       value={tagInput}
@@ -1187,7 +1191,7 @@ function ThumbnailDetail() {
                       }}
                       autoFocus
                       placeholder="gaming, tutorial, vlog"
-                      className="flex-1 h-7 px-2 rounded border border-white/10 bg-white/4 text-[12px] text-white placeholder:text-[#4a4a54] outline-none focus:border-white/20 transition-colors"
+                      className="flex-1 h-7 px-2 rounded border border-white/10 bg-white/4 text-[12px] text-white placeholder:text-[#7b7b88] outline-none focus:border-white/20 transition-colors"
                     />
                     <button
                       onClick={saveTags}
@@ -1196,32 +1200,34 @@ function ThumbnailDetail() {
                       Save
                     </button>
                     <button
+                      aria-label="Cancel editing tags"
                       onClick={() => setEditingTags(false)}
-                      className="text-[#4a4a54] hover:text-white transition-colors"
+                      className="text-[#61616b] hover:text-white transition-colors"
                     >
                       <X className="w-3 h-3" />
                     </button>
                   </div>
                 ) : (
                   <div className="group/tags flex items-center gap-1.5 flex-wrap">
-                    <Tag className="w-3 h-3 text-[#4a4a54]" />
+                    <Tag className="w-3 h-3 text-[#61616b]" />
                     {thumb.tags?.length > 0 ? (
                       thumb.tags.map((tag) => (
                         <span
                           key={tag}
-                          className="text-[11px] text-[#737380] bg-white/4 rounded-full px-2 py-0.5"
+                          className="text-[11px] text-[#7b7b88] bg-white/4 rounded-full px-2 py-0.5"
                         >
                           {tag}
                         </span>
                       ))
                     ) : (
-                      <span className="text-[11px] text-[#4a4a54]">
+                      <span className="text-[11px] text-[#61616b]">
                         No tags
                       </span>
                     )}
                     <button
+                      aria-label="Edit tags"
                       onClick={startEditingTags}
-                      className="text-[#4a4a54] hover:text-white transition-colors opacity-0 group-hover/tags:opacity-100"
+                      className="text-[#61616b] hover:text-white transition-colors opacity-0 group-hover/tags:opacity-100"
                     >
                       <Pencil className="w-3 h-3" />
                     </button>
@@ -1234,13 +1240,13 @@ function ThumbnailDetail() {
             <div className="grid grid-cols-2 gap-3">
               <div className="rounded-xl border border-white/6 bg-[#111118] p-4">
                 <div className="flex items-center gap-1.5 mb-2">
-                  <BarChart3 className="w-3.5 h-3.5 text-[#737380]" />
-                  <span className="text-[12px] text-[#737380]">Score</span>
+                  <BarChart3 className="w-3.5 h-3.5 text-[#7b7b88]" />
+                  <span className="text-[12px] text-[#7b7b88]">Score</span>
                 </div>
                 <span className="font-heading text-2xl font-semibold text-white">
                   {thumb.score != null ? thumb.score : "—"}
                   {thumb.score != null && (
-                    <span className="text-[12px] text-[#4a4a54] font-normal ml-0.5">
+                    <span className="text-[12px] text-[#61616b] font-normal ml-0.5">
                       /100
                     </span>
                   )}
@@ -1248,8 +1254,8 @@ function ThumbnailDetail() {
               </div>
               <div className="rounded-xl border border-white/6 bg-[#111118] p-4">
                 <div className="flex items-center gap-1.5 mb-2">
-                  <MousePointerClick className="w-3.5 h-3.5 text-[#737380]" />
-                  <span className="text-[12px] text-[#737380]">CTR</span>
+                  <MousePointerClick className="w-3.5 h-3.5 text-[#7b7b88]" />
+                  <span className="text-[12px] text-[#7b7b88]">CTR</span>
                 </div>
                 <span className="font-heading text-2xl font-semibold text-white">
                   {thumb.ctr != null ? `${thumb.ctr}%` : "—"}
@@ -1260,7 +1266,7 @@ function ThumbnailDetail() {
             {/* Real-world performance */}
             <div className="rounded-xl border border-white/6 bg-[#111118] p-4">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="flex items-center gap-1.5 text-[13px] text-[#737380] font-medium">
+                <h3 className="flex items-center gap-1.5 text-[13px] text-[#7b7b88] font-medium">
                   <TrendingUp className="w-3.5 h-3.5" />
                   Real Performance
                 </h3>
@@ -1269,7 +1275,7 @@ function ThumbnailDetail() {
                     setPerfOpen((v) => !v);
                     setPerfError("");
                   }}
-                  className="flex items-center gap-1 text-[11px] border border-white/8 hover:border-white/12 rounded-lg px-2.5 py-1 text-[#737380] hover:text-white transition-colors"
+                  className="flex items-center gap-1 text-[11px] border border-white/8 hover:border-white/12 rounded-lg px-2.5 py-1 text-[#7b7b88] hover:text-white transition-colors"
                 >
                   <Plus className="w-3 h-3" />
                   Log
@@ -1283,7 +1289,7 @@ function ThumbnailDetail() {
                 >
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className="block text-[11px] text-[#4a4a54] mb-1">
+                      <label className="block text-[11px] text-[#61616b] mb-1">
                         Impressions
                       </label>
                       <input
@@ -1292,11 +1298,11 @@ function ThumbnailDetail() {
                         value={perfImpressions}
                         onChange={(e) => setPerfImpressions(e.target.value)}
                         placeholder="12500"
-                        className="w-full h-8 px-2 rounded-lg border border-white/8 bg-white/3 text-[13px] text-white placeholder:text-[#4a4a54] outline-none focus:border-white/16 transition-colors"
+                        className="w-full h-8 px-2 rounded-lg border border-white/8 bg-white/3 text-[13px] text-white placeholder:text-[#7b7b88] outline-none focus:border-white/16 transition-colors"
                       />
                     </div>
                     <div>
-                      <label className="block text-[11px] text-[#4a4a54] mb-1">
+                      <label className="block text-[11px] text-[#61616b] mb-1">
                         Clicks
                       </label>
                       <input
@@ -1305,11 +1311,11 @@ function ThumbnailDetail() {
                         value={perfClicks}
                         onChange={(e) => setPerfClicks(e.target.value)}
                         placeholder="740"
-                        className="w-full h-8 px-2 rounded-lg border border-white/8 bg-white/3 text-[13px] text-white placeholder:text-[#4a4a54] outline-none focus:border-white/16 transition-colors"
+                        className="w-full h-8 px-2 rounded-lg border border-white/8 bg-white/3 text-[13px] text-white placeholder:text-[#7b7b88] outline-none focus:border-white/16 transition-colors"
                       />
                     </div>
                     <div>
-                      <label className="block text-[11px] text-[#4a4a54] mb-1">
+                      <label className="block text-[11px] text-[#61616b] mb-1">
                         Date
                       </label>
                       <input
@@ -1320,7 +1326,7 @@ function ThumbnailDetail() {
                       />
                     </div>
                     <div>
-                      <label className="block text-[11px] text-[#4a4a54] mb-1">
+                      <label className="block text-[11px] text-[#61616b] mb-1">
                         Source
                       </label>
                       <input
@@ -1328,13 +1334,13 @@ function ThumbnailDetail() {
                         value={perfSource}
                         onChange={(e) => setPerfSource(e.target.value)}
                         placeholder="YouTube"
-                        className="w-full h-8 px-2 rounded-lg border border-white/8 bg-white/3 text-[13px] text-white placeholder:text-[#4a4a54] outline-none focus:border-white/16 transition-colors"
+                        className="w-full h-8 px-2 rounded-lg border border-white/8 bg-white/3 text-[13px] text-white placeholder:text-[#7b7b88] outline-none focus:border-white/16 transition-colors"
                       />
                     </div>
                   </div>
 
                   {pendingCtr() !== null && (
-                    <p className="text-[11px] text-[#737380] mt-2">
+                    <p className="text-[11px] text-[#7b7b88] mt-2">
                       That&apos;s a{" "}
                       <span className="text-white font-medium">
                         {pendingCtr()}%
@@ -1350,7 +1356,7 @@ function ThumbnailDetail() {
                     <button
                       type="button"
                       onClick={() => setPerfOpen(false)}
-                      className="h-7 px-3 rounded-lg text-[12px] text-[#737380] hover:text-white transition-colors"
+                      className="h-7 px-3 rounded-lg text-[12px] text-[#7b7b88] hover:text-white transition-colors"
                     >
                       Cancel
                     </button>
@@ -1369,7 +1375,7 @@ function ThumbnailDetail() {
                 <>
                   <div className="grid grid-cols-3 gap-2 mb-3">
                     <div>
-                      <p className="text-[10px] text-[#4a4a54] uppercase tracking-wider">
+                      <p className="text-[10px] text-[#61616b] uppercase tracking-wider">
                         Predicted
                       </p>
                       <p className="font-heading text-[15px] text-white">
@@ -1377,7 +1383,7 @@ function ThumbnailDetail() {
                       </p>
                     </div>
                     <div>
-                      <p className="text-[10px] text-[#4a4a54] uppercase tracking-wider">
+                      <p className="text-[10px] text-[#61616b] uppercase tracking-wider">
                         Actual CTR
                       </p>
                       <p className="font-heading text-[15px] text-white">
@@ -1385,7 +1391,7 @@ function ThumbnailDetail() {
                       </p>
                     </div>
                     <div>
-                      <p className="text-[10px] text-[#4a4a54] uppercase tracking-wider">
+                      <p className="text-[10px] text-[#61616b] uppercase tracking-wider">
                         Best
                       </p>
                       <p className="font-heading text-[15px] text-emerald-400">
@@ -1400,7 +1406,7 @@ function ThumbnailDetail() {
                         key={entry._id}
                         className="group/perf flex items-center gap-2"
                       >
-                        <span className="text-[11px] text-[#4a4a54] w-14 shrink-0">
+                        <span className="text-[11px] text-[#61616b] w-14 shrink-0">
                           {new Date(entry.date).toLocaleDateString("en-US", {
                             month: "short",
                             day: "numeric",
@@ -1421,15 +1427,16 @@ function ThumbnailDetail() {
                           {entry.ctr}%
                         </span>
                         <span
-                          className="text-[10px] text-[#4a4a54] w-24 truncate shrink-0"
+                          className="text-[10px] text-[#61616b] w-24 truncate shrink-0"
                           title={`${entry.clicks.toLocaleString()} of ${entry.impressions.toLocaleString()}${entry.source ? ` · ${entry.source}` : ""}`}
                         >
                           {entry.clicks.toLocaleString()}/
                           {entry.impressions.toLocaleString()}
                         </span>
                         <button
+                          aria-label="Remove entry"
                           onClick={() => handleDeletePerformance(entry._id)}
-                          className="text-[#4a4a54] hover:text-red-400 opacity-0 group-hover/perf:opacity-100 transition-all shrink-0"
+                          className="text-[#61616b] hover:text-red-400 opacity-0 group-hover/perf:opacity-100 transition-all shrink-0"
                           title="Remove entry"
                         >
                           <X className="w-3 h-3" />
@@ -1440,7 +1447,7 @@ function ThumbnailDetail() {
                 </>
               ) : (
                 !perfOpen && (
-                  <p className="text-[12px] text-[#4a4a54]">
+                  <p className="text-[12px] text-[#61616b]">
                     Log impressions and clicks from YouTube to see how the
                     predicted score held up.
                   </p>
@@ -1451,13 +1458,14 @@ function ThumbnailDetail() {
             {/* Color Palette */}
             {palette.length > 0 && (
               <div className="rounded-xl border border-white/6 bg-[#111118] p-4">
-                <h3 className="flex items-center gap-1.5 text-[13px] text-[#737380] font-medium mb-3">
+                <h3 className="flex items-center gap-1.5 text-[13px] text-[#7b7b88] font-medium mb-3">
                   <Palette className="w-3.5 h-3.5" />
                   Color Palette
                 </h3>
                 <div className="flex gap-2">
                   {palette.map((color, i) => (
                     <button
+                      aria-label={`Copy colour ${color}`}
                       key={i}
                       onClick={() => {
                         const hex = color
@@ -1474,7 +1482,7 @@ function ThumbnailDetail() {
                         className="w-full aspect-square rounded-lg border border-white/6 group-hover/color:scale-110 transition-transform"
                         style={{ backgroundColor: color }}
                       />
-                      <span className="text-[9px] text-[#4a4a54] group-hover/color:text-[#737380] transition-colors">
+                      <span className="text-[9px] text-[#61616b] group-hover/color:text-[#7b7b88] transition-colors">
                         {color
                           .match(/\d+/g)
                           .map((n) => parseInt(n).toString(16).padStart(2, "0"))
@@ -1491,7 +1499,7 @@ function ThumbnailDetail() {
             {/* Analysis breakdown */}
             {hasAnalysis && (
               <div className="rounded-xl border border-white/6 bg-[#111118] p-5">
-                <h3 className="text-[13px] text-[#737380] font-medium mb-3">
+                <h3 className="text-[13px] text-[#7b7b88] font-medium mb-3">
                   Analysis
                 </h3>
                 <div className="flex flex-col gap-3">
@@ -1513,7 +1521,7 @@ function ThumbnailDetail() {
                     return (
                       <div key={key}>
                         <div className="flex items-center justify-between mb-1">
-                          <span className="flex items-center gap-1.5 text-[12px] text-[#737380]">
+                          <span className="flex items-center gap-1.5 text-[12px] text-[#7b7b88]">
                             <Icon className="w-3 h-3" />
                             {label}
                           </span>
@@ -1539,7 +1547,7 @@ function ThumbnailDetail() {
             {/* AI Suggestions */}
             <div className="rounded-xl border border-white/6 bg-[#111118] p-5">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="flex items-center gap-1.5 text-[13px] text-[#737380] font-medium">
+                <h3 className="flex items-center gap-1.5 text-[13px] text-[#7b7b88] font-medium">
                   <Sparkles className="w-3.5 h-3.5" />
                   AI Suggestions
                 </h3>
@@ -1548,8 +1556,8 @@ function ThumbnailDetail() {
                   disabled={analyzing}
                   className={`flex items-center gap-1.5 text-[11px] border rounded-lg px-2.5 py-1 transition-colors ${
                     analyzing
-                      ? "border-white/6 text-[#4a4a54] pointer-events-none"
-                      : "border-white/8 text-[#737380] hover:text-white hover:border-white/12"
+                      ? "border-white/6 text-[#61616b] pointer-events-none"
+                      : "border-white/8 text-[#7b7b88] hover:text-white hover:border-white/12"
                   }`}
                 >
                   <Sparkles className="w-3 h-3" />
@@ -1578,7 +1586,7 @@ function ThumbnailDetail() {
                       >
                         <div className="flex items-center gap-2 mb-1">
                           <div className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />
-                          <span className="text-[11px] text-[#737380] font-medium uppercase tracking-wider">
+                          <span className="text-[11px] text-[#7b7b88] font-medium uppercase tracking-wider">
                             {s.category}
                           </span>
                           <span className={`text-[10px] ml-auto ${
@@ -1587,7 +1595,7 @@ function ThumbnailDetail() {
                             {s.priority}
                           </span>
                         </div>
-                        <p className="text-[12px] text-[#737380] leading-relaxed">
+                        <p className="text-[12px] text-[#7b7b88] leading-relaxed">
                           {s.tip}
                         </p>
                       </div>
@@ -1596,8 +1604,8 @@ function ThumbnailDetail() {
                 </div>
               ) : (
                 <div className="text-center py-4">
-                  <Sparkles className="w-6 h-6 text-[#4a4a54] mx-auto mb-2" />
-                  <p className="text-[12px] text-[#4a4a54]">
+                  <Sparkles className="w-6 h-6 text-[#61616b] mx-auto mb-2" />
+                  <p className="text-[12px] text-[#61616b]">
                     Run analysis to get improvement suggestions
                   </p>
                 </div>
@@ -1607,12 +1615,12 @@ function ThumbnailDetail() {
             {/* A/B Test Tracking */}
             <div className="rounded-xl border border-white/6 bg-[#111118] p-5">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-[13px] text-[#737380] font-medium">
+                <h3 className="text-[13px] text-[#7b7b88] font-medium">
                   Performance Tracking
                 </h3>
                 <button
                   onClick={handleTrackClick}
-                  className="flex items-center gap-1.5 text-[11px] text-[#737380] hover:text-white border border-white/8 hover:border-white/12 rounded-lg px-2.5 py-1 transition-colors"
+                  className="flex items-center gap-1.5 text-[11px] text-[#7b7b88] hover:text-white border border-white/8 hover:border-white/12 rounded-lg px-2.5 py-1 transition-colors"
                 >
                   <MousePointerClick className="w-3 h-3" />
                   Record Click
@@ -1621,8 +1629,8 @@ function ThumbnailDetail() {
               <div className="grid grid-cols-3 gap-3 mb-4">
                 <div className="rounded-lg border border-white/6 bg-white/2 p-2.5">
                   <div className="flex items-center gap-1 mb-1">
-                    <Eye className="w-3 h-3 text-[#4a4a54]" />
-                    <span className="text-[10px] text-[#4a4a54]">Views</span>
+                    <Eye className="w-3 h-3 text-[#61616b]" />
+                    <span className="text-[10px] text-[#61616b]">Views</span>
                   </div>
                   <span className="font-heading text-lg font-semibold text-white">
                     {thumb.views || 0}
@@ -1630,8 +1638,8 @@ function ThumbnailDetail() {
                 </div>
                 <div className="rounded-lg border border-white/6 bg-white/2 p-2.5">
                   <div className="flex items-center gap-1 mb-1">
-                    <MousePointerClick className="w-3 h-3 text-[#4a4a54]" />
-                    <span className="text-[10px] text-[#4a4a54]">Clicks</span>
+                    <MousePointerClick className="w-3 h-3 text-[#61616b]" />
+                    <span className="text-[10px] text-[#61616b]">Clicks</span>
                   </div>
                   <span className="font-heading text-lg font-semibold text-white">
                     {thumb.clicks || 0}
@@ -1639,8 +1647,8 @@ function ThumbnailDetail() {
                 </div>
                 <div className="rounded-lg border border-white/6 bg-white/2 p-2.5">
                   <div className="flex items-center gap-1 mb-1">
-                    <TrendingUp className="w-3 h-3 text-[#4a4a54]" />
-                    <span className="text-[10px] text-[#4a4a54]">CTR</span>
+                    <TrendingUp className="w-3 h-3 text-[#61616b]" />
+                    <span className="text-[10px] text-[#61616b]">CTR</span>
                   </div>
                   <span className="font-heading text-lg font-semibold text-emerald-400">
                     {thumb.views > 0
@@ -1681,10 +1689,10 @@ function ThumbnailDetail() {
                 return (
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-[11px] text-[#4a4a54]">
+                      <span className="text-[11px] text-[#61616b]">
                         CTR over time
                       </span>
-                      <span className="text-[10px] text-[#4a4a54]">
+                      <span className="text-[10px] text-[#61616b]">
                         Last {stats.length} days
                       </span>
                     </div>
@@ -1751,7 +1759,7 @@ function ThumbnailDetail() {
             {/* Notes */}
             <div className="rounded-xl border border-white/6 bg-[#111118] p-5">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="flex items-center gap-1.5 text-[13px] text-[#737380] font-medium">
+                <h3 className="flex items-center gap-1.5 text-[13px] text-[#7b7b88] font-medium">
                   <StickyNote className="w-3.5 h-3.5" />
                   Notes
                 </h3>
@@ -1764,7 +1772,7 @@ function ThumbnailDetail() {
                   </button>
                 )}
                 {notesSaved && notesInput !== "" && (
-                  <span className="text-[10px] text-[#4a4a54]">Saved</span>
+                  <span className="text-[10px] text-[#61616b]">Saved</span>
                 )}
               </div>
               <textarea
@@ -1781,9 +1789,9 @@ function ThumbnailDetail() {
                 }}
                 placeholder="Add observations, ideas, or feedback..."
                 rows={3}
-                className="w-full bg-white/3 border border-white/8 rounded-lg px-3 py-2 text-[13px] text-white placeholder:text-[#4a4a54] outline-none focus:border-white/16 transition-colors resize-none"
+                className="w-full bg-white/3 border border-white/8 rounded-lg px-3 py-2 text-[13px] text-white placeholder:text-[#7b7b88] outline-none focus:border-white/16 transition-colors resize-none"
               />
-              <p className="text-[10px] text-[#4a4a54] mt-1.5">
+              <p className="text-[10px] text-[#61616b] mt-1.5">
                 Auto-saves on blur · Ctrl+Enter to save
               </p>
             </div>
@@ -1791,7 +1799,7 @@ function ThumbnailDetail() {
             {/* Share */}
             <div className="rounded-xl border border-white/6 bg-[#111118] p-4">
               <div className="flex items-center justify-between">
-                <h3 className="flex items-center gap-1.5 text-[13px] text-[#737380] font-medium">
+                <h3 className="flex items-center gap-1.5 text-[13px] text-[#7b7b88] font-medium">
                   <Share2 className="w-3.5 h-3.5" />
                   Share
                 </h3>
@@ -1800,7 +1808,7 @@ function ThumbnailDetail() {
                   className={`flex items-center gap-1.5 text-[11px] border rounded-lg px-2.5 py-1 transition-colors ${
                     thumb.shareToken
                       ? "border-red-500/20 text-red-400 hover:text-red-300 hover:border-red-500/30"
-                      : "border-white/8 text-[#737380] hover:text-white hover:border-white/12"
+                      : "border-white/8 text-[#7b7b88] hover:text-white hover:border-white/12"
                   }`}
                 >
                   {thumb.shareToken ? (
@@ -1817,7 +1825,7 @@ function ThumbnailDetail() {
                 </button>
               </div>
               {thumb.shareToken && (
-                <div className="mt-3 flex items-center justify-between gap-2 text-[11px] text-[#4a4a54]">
+                <div className="mt-3 flex items-center justify-between gap-2 text-[11px] text-[#61616b]">
                   <span>
                     {thumb.shareViews || 0}{" "}
                     {thumb.shareViews === 1 ? "view" : "views"}
@@ -1826,7 +1834,7 @@ function ThumbnailDetail() {
                     value={shareExpiryDays}
                     onChange={(e) => handleShareExpiry(e.target.value)}
                     disabled={savingExpiry}
-                    className="h-7 px-2 rounded-lg border border-white/8 bg-white/3 text-[11px] text-[#737380] outline-none focus:border-white/16 transition-colors cursor-pointer disabled:opacity-50"
+                    className="h-7 px-2 rounded-lg border border-white/8 bg-white/3 text-[11px] text-[#7b7b88] outline-none focus:border-white/16 transition-colors cursor-pointer disabled:opacity-50"
                   >
                     <option value="">Never expires</option>
                     <option value="1">Expires in 1 day</option>
@@ -1836,7 +1844,7 @@ function ThumbnailDetail() {
                 </div>
               )}
               {thumb.shareToken && thumb.shareExpiresAt && (
-                <p className="mt-1.5 text-[11px] text-[#4a4a54]">
+                <p className="mt-1.5 text-[11px] text-[#61616b]">
                   Expires{" "}
                   {new Date(thumb.shareExpiresAt).toLocaleDateString("en-US", {
                     month: "short",
@@ -1848,13 +1856,13 @@ function ThumbnailDetail() {
               {thumb.shareToken && (
                 <div className="mt-3 flex items-center gap-2">
                   <div className="flex-1 h-8 px-3 rounded-lg border border-white/8 bg-white/3 flex items-center overflow-hidden">
-                    <span className="text-[12px] text-[#737380] truncate">
+                    <span className="text-[12px] text-[#7b7b88] truncate">
                       {window.location.origin}/shared/{thumb.shareToken}
                     </span>
                   </div>
                   <button
                     onClick={handleCopyShareLink}
-                    className="shrink-0 h-8 px-3 rounded-lg border border-white/8 bg-white/3 text-[12px] text-[#737380] hover:text-white hover:border-white/12 transition-colors"
+                    className="shrink-0 h-8 px-3 rounded-lg border border-white/8 bg-white/3 text-[12px] text-[#7b7b88] hover:text-white hover:border-white/12 transition-colors"
                   >
                     Copy
                   </button>
@@ -1868,13 +1876,13 @@ function ThumbnailDetail() {
                 onClick={() => setTimelineOpen(!timelineOpen)}
                 className="w-full flex items-center justify-between"
               >
-                <h3 className="flex items-center gap-1.5 text-[13px] text-[#737380] font-medium">
+                <h3 className="flex items-center gap-1.5 text-[13px] text-[#7b7b88] font-medium">
                   <Clock className="w-3.5 h-3.5" />
                   Activity Timeline
                 </h3>
                 <div className="flex items-center gap-2">
                   {timeline.length > 0 && (
-                    <span className="text-[11px] text-[#4a4a54]">
+                    <span className="text-[11px] text-[#61616b]">
                       {timeline.length} event{timeline.length !== 1 ? "s" : ""}
                     </span>
                   )}
@@ -1882,7 +1890,7 @@ function ThumbnailDetail() {
                     animate={{ rotate: timelineOpen ? 180 : 0 }}
                     transition={{ duration: 0.2 }}
                   >
-                    <ChevronRight className="w-3.5 h-3.5 text-[#4a4a54] rotate-90" />
+                    <ChevronRight className="w-3.5 h-3.5 text-[#61616b] rotate-90" />
                   </motion.div>
                 </div>
               </button>
@@ -1896,7 +1904,7 @@ function ThumbnailDetail() {
                     className="overflow-hidden"
                   >
                     {timeline.length === 0 ? (
-                      <p className="text-[12px] text-[#4a4a54] mt-3">No activity yet</p>
+                      <p className="text-[12px] text-[#61616b] mt-3">No activity yet</p>
                     ) : (
                       <div className="mt-3 space-y-0">
                         {timeline.slice(0, 20).map((event, i) => {
@@ -1915,7 +1923,7 @@ function ThumbnailDetail() {
                               </div>
                               <div className="pb-4 min-w-0">
                                 <p className="text-[13px] text-white leading-tight">{label}</p>
-                                <p className="text-[11px] text-[#4a4a54] mt-0.5">
+                                <p className="text-[11px] text-[#61616b] mt-0.5">
                                   {relativeTime(event.createdAt)}
                                 </p>
                               </div>
@@ -1923,7 +1931,7 @@ function ThumbnailDetail() {
                           );
                         })}
                         {timeline.length > 20 && (
-                          <p className="text-[11px] text-[#4a4a54] pl-9">
+                          <p className="text-[11px] text-[#61616b] pl-9">
                             +{timeline.length - 20} more events
                           </p>
                         )}
@@ -1939,7 +1947,7 @@ function ThumbnailDetail() {
               <Button
                 variant="outline"
                 onClick={handleDownload}
-                className="h-9 text-[13px] border-white/8 text-[#737380] hover:text-white hover:border-white/12 bg-transparent font-medium gap-1.5"
+                className="h-9 text-[13px] border-white/8 text-[#7b7b88] hover:text-white hover:border-white/12 bg-transparent font-medium gap-1.5"
               >
                 <Download className="w-3.5 h-3.5" />
                 Download
@@ -1947,7 +1955,7 @@ function ThumbnailDetail() {
               <Button
                 variant="outline"
                 onClick={openCropModal}
-                className="h-9 text-[13px] border-white/8 text-[#737380] hover:text-white hover:border-white/12 bg-transparent font-medium gap-1.5"
+                className="h-9 text-[13px] border-white/8 text-[#7b7b88] hover:text-white hover:border-white/12 bg-transparent font-medium gap-1.5"
               >
                 <Crop className="w-3.5 h-3.5" />
                 Crop
@@ -1955,7 +1963,7 @@ function ThumbnailDetail() {
               <Button
                 variant="outline"
                 onClick={openAnnotateModal}
-                className="h-9 text-[13px] border-white/8 text-[#737380] hover:text-white hover:border-white/12 bg-transparent font-medium gap-1.5"
+                className="h-9 text-[13px] border-white/8 text-[#7b7b88] hover:text-white hover:border-white/12 bg-transparent font-medium gap-1.5"
               >
                 <PenTool className="w-3.5 h-3.5" />
                 Markup
@@ -1963,7 +1971,7 @@ function ThumbnailDetail() {
               <Button
                 variant="outline"
                 onClick={handleDuplicate}
-                className="h-9 text-[13px] border-white/8 text-[#737380] hover:text-white hover:border-white/12 bg-transparent font-medium gap-1.5"
+                className="h-9 text-[13px] border-white/8 text-[#7b7b88] hover:text-white hover:border-white/12 bg-transparent font-medium gap-1.5"
               >
                 <Copy className="w-3.5 h-3.5" />
                 Duplicate
@@ -1987,7 +1995,7 @@ function ThumbnailDetail() {
             transition={stagger(4)}
             className="mt-10"
           >
-            <h2 className="text-[14px] font-medium text-[#737380] mb-4">
+            <h2 className="text-[14px] font-medium text-[#7b7b88] mb-4">
               Related Thumbnails
             </h2>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -2009,7 +2017,7 @@ function ThumbnailDetail() {
                       {r.title}
                     </p>
                     {r.score > 0 && (
-                      <p className="text-[11px] text-[#4a4a54] mt-0.5">
+                      <p className="text-[11px] text-[#61616b] mt-0.5">
                         Score: {r.score}/100
                       </p>
                     )}
@@ -2029,7 +2037,8 @@ function ThumbnailDetail() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-50 bg-black/95 backdrop-blur-sm select-none"
+            {...zoomDialog.dialogProps}
+              className="fixed inset-0 z-50 bg-black/95 backdrop-blur-sm select-none"
             onWheel={(e) => {
               e.preventDefault();
               setZoomLevel((z) => Math.max(0.5, Math.min(5, z + (e.deltaY > 0 ? -0.25 : 0.25))));
@@ -2085,7 +2094,7 @@ function ThumbnailDetail() {
             >
               <button
                 onClick={() => setZoomLevel((z) => Math.max(0.5, z - 0.25))}
-                className="w-7 h-7 rounded-lg flex items-center justify-center text-[#737380] hover:text-white hover:bg-white/8 transition-colors text-[16px] font-medium"
+                className="w-7 h-7 rounded-lg flex items-center justify-center text-[#7b7b88] hover:text-white hover:bg-white/8 transition-colors text-[16px] font-medium"
               >
                 −
               </button>
@@ -2094,31 +2103,32 @@ function ThumbnailDetail() {
                   setZoomLevel(1);
                   setPanOffset({ x: 0, y: 0 });
                 }}
-                className="px-2 h-7 rounded-lg flex items-center justify-center text-[12px] text-[#737380] hover:text-white hover:bg-white/8 transition-colors font-medium min-w-[48px]"
+                className="px-2 h-7 rounded-lg flex items-center justify-center text-[12px] text-[#7b7b88] hover:text-white hover:bg-white/8 transition-colors font-medium min-w-[48px]"
               >
                 {Math.round(zoomLevel * 100)}%
               </button>
               <button
                 onClick={() => setZoomLevel((z) => Math.min(5, z + 0.25))}
-                className="w-7 h-7 rounded-lg flex items-center justify-center text-[#737380] hover:text-white hover:bg-white/8 transition-colors text-[16px] font-medium"
+                className="w-7 h-7 rounded-lg flex items-center justify-center text-[#7b7b88] hover:text-white hover:bg-white/8 transition-colors text-[16px] font-medium"
               >
                 +
               </button>
               <div className="w-px h-4 bg-white/8 mx-1" />
               <button
+                aria-label="Exit zoom"
                 onClick={() => {
                   setZoomed(false);
                   setZoomLevel(1);
                   setPanOffset({ x: 0, y: 0 });
                 }}
-                className="w-7 h-7 rounded-lg flex items-center justify-center text-[#737380] hover:text-white hover:bg-white/8 transition-colors"
+                className="w-7 h-7 rounded-lg flex items-center justify-center text-[#7b7b88] hover:text-white hover:bg-white/8 transition-colors"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
             </div>
 
             {/* Zoom hint */}
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 text-[11px] text-[#4a4a54]">
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 text-[11px] text-[#61616b]">
               Scroll to zoom · Drag to pan · Click to close
             </div>
           </motion.div>
@@ -2141,15 +2151,20 @@ function ThumbnailDetail() {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.96, y: 10 }}
               transition={{ duration: 0.2 }}
+              {...versionCompareDialog.dialogProps}
               className="relative w-full max-w-4xl rounded-xl border border-white/6 bg-[#111118] shadow-2xl p-5"
             >
               <div className="flex items-center justify-between mb-4">
-                <h2 className="font-heading text-[15px] font-semibold text-white">
+                <h2
+                  id="detail-version-compare-title"
+                  className="font-heading text-[15px] font-semibold text-white"
+                >
                   Version Comparison
                 </h2>
                 <button
+                  aria-label="Close"
                   onClick={() => setVersionCompare(null)}
-                  className="text-[#4a4a54] hover:text-white transition-colors"
+                  className="text-[#61616b] hover:text-white transition-colors"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -2168,7 +2183,7 @@ function ThumbnailDetail() {
                             [side]: Number(e.target.value),
                           })
                         }
-                        className="w-full h-8 mb-2 px-2 rounded-lg border border-white/8 bg-white/3 text-[12px] text-[#737380] outline-none focus:border-white/16 transition-colors cursor-pointer"
+                        className="w-full h-8 mb-2 px-2 rounded-lg border border-white/8 bg-white/3 text-[12px] text-[#7b7b88] outline-none focus:border-white/16 transition-colors cursor-pointer"
                       >
                         {allVersions.map((v, i) => (
                           <option key={i} value={i}>
@@ -2193,7 +2208,7 @@ function ThumbnailDetail() {
                         <button
                           onClick={() => handleRestoreVersion(entry.versionIndex)}
                           disabled={restoringVersion !== null}
-                          className="w-full mt-2 flex items-center justify-center gap-1.5 h-8 rounded-lg border border-white/8 text-[12px] text-[#737380] hover:text-emerald-400 hover:border-emerald-500/30 transition-colors disabled:opacity-40"
+                          className="w-full mt-2 flex items-center justify-center gap-1.5 h-8 rounded-lg border border-white/8 text-[12px] text-[#7b7b88] hover:text-emerald-400 hover:border-emerald-500/30 transition-colors disabled:opacity-40"
                         >
                           <RotateCcw className="w-3 h-3" />
                           {restoringVersion === entry.versionIndex
@@ -2226,16 +2241,21 @@ function ThumbnailDetail() {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.96, y: 10 }}
               transition={{ duration: 0.2 }}
+              {...annotateDialog.dialogProps}
               className="relative w-full max-w-4xl rounded-xl border border-white/6 bg-[#111118] shadow-2xl p-5"
             >
               <div className="flex items-center justify-between mb-4">
-                <h2 className="font-heading text-[15px] font-semibold text-white flex items-center gap-2">
-                  <PenTool className="w-4 h-4 text-[#737380]" />
+                <h2
+                  id="detail-annotate-title"
+                  className="font-heading text-[15px] font-semibold text-white flex items-center gap-2"
+                >
+                  <PenTool className="w-4 h-4 text-[#7b7b88]" />
                   Annotate & Markup
                 </h2>
                 <button
+                  aria-label="Close"
                   onClick={() => setAnnotateOpen(false)}
-                  className="text-[#4a4a54] hover:text-white transition-colors"
+                  className="text-[#61616b] hover:text-white transition-colors"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -2252,7 +2272,7 @@ function ThumbnailDetail() {
                       className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium transition-all ${
                         annoTool === id
                           ? "bg-white text-[#0a0a0f]"
-                          : "text-[#737380] border border-white/8 hover:text-white hover:border-white/12"
+                          : "text-[#7b7b88] border border-white/8 hover:text-white hover:border-white/12"
                       }`}
                     >
                       <Icon className="w-3.5 h-3.5" />
@@ -2283,6 +2303,7 @@ function ThumbnailDetail() {
                 <div className="flex items-center gap-1.5">
                   {[2, 3, 5].map((w) => (
                     <button
+                      aria-label={`Stroke width ${w}`}
                       key={w}
                       onClick={() => setAnnoStroke(w)}
                       className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${
@@ -2307,8 +2328,8 @@ function ThumbnailDetail() {
                   disabled={annoShapes.length === 0}
                   className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium border border-white/8 transition-colors ${
                     annoShapes.length > 0
-                      ? "text-[#737380] hover:text-white hover:border-white/12"
-                      : "text-[#4a4a54]/40 pointer-events-none"
+                      ? "text-[#7b7b88] hover:text-white hover:border-white/12"
+                      : "text-[#61616b]/40 pointer-events-none"
                   }`}
                 >
                   <Undo2 className="w-3.5 h-3.5" />
@@ -2366,7 +2387,7 @@ function ThumbnailDetail() {
                         if (e.key === "Escape") setAnnoText({ active: false, x: 0, y: 0, value: "" });
                       }}
                       onBlur={handleAnnoTextSubmit}
-                      className="bg-black/60 border border-white/20 rounded px-2 py-1 text-white text-[14px] outline-none min-w-[120px]"
+                      className="bg-black/60 border border-white/20 rounded px-2 py-1 text-white text-[14px] outline-none focus:border-white/16 transition-colors min-w-[120px]"
                       style={{ color: annoColor }}
                     />
                   </div>
@@ -2375,14 +2396,14 @@ function ThumbnailDetail() {
 
               {/* Footer */}
               <div className="flex items-center justify-between mt-4">
-                <span className="text-[12px] text-[#737380]">
+                <span className="text-[12px] text-[#7b7b88]">
                   {annoShapes.length} annotation{annoShapes.length !== 1 ? "s" : ""}
                 </span>
                 <div className="flex items-center gap-2">
                   <Button
                     variant="outline"
                     onClick={() => setAnnotateOpen(false)}
-                    className="h-8 text-[12px] border-white/8 text-[#737380] hover:text-white hover:border-white/12 bg-transparent font-medium"
+                    className="h-8 text-[12px] border-white/8 text-[#7b7b88] hover:text-white hover:border-white/12 bg-transparent font-medium"
                   >
                     Cancel
                   </Button>
@@ -2416,16 +2437,21 @@ function ThumbnailDetail() {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.96, y: 10 }}
               transition={{ duration: 0.2 }}
+              {...cropDialog.dialogProps}
               className="relative w-full max-w-3xl rounded-xl border border-white/6 bg-[#111118] shadow-2xl p-5"
             >
               <div className="flex items-center justify-between mb-4">
-                <h2 className="font-heading text-[15px] font-semibold text-white flex items-center gap-2">
-                  <Crop className="w-4 h-4 text-[#737380]" />
+                <h2
+                  id="detail-crop-title"
+                  className="font-heading text-[15px] font-semibold text-white flex items-center gap-2"
+                >
+                  <Crop className="w-4 h-4 text-[#7b7b88]" />
                   Crop & Resize
                 </h2>
                 <button
+                  aria-label="Close"
                   onClick={() => setCropOpen(false)}
-                  className="text-[#4a4a54] hover:text-white transition-colors"
+                  className="text-[#61616b] hover:text-white transition-colors"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -2443,7 +2469,7 @@ function ThumbnailDetail() {
                     className={`px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all ${
                       cropPreset?.label === p.label
                         ? "bg-white text-[#0a0a0f]"
-                        : "text-[#737380] border border-white/8 hover:text-white hover:border-white/12"
+                        : "text-[#7b7b88] border border-white/8 hover:text-white hover:border-white/12"
                     }`}
                   >
                     {p.label}
@@ -2553,7 +2579,7 @@ function ThumbnailDetail() {
 
               {/* Dimensions info + download */}
               <div className="flex items-center justify-between mt-4">
-                <div className="text-[12px] text-[#737380]">
+                <div className="text-[12px] text-[#7b7b88]">
                   {cropImgRef.current && (
                     <>
                       {Math.round((cropArea.w / 100) * cropImgRef.current.naturalWidth)} × {Math.round((cropArea.h / 100) * cropImgRef.current.naturalHeight)} px
@@ -2564,7 +2590,7 @@ function ThumbnailDetail() {
                   <Button
                     variant="outline"
                     onClick={() => setCropOpen(false)}
-                    className="h-8 text-[12px] border-white/8 text-[#737380] hover:text-white hover:border-white/12 bg-transparent font-medium"
+                    className="h-8 text-[12px] border-white/8 text-[#7b7b88] hover:text-white hover:border-white/12 bg-transparent font-medium"
                   >
                     Cancel
                   </Button>

@@ -37,7 +37,7 @@ function HowItWorks() {
           transition={{ duration: 0.4 }}
           className="text-center mb-14"
         >
-          <p className="text-[13px] text-[#737380] font-medium uppercase tracking-widest mb-3">
+          <p className="text-[13px] text-[#7b7b88] font-medium uppercase tracking-widest mb-3">
             How It Works
           </p>
           <h2 className="font-heading text-2xl sm:text-3xl font-semibold text-white tracking-[-0.01em]">
@@ -59,15 +59,15 @@ function HowItWorks() {
                 className="relative p-6 rounded-xl border border-white/6 bg-[#111118]"
               >
                 <div className="flex items-center justify-between mb-5">
-                  <span className="text-[11px] font-mono text-[#737380]">
+                  <span className="text-[11px] font-mono text-[#7b7b88]">
                     {step.number}
                   </span>
-                  <Icon className="w-4 h-4 text-[#737380]" />
+                  <Icon className="w-4 h-4 text-[#7b7b88]" />
                 </div>
                 <h3 className="font-heading text-[15px] font-medium text-white mb-1.5">
                   {step.title}
                 </h3>
-                <p className="text-[13px] text-[#737380] leading-relaxed">
+                <p className="text-[13px] text-[#7b7b88] leading-relaxed">
                   {step.description}
                 </p>
               </motion.div>

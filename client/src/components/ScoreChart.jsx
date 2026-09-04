@@ -74,10 +74,10 @@ function ScoreChart({ thumbnails }) {
     >
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <BarChart3 className="w-4 h-4 text-[#737380]" />
+          <BarChart3 className="w-4 h-4 text-[#7b7b88]" />
           <h3 className="text-[14px] font-medium text-white">Score Trends</h3>
         </div>
-        <span className="text-[11px] text-[#4a4a54]">
+        <span className="text-[11px] text-[#61616b]">
           {scored.length} scored thumbnails
         </span>
       </div>
@@ -86,8 +86,8 @@ function ScoreChart({ thumbnails }) {
       <div className="grid grid-cols-3 gap-3 mb-4">
         <div className="rounded-lg border border-white/6 bg-white/2 p-3">
           <div className="flex items-center gap-1 mb-1">
-            <Target className="w-3 h-3 text-[#4a4a54]" />
-            <span className="text-[11px] text-[#4a4a54]">Average</span>
+            <Target className="w-3 h-3 text-[#61616b]" />
+            <span className="text-[11px] text-[#61616b]">Average</span>
           </div>
           <span className="font-heading text-lg font-semibold text-white">
             {stats.avg}
@@ -95,8 +95,8 @@ function ScoreChart({ thumbnails }) {
         </div>
         <div className="rounded-lg border border-white/6 bg-white/2 p-3">
           <div className="flex items-center gap-1 mb-1">
-            <Trophy className="w-3 h-3 text-[#4a4a54]" />
-            <span className="text-[11px] text-[#4a4a54]">Best</span>
+            <Trophy className="w-3 h-3 text-[#61616b]" />
+            <span className="text-[11px] text-[#61616b]">Best</span>
           </div>
           <span className="font-heading text-lg font-semibold text-emerald-400">
             {stats.best}
@@ -104,8 +104,8 @@ function ScoreChart({ thumbnails }) {
         </div>
         <div className="rounded-lg border border-white/6 bg-white/2 p-3">
           <div className="flex items-center gap-1 mb-1">
-            <TrendingUp className="w-3 h-3 text-[#4a4a54]" />
-            <span className="text-[11px] text-[#4a4a54]">Latest</span>
+            <TrendingUp className="w-3 h-3 text-[#61616b]" />
+            <span className="text-[11px] text-[#61616b]">Latest</span>
           </div>
           <span className="font-heading text-lg font-semibold text-white">
             {stats.latest}

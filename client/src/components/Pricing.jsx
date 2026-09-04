@@ -61,7 +61,7 @@ function Pricing() {
           transition={{ duration: 0.4 }}
           className="text-center mb-14"
         >
-          <p className="text-[13px] text-[#737380] font-medium uppercase tracking-widest mb-3">
+          <p className="text-[13px] text-[#7b7b88] font-medium uppercase tracking-widest mb-3">
             Pricing
           </p>
           <h2 className="font-heading text-2xl sm:text-3xl font-semibold text-white tracking-[-0.01em]">
@@ -94,7 +94,7 @@ function Pricing() {
                 <h3 className="font-heading text-[15px] font-medium text-white">
                   {plan.name}
                 </h3>
-                <p className="text-[13px] text-[#737380] mt-1">
+                <p className="text-[13px] text-[#7b7b88] mt-1">
                   {plan.description}
                 </p>
               </div>
@@ -103,7 +103,7 @@ function Pricing() {
                 <span className="font-heading text-3xl font-semibold text-white">
                   {plan.price}
                 </span>
-                <span className="text-[13px] text-[#737380]">
+                <span className="text-[13px] text-[#7b7b88]">
                   /{plan.period}
                 </span>
               </div>
@@ -112,9 +112,9 @@ function Pricing() {
                 {plan.features.map((feature) => (
                   <li
                     key={feature}
-                    className="flex items-start gap-2 text-[13px] text-[#737380]"
+                    className="flex items-start gap-2 text-[13px] text-[#7b7b88]"
                   >
-                    <Check className="w-3.5 h-3.5 text-[#737380] mt-0.5 shrink-0" />
+                    <Check className="w-3.5 h-3.5 text-[#7b7b88] mt-0.5 shrink-0" />
                     {feature}
                   </li>
                 ))}
@@ -124,7 +124,7 @@ function Pricing() {
                 className={`w-full text-[13px] font-medium h-9 ${
                   plan.highlighted
                     ? "bg-white text-[#0a0a0f] hover:bg-white/90"
-                    : "bg-white/[0.05] text-[#737380] hover:text-white hover:bg-white/[0.08] border border-white/6"
+                    : "bg-white/[0.05] text-[#7b7b88] hover:text-white hover:bg-white/[0.08] border border-white/6"
                 }`}
               >
                 {plan.cta}

@@ -4,8 +4,13 @@ import { X, Tag, Pencil, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import api from "../lib/api";
 import { assetUrl } from "../lib/assetUrl";
+import { useDialog } from "../hooks/useDialog";
 
 function EditModal({ open, thumb, onClose, onSaved }) {
+  const { dialogProps } = useDialog(open, onClose, {
+    labelledBy: "edit-modal-title",
+  });
+
   const [title, setTitle] = useState("");
   const [tagInput, setTagInput] = useState("");
   const [saving, setSaving] = useState(false);
@@ -62,19 +67,24 @@ function EditModal({ open, thumb, onClose, onSaved }) {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 10 }}
             transition={{ duration: 0.2 }}
+            {...dialogProps}
             className="relative w-full max-w-md rounded-xl border border-white/6 bg-[#111118] shadow-2xl overflow-hidden"
           >
             {/* Header */}
             <div className="flex items-center justify-between px-5 pt-5 pb-0">
               <div className="flex items-center gap-2">
-                <Pencil className="w-4 h-4 text-[#737380]" />
-                <h2 className="font-heading text-[15px] font-semibold text-white">
+                <Pencil className="w-4 h-4 text-[#7b7b88]" />
+                <h2
+                  id="edit-modal-title"
+                  className="font-heading text-[15px] font-semibold text-white"
+                >
                   Edit Thumbnail
                 </h2>
               </div>
               <button
+                aria-label="Close"
                 onClick={onClose}
-                className="text-[#4a4a54] hover:text-white transition-colors"
+                className="text-[#61616b] hover:text-white transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -94,7 +104,7 @@ function EditModal({ open, thumb, onClose, onSaved }) {
             {/* Form */}
             <div className="px-5 pt-4 pb-5 flex flex-col gap-3">
               <div>
-                <label className="block text-[12px] text-[#737380] mb-1.5">
+                <label className="block text-[12px] text-[#7b7b88] mb-1.5">
                   Title
                 </label>
                 <input
@@ -105,12 +115,12 @@ function EditModal({ open, thumb, onClose, onSaved }) {
                     if (e.key === "Enter" && hasChanges) handleSave();
                   }}
                   autoFocus
-                  className="w-full h-9 px-3 rounded-lg border border-white/8 bg-white/3 text-[14px] text-white placeholder:text-[#4a4a54] outline-none focus:border-white/16 transition-colors"
+                  className="w-full h-9 px-3 rounded-lg border border-white/8 bg-white/3 text-[14px] text-white placeholder:text-[#7b7b88] outline-none focus:border-white/16 transition-colors"
                 />
               </div>
 
               <div>
-                <label className="flex items-center gap-1.5 text-[12px] text-[#737380] mb-1.5">
+                <label className="flex items-center gap-1.5 text-[12px] text-[#7b7b88] mb-1.5">
                   <Tag className="w-3 h-3" />
                   Tags
                 </label>
@@ -122,9 +132,9 @@ function EditModal({ open, thumb, onClose, onSaved }) {
                     if (e.key === "Enter" && hasChanges) handleSave();
                   }}
                   placeholder="gaming, tutorial, vlog"
-                  className="w-full h-9 px-3 rounded-lg border border-white/8 bg-white/3 text-[14px] text-white placeholder:text-[#4a4a54] outline-none focus:border-white/16 transition-colors"
+                  className="w-full h-9 px-3 rounded-lg border border-white/8 bg-white/3 text-[14px] text-white placeholder:text-[#7b7b88] outline-none focus:border-white/16 transition-colors"
                 />
-                <p className="text-[11px] text-[#4a4a54] mt-1">
+                <p className="text-[11px] text-[#61616b] mt-1">
                   Separate tags with commas
                 </p>
               </div>
@@ -132,11 +142,11 @@ function EditModal({ open, thumb, onClose, onSaved }) {
               {/* Meta info */}
               <div className="flex items-center gap-4 pt-1">
                 {thumb.score > 0 && (
-                  <span className="text-[12px] text-[#737380]">
+                  <span className="text-[12px] text-[#7b7b88]">
                     Score: {thumb.score}/100
                   </span>
                 )}
-                <span className="text-[12px] text-[#4a4a54]">
+                <span className="text-[12px] text-[#61616b]">
                   {new Date(thumb.createdAt).toLocaleDateString("en-US", {
                     month: "short",
                     day: "numeric",
@@ -153,7 +163,7 @@ function EditModal({ open, thumb, onClose, onSaved }) {
                 <Button
                   variant="outline"
                   onClick={onClose}
-                  className="h-8 text-[13px] border-white/8 text-[#737380] hover:text-white hover:border-white/12 bg-transparent font-medium"
+                  className="h-8 text-[13px] border-white/8 text-[#7b7b88] hover:text-white hover:border-white/12 bg-transparent font-medium"
                 >
                   Cancel
                 </Button>

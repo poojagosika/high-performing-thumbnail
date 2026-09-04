@@ -152,7 +152,7 @@ function Settings() {
     <div className="min-h-screen">
       <DashboardNav />
 
-      <main className="max-w-xl mx-auto px-6 py-10">
+      <main id="main" className="max-w-xl mx-auto px-6 py-10">
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -160,7 +160,7 @@ function Settings() {
         >
           <Link
             to="/dashboard"
-            className="inline-flex items-center gap-1.5 text-[13px] text-[#737380] hover:text-white transition-colors mb-6"
+            className="inline-flex items-center gap-1.5 text-[13px] text-[#7b7b88] hover:text-white transition-colors mb-6"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             Back to Dashboard
@@ -176,7 +176,7 @@ function Settings() {
           <h1 className="font-heading text-2xl font-semibold text-white tracking-[-0.01em]">
             Settings
           </h1>
-          <p className="text-[14px] text-[#737380] mt-1">Manage your account</p>
+          <p className="text-[14px] text-[#7b7b88] mt-1">Manage your account</p>
         </motion.div>
 
         {/* Avatar section */}
@@ -187,7 +187,7 @@ function Settings() {
           className="rounded-xl border border-white/6 bg-[#111118] p-5 mb-6"
         >
           <div className="flex items-center gap-2 mb-4">
-            <Camera className="w-4 h-4 text-[#737380]" />
+            <Camera className="w-4 h-4 text-[#7b7b88]" />
             <h2 className="text-[14px] font-medium text-white">Avatar</h2>
           </div>
           <div className="flex items-center gap-4">
@@ -206,6 +206,7 @@ function Settings() {
                 </div>
               )}
               <button
+                aria-label="Upload a new avatar"
                 type="button"
                 onClick={() => avatarRef.current?.click()}
                 disabled={avatarUploading}
@@ -227,7 +228,7 @@ function Settings() {
             </div>
             <div>
               <p className="text-[13px] text-white">{user?.name}</p>
-              <p className="text-[12px] text-[#4a4a54] mt-0.5">
+              <p className="text-[12px] text-[#61616b] mt-0.5">
                 Click to upload (JPEG, PNG, WebP)
               </p>
             </div>
@@ -243,31 +244,31 @@ function Settings() {
           className="rounded-xl border border-white/6 bg-[#111118] p-5 mb-6"
         >
           <div className="flex items-center gap-2 mb-4">
-            <User className="w-4 h-4 text-[#737380]" />
+            <User className="w-4 h-4 text-[#7b7b88]" />
             <h2 className="text-[14px] font-medium text-white">Profile</h2>
           </div>
 
           <div className="flex flex-col gap-3">
             <div>
-              <label className="block text-[12px] text-[#737380] mb-1.5">
+              <label className="block text-[12px] text-[#7b7b88] mb-1.5">
                 Name
               </label>
               <input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full h-9 px-3 rounded-lg border border-white/8 bg-white/3 text-[14px] text-white placeholder:text-[#4a4a54] outline-none focus:border-white/16 transition-colors"
+                className="w-full h-9 px-3 rounded-lg border border-white/8 bg-white/3 text-[14px] text-white placeholder:text-[#7b7b88] outline-none focus:border-white/16 transition-colors"
               />
             </div>
             <div>
-              <label className="block text-[12px] text-[#737380] mb-1.5">
+              <label className="block text-[12px] text-[#7b7b88] mb-1.5">
                 Email
               </label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full h-9 px-3 rounded-lg border border-white/8 bg-white/3 text-[14px] text-white placeholder:text-[#4a4a54] outline-none focus:border-white/16 transition-colors"
+                className="w-full h-9 px-3 rounded-lg border border-white/8 bg-white/3 text-[14px] text-white placeholder:text-[#7b7b88] outline-none focus:border-white/16 transition-colors"
               />
             </div>
           </div>
@@ -297,7 +298,7 @@ function Settings() {
           className="rounded-xl border border-white/6 bg-[#111118] p-5"
         >
           <div className="flex items-center gap-2 mb-4">
-            <Lock className="w-4 h-4 text-[#737380]" />
+            <Lock className="w-4 h-4 text-[#7b7b88]" />
             <h2 className="text-[14px] font-medium text-white">
               Change Password
             </h2>
@@ -305,36 +306,36 @@ function Settings() {
 
           <div className="flex flex-col gap-3">
             <div>
-              <label className="block text-[12px] text-[#737380] mb-1.5">
+              <label className="block text-[12px] text-[#7b7b88] mb-1.5">
                 Current Password
               </label>
               <input
                 type="password"
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
-                className="w-full h-9 px-3 rounded-lg border border-white/8 bg-white/3 text-[14px] text-white placeholder:text-[#4a4a54] outline-none focus:border-white/16 transition-colors"
+                className="w-full h-9 px-3 rounded-lg border border-white/8 bg-white/3 text-[14px] text-white placeholder:text-[#7b7b88] outline-none focus:border-white/16 transition-colors"
               />
             </div>
             <div>
-              <label className="block text-[12px] text-[#737380] mb-1.5">
+              <label className="block text-[12px] text-[#7b7b88] mb-1.5">
                 New Password
               </label>
               <input
                 type="password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                className="w-full h-9 px-3 rounded-lg border border-white/8 bg-white/3 text-[14px] text-white placeholder:text-[#4a4a54] outline-none focus:border-white/16 transition-colors"
+                className="w-full h-9 px-3 rounded-lg border border-white/8 bg-white/3 text-[14px] text-white placeholder:text-[#7b7b88] outline-none focus:border-white/16 transition-colors"
               />
             </div>
             <div>
-              <label className="block text-[12px] text-[#737380] mb-1.5">
+              <label className="block text-[12px] text-[#7b7b88] mb-1.5">
                 Confirm New Password
               </label>
               <input
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full h-9 px-3 rounded-lg border border-white/8 bg-white/3 text-[14px] text-white placeholder:text-[#4a4a54] outline-none focus:border-white/16 transition-colors"
+                className="w-full h-9 px-3 rounded-lg border border-white/8 bg-white/3 text-[14px] text-white placeholder:text-[#7b7b88] outline-none focus:border-white/16 transition-colors"
               />
             </div>
           </div>
@@ -362,11 +363,11 @@ function Settings() {
           className="rounded-xl border border-white/6 bg-[#111118] p-5 mt-6"
         >
           <div className="flex items-center gap-2 mb-4">
-            <MonitorSmartphone className="w-4 h-4 text-[#737380]" />
+            <MonitorSmartphone className="w-4 h-4 text-[#7b7b88]" />
             <h2 className="text-[14px] font-medium text-white">Sessions</h2>
           </div>
 
-          <p className="text-[13px] text-[#737380]">
+          <p className="text-[13px] text-[#7b7b88]">
             Signs out every browser and device where you are logged in,
             including this one. Use it if you have signed in somewhere you no
             longer trust.
@@ -377,7 +378,7 @@ function Settings() {
               onClick={handleSignOutEverywhere}
               disabled={signingOutAll}
               variant="outline"
-              className="h-8 text-[13px] border-white/8 text-[#737380] hover:text-white hover:border-white/12 bg-transparent font-medium gap-1.5"
+              className="h-8 text-[13px] border-white/8 text-[#7b7b88] hover:text-white hover:border-white/12 bg-transparent font-medium gap-1.5"
             >
               {signingOutAll && <Loader2 className="w-3 h-3 animate-spin" />}
               Sign Out Everywhere
@@ -396,7 +397,7 @@ function Settings() {
             <h2 className="text-[14px] font-medium text-white">Danger Zone</h2>
           </div>
 
-          <p className="text-[13px] text-[#737380]">
+          <p className="text-[13px] text-[#7b7b88]">
             Permanently delete your account and everything in it — thumbnails,
             versions, collections, comparisons and share links. This cannot be
             undone.

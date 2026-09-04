@@ -54,7 +54,7 @@ function Navbar() {
             <a
               key={link.label}
               href={link.href}
-              className="text-[13px] text-[#737380] hover:text-white transition-colors duration-200"
+              className="text-[13px] text-[#7b7b88] hover:text-white transition-colors duration-200"
             >
               {link.label}
             </a>
@@ -68,15 +68,16 @@ function Navbar() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-[13px] text-[#737380] hover:text-white hover:bg-transparent"
+                  className="text-[13px] text-[#7b7b88] hover:text-white hover:bg-transparent"
                 >
                   Dashboard
                 </Button>
               </Link>
-              <span className="text-[13px] text-[#737380]">{user.name}</span>
+              <span className="text-[13px] text-[#7b7b88]">{user.name}</span>
               <button
+                aria-label="Log out"
                 onClick={() => setLogoutOpen(true)}
-                className="text-[#737380] hover:text-white transition-colors p-1"
+                className="text-[#7b7b88] hover:text-white transition-colors p-1"
               >
                 <LogOut className="w-3.5 h-3.5" />
               </button>
@@ -87,7 +88,7 @@ function Navbar() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-[13px] text-[#737380] hover:text-white hover:bg-transparent"
+                  className="text-[13px] text-[#7b7b88] hover:text-white hover:bg-transparent"
                 >
                   Log in
                 </Button>
@@ -105,7 +106,7 @@ function Navbar() {
         </div>
 
         <button
-          className="md:hidden p-1.5 text-[#737380] hover:text-white"
+          className="md:hidden p-1.5 text-[#7b7b88] hover:text-white"
           onClick={() => setMenuOpen(!menuOpen)}
           aria-label="Toggle menu"
         >
@@ -123,7 +124,7 @@ function Navbar() {
             <a
               key={link.label}
               href={link.href}
-              className="text-sm text-[#737380] hover:text-white py-1.5"
+              className="text-sm text-[#7b7b88] hover:text-white py-1.5"
               onClick={() => setMenuOpen(false)}
             >
               {link.label}
@@ -136,7 +137,7 @@ function Navbar() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="w-full justify-start text-[#737380]"
+                    className="w-full justify-start text-[#7b7b88]"
                   >
                     Dashboard
                   </Button>
@@ -144,7 +145,7 @@ function Navbar() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="w-full justify-start text-[#737380] gap-1.5"
+                  className="w-full justify-start text-[#7b7b88] gap-1.5"
                   onClick={() => {
                     setMenuOpen(false);
                     setLogoutOpen(true);
@@ -160,7 +161,7 @@ function Navbar() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="w-full justify-start text-[#737380]"
+                    className="w-full justify-start text-[#7b7b88]"
                   >
                     Log in
                   </Button>
