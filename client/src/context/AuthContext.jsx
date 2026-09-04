@@ -37,9 +37,33 @@ export function AuthProvider({ children }) {
     setUser(null);
   };
 
+  const logoutAll = async () => {
+    const data = await api("/auth/logout-all", { method: "POST" });
+    setUser(null);
+    return data;
+  };
+
+  const deleteAccount = async (password) => {
+    const data = await api("/auth/account", {
+      method: "DELETE",
+      body: { password },
+    });
+    setUser(null);
+    return data;
+  };
+
   return (
     <AuthContext.Provider
-      value={{ user, setUser, loading, login, register, logout }}
+      value={{
+        user,
+        setUser,
+        loading,
+        login,
+        register,
+        logout,
+        logoutAll,
+        deleteAccount,
+      }}
     >
       {children}
     </AuthContext.Provider>
