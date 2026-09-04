@@ -86,7 +86,7 @@ function NotFound() {
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-white/8 bg-[#111118]/80 backdrop-blur-sm">
                 <div className="w-1.5 h-1.5 rounded-full bg-red-400/80 animate-pulse" />
-                <span className="text-[12px] font-mono text-[#737380]">
+                <span className="text-[12px] font-mono text-[#7b7b88]">
                   page not found
                 </span>
               </div>
@@ -108,7 +108,7 @@ function NotFound() {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={stagger(3)}
-          className="mt-2 text-[13px] text-[#737380] leading-relaxed max-w-xs mx-auto"
+          className="mt-2 text-[13px] text-[#7b7b88] leading-relaxed max-w-xs mx-auto"
         >
           The page you&apos;re looking for doesn&apos;t exist or has been moved.
         </motion.p>
@@ -135,7 +135,7 @@ function NotFound() {
           transition={stagger(5)}
           className="mt-14"
         >
-          <p className="text-[11px] text-[#4a4a54] uppercase tracking-widest mb-4">
+          <p className="text-[11px] text-[#61616b] uppercase tracking-widest mb-4">
             Quick links
           </p>
           <div className="grid grid-cols-3 gap-2">
@@ -147,11 +147,11 @@ function NotFound() {
                   to={link.href}
                   className="p-3.5 rounded-xl border border-white/6 bg-[#111118] hover:bg-[#0e0e16] hover:border-white/10 transition-all group"
                 >
-                  <Icon className="w-4 h-4 text-[#4a4a54] group-hover:text-white transition-colors mx-auto mb-2" />
+                  <Icon className="w-4 h-4 text-[#61616b] group-hover:text-white transition-colors mx-auto mb-2" />
                   <div className="text-[12px] font-medium text-white">
                     {link.label}
                   </div>
-                  <div className="text-[10px] text-[#4a4a54] mt-0.5">
+                  <div className="text-[10px] text-[#61616b] mt-0.5">
                     {link.desc}
                   </div>
                 </Link>
@@ -165,7 +165,7 @@ function NotFound() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={stagger(6)}
-          className="mt-8 text-[11px] text-[#4a4a54] font-mono"
+          className="mt-8 text-[11px] text-[#61616b] font-mono"
         >
           {window.location.pathname}
         </motion.p>

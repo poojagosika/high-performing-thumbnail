@@ -2,6 +2,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AlertTriangle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useDialog } from "../hooks/useDialog";
 
 const CONFIRM_WORD = "DELETE";
 
@@ -27,6 +28,10 @@ function DeleteAccountModal({ open, onClose, onConfirm }) {
     setError("");
     onClose();
   };
+
+  const { dialogProps } = useDialog(open, handleClose, {
+    labelledBy: "delete-account-title",
+  });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -60,16 +65,20 @@ function DeleteAccountModal({ open, onClose, onConfirm }) {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 10 }}
             transition={{ duration: 0.2 }}
+            {...dialogProps}
             className="relative w-full max-w-sm rounded-xl border border-red-400/20 bg-[#111118] shadow-2xl p-5"
           >
             <div className="flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 text-red-400" />
-              <h2 className="font-heading text-[15px] font-semibold text-white">
+              <h2
+                id="delete-account-title"
+                className="font-heading text-[15px] font-semibold text-white"
+              >
                 Delete your account?
               </h2>
             </div>
 
-            <p className="text-[13px] text-[#737380] mt-1.5">
+            <p className="text-[13px] text-[#7b7b88] mt-1.5">
               This cannot be undone. Deleting removes:
             </p>
 
@@ -77,7 +86,7 @@ function DeleteAccountModal({ open, onClose, onConfirm }) {
               {LOSSES.map((item) => (
                 <li
                   key={item}
-                  className="text-[12px] text-[#737380] pl-3 relative before:absolute before:left-0 before:top-[7px] before:w-1 before:h-1 before:rounded-full before:bg-red-400/60"
+                  className="text-[12px] text-[#7b7b88] pl-3 relative before:absolute before:left-0 before:top-[7px] before:w-1 before:h-1 before:rounded-full before:bg-red-400/60"
                 >
                   {item}
                 </li>
@@ -86,7 +95,7 @@ function DeleteAccountModal({ open, onClose, onConfirm }) {
 
             <div className="flex flex-col gap-3 mt-4">
               <div>
-                <label className="block text-[12px] text-[#737380] mb-1.5">
+                <label className="block text-[12px] text-[#7b7b88] mb-1.5">
                   Confirm your password
                 </label>
                 <input
@@ -94,11 +103,11 @@ function DeleteAccountModal({ open, onClose, onConfirm }) {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   autoComplete="current-password"
-                  className="w-full h-9 px-3 rounded-lg border border-white/8 bg-white/3 text-[14px] text-white placeholder:text-[#4a4a54] outline-none focus:border-white/16 transition-colors"
+                  className="w-full h-9 px-3 rounded-lg border border-white/8 bg-white/3 text-[14px] text-white placeholder:text-[#7b7b88] outline-none focus:border-white/16 transition-colors"
                 />
               </div>
               <div>
-                <label className="block text-[12px] text-[#737380] mb-1.5">
+                <label className="block text-[12px] text-[#7b7b88] mb-1.5">
                   Type {CONFIRM_WORD} to continue
                 </label>
                 <input
@@ -107,7 +116,7 @@ function DeleteAccountModal({ open, onClose, onConfirm }) {
                   onChange={(e) => setConfirmText(e.target.value)}
                   placeholder={CONFIRM_WORD}
                   autoComplete="off"
-                  className="w-full h-9 px-3 rounded-lg border border-white/8 bg-white/3 text-[14px] text-white placeholder:text-[#4a4a54] outline-none focus:border-white/16 transition-colors"
+                  className="w-full h-9 px-3 rounded-lg border border-white/8 bg-white/3 text-[14px] text-white placeholder:text-[#7b7b88] outline-none focus:border-white/16 transition-colors"
                 />
               </div>
             </div>
@@ -120,7 +129,7 @@ function DeleteAccountModal({ open, onClose, onConfirm }) {
                 variant="outline"
                 onClick={handleClose}
                 disabled={deleting}
-                className="h-8 text-[13px] border-white/8 text-[#737380] hover:text-white hover:border-white/12 bg-transparent font-medium"
+                className="h-8 text-[13px] border-white/8 text-[#7b7b88] hover:text-white hover:border-white/12 bg-transparent font-medium"
               >
                 Cancel
               </Button>

@@ -85,13 +85,14 @@ function ToastItem({ toast, onRemove }) {
           </button>
         )}
         <button
+          aria-label="Dismiss notification"
           onClick={() => {
             if (!removedRef.current) {
               removedRef.current = true;
               onRemove(toast.id);
             }
           }}
-          className="text-[#4a4a54] hover:text-white transition-colors shrink-0 ml-1 opacity-0 group-hover:opacity-100"
+          className="text-[#61616b] hover:text-white transition-colors shrink-0 ml-1 opacity-0 group-hover:opacity-100"
         >
           <X className="w-3 h-3" />
         </button>
@@ -129,11 +130,18 @@ export function ToastProvider({ children }) {
     warning: (msg, opts) => addToast(msg, "warning", opts),
   };
 
+  const urgent = toasts.some((t) => t.type === "error");
+
   return (
     <ToastContext.Provider value={toast}>
       {children}
 
-      <div className="fixed bottom-5 right-5 z-100 flex flex-col gap-2">
+      <div
+        role={urgent ? "alert" : "status"}
+        aria-live={urgent ? "assertive" : "polite"}
+        aria-atomic="false"
+        className="fixed bottom-5 right-5 z-100 flex flex-col gap-2"
+      >
         <AnimatePresence mode="popLayout">
           {toasts.map((t) => (
             <ToastItem key={t.id} toast={t} onRemove={removeToast} />

@@ -45,13 +45,13 @@ function KeyboardShowcase() {
           transition={{ duration: 0.4 }}
           className="text-center mb-14"
         >
-          <p className="text-[13px] text-[#737380] font-medium uppercase tracking-widest mb-3">
+          <p className="text-[13px] text-[#7b7b88] font-medium uppercase tracking-widest mb-3">
             Power User
           </p>
           <h2 className="font-heading text-2xl sm:text-3xl font-semibold text-white tracking-[-0.01em]">
             Built for keyboard-first workflows
           </h2>
-          <p className="text-[14px] text-[#737380] mt-3 max-w-lg mx-auto">
+          <p className="text-[14px] text-[#7b7b88] mt-3 max-w-lg mx-auto">
             Every action has a shortcut. Navigate, compare, and manage
             thumbnails without touching your mouse.
           </p>
@@ -72,7 +72,7 @@ function KeyboardShowcase() {
                 className={`px-4 py-2 rounded-lg text-[13px] font-medium transition-all ${
                   activeGroup === i
                     ? "bg-white text-[#0a0a0f]"
-                    : "text-[#737380] hover:text-white hover:bg-white/4"
+                    : "text-[#7b7b88] hover:text-white hover:bg-white/4"
                 }`}
               >
                 {group.label}
@@ -84,8 +84,8 @@ function KeyboardShowcase() {
           <div className="rounded-xl border border-white/6 bg-[#111118] overflow-hidden">
             <div className="p-6">
               <div className="flex items-center gap-2 mb-6">
-                <Keyboard className="w-4 h-4 text-[#737380]" />
-                <span className="text-[13px] text-[#737380] font-medium">
+                <Keyboard className="w-4 h-4 text-[#7b7b88]" />
+                <span className="text-[13px] text-[#7b7b88] font-medium">
                   {shortcutGroups[activeGroup].label} Shortcuts
                 </span>
               </div>
@@ -105,11 +105,11 @@ function KeyboardShowcase() {
                       {shortcut.keys.map((key, j) => (
                         <span key={j}>
                           {j > 0 && (
-                            <span className="text-[11px] text-[#4a4a54] mr-1.5">
+                            <span className="text-[11px] text-[#61616b] mr-1.5">
                               +
                             </span>
                           )}
-                          <kbd className="inline-flex items-center justify-center min-w-[28px] h-7 px-2 rounded-md border border-white/10 bg-white/4 text-[12px] text-[#737380] font-mono font-medium shadow-[0_1px_0_0_rgba(255,255,255,0.06)]">
+                          <kbd className="inline-flex items-center justify-center min-w-[28px] h-7 px-2 rounded-md border border-white/10 bg-white/4 text-[12px] text-[#7b7b88] font-mono font-medium shadow-[0_1px_0_0_rgba(255,255,255,0.06)]">
                             {key}
                           </kbd>
                         </span>
@@ -120,8 +120,8 @@ function KeyboardShowcase() {
               </div>
             </div>
             <div className="border-t border-white/6 px-6 py-3 bg-white/2">
-              <p className="text-[12px] text-[#4a4a54] text-center">
-                Press <kbd className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded border border-white/10 bg-white/4 text-[11px] text-[#737380] font-mono mx-1">?</kbd> anywhere in the app to see all available shortcuts
+              <p className="text-[12px] text-[#61616b] text-center">
+                Press <kbd className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded border border-white/10 bg-white/4 text-[11px] text-[#7b7b88] font-mono mx-1">?</kbd> anywhere in the app to see all available shortcuts
               </p>
             </div>
           </div>

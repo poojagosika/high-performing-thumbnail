@@ -47,7 +47,7 @@ function ForgotPassword() {
           >
             <Link
               to="/login"
-              className="inline-flex items-center gap-1.5 text-[13px] text-[#737380] hover:text-white transition-colors mb-8"
+              className="inline-flex items-center gap-1.5 text-[13px] text-[#7b7b88] hover:text-white transition-colors mb-8"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
               Back to log in
@@ -66,19 +66,19 @@ function ForgotPassword() {
               <h1 className="font-heading text-2xl font-semibold text-white tracking-[-0.01em]">
                 Check your inbox
               </h1>
-              <p className="text-[14px] text-[#737380] mt-1.5 leading-relaxed">
+              <p className="text-[14px] text-[#7b7b88] mt-1.5 leading-relaxed">
                 If an account exists for{" "}
                 <span className="text-white">{email}</span>, a reset link is on
                 its way. It expires in 30 minutes and can only be used once.
               </p>
-              <p className="text-[13px] text-[#4a4a54] mt-4 leading-relaxed">
+              <p className="text-[13px] text-[#61616b] mt-4 leading-relaxed">
                 Nothing arrived? Check your spam folder, or try again in a
                 minute.
               </p>
               <Button
                 onClick={() => setSent(false)}
                 variant="outline"
-                className="w-full h-9 mt-6 text-[13px] border-white/8 text-[#737380] hover:text-white hover:border-white/12 bg-transparent font-medium"
+                className="w-full h-9 mt-6 text-[13px] border-white/8 text-[#7b7b88] hover:text-white hover:border-white/12 bg-transparent font-medium"
               >
                 Use a different email
               </Button>
@@ -93,7 +93,7 @@ function ForgotPassword() {
                 <h1 className="font-heading text-2xl font-semibold text-white tracking-[-0.01em]">
                   Forgot your password?
                 </h1>
-                <p className="text-[14px] text-[#737380] mt-1.5">
+                <p className="text-[14px] text-[#7b7b88] mt-1.5">
                   Enter your email and we&apos;ll send you a link to set a new
                   one.
                 </p>
@@ -113,7 +113,7 @@ function ForgotPassword() {
                 )}
 
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[13px] text-[#737380]">Email</label>
+                  <label className="text-[13px] text-[#7b7b88]">Email</label>
                   <input
                     type="email"
                     value={email}
@@ -121,7 +121,7 @@ function ForgotPassword() {
                     placeholder="you@example.com"
                     required
                     autoFocus
-                    className="h-9 px-3 rounded-lg border border-white/8 bg-white/3 text-[14px] text-white placeholder:text-[#4a4a54] outline-none focus:border-white/16 transition-colors"
+                    className="h-9 px-3 rounded-lg border border-white/8 bg-white/3 text-[14px] text-white placeholder:text-[#7b7b88] outline-none focus:border-white/16 transition-colors"
                   />
                 </div>
 
@@ -147,7 +147,7 @@ function ForgotPassword() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={stagger(3)}
-                className="text-[13px] text-[#737380] text-center mt-6"
+                className="text-[13px] text-[#7b7b88] text-center mt-6"
               >
                 Remembered it?{" "}
                 <Link
@@ -167,7 +167,7 @@ function ForgotPassword() {
           <div className="font-heading text-lg font-semibold text-white mb-2">
             ThumbCraft
           </div>
-          <p className="text-[14px] text-[#737380] leading-relaxed">
+          <p className="text-[14px] text-[#7b7b88] leading-relaxed">
             Thumbnails that drive clicks. Analyze, test, and create designs that
             actually convert.
           </p>

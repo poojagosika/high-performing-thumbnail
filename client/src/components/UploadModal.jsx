@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Upload, ImagePlus, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { uploadFile } from "../lib/api";
+import { useDialog } from "../hooks/useDialog";
 
 function UploadModal({ open, onClose, onUploaded }) {
   const fileRef = useRef(null);
@@ -81,6 +82,10 @@ function UploadModal({ open, onClose, onUploaded }) {
     onClose();
   };
 
+  const { dialogProps } = useDialog(open, handleClose, {
+    labelledBy: "upload-modal-title",
+  });
+
   return (
     <AnimatePresence>
       {open && (
@@ -100,16 +105,21 @@ function UploadModal({ open, onClose, onUploaded }) {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 10 }}
             transition={{ duration: 0.2 }}
+            {...dialogProps}
             className="relative w-full max-w-md rounded-xl border border-white/6 bg-[#111118] shadow-2xl"
           >
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-white/6">
-              <h2 className="font-heading text-[15px] font-semibold text-white">
+              <h2
+                id="upload-modal-title"
+                className="font-heading text-[15px] font-semibold text-white"
+              >
                 Upload Thumbnail
               </h2>
               <button
+                aria-label="Close"
                 onClick={handleClose}
-                className="text-[#737380] hover:text-white transition-colors"
+                className="text-[#7b7b88] hover:text-white transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -148,16 +158,16 @@ function UploadModal({ open, onClose, onUploaded }) {
                 ) : (
                   <>
                     <Upload
-                      className={`w-5 h-5 transition-colors ${dragging ? "text-white" : "text-[#737380]"}`}
+                      className={`w-5 h-5 transition-colors ${dragging ? "text-white" : "text-[#7b7b88]"}`}
                     />
                     <span
-                      className={`text-[13px] transition-colors ${dragging ? "text-white" : "text-[#737380]"}`}
+                      className={`text-[13px] transition-colors ${dragging ? "text-white" : "text-[#7b7b88]"}`}
                     >
                       {dragging
                         ? "Drop image here"
                         : "Click or drag image here"}
                     </span>
-                    <span className="text-[11px] text-[#4a4a54]">
+                    <span className="text-[11px] text-[#61616b]">
                       JPEG, PNG, or WebP — max 5MB
                     </span>
                   </>
@@ -173,23 +183,23 @@ function UploadModal({ open, onClose, onUploaded }) {
 
               {/* Title */}
               <div className="flex flex-col gap-1.5">
-                <label className="text-[13px] text-[#737380]">
-                  Title <span className="text-[#4a4a54]">(optional)</span>
+                <label className="text-[13px] text-[#7b7b88]">
+                  Title <span className="text-[#61616b]">(optional)</span>
                 </label>
                 <input
                   type="text"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="My awesome thumbnail"
-                  className="h-9 px-3 rounded-lg border border-white/8 bg-white/3 text-[14px] text-white placeholder:text-[#4a4a54] outline-none focus:border-white/16 transition-colors"
+                  className="h-9 px-3 rounded-lg border border-white/8 bg-white/3 text-[14px] text-white placeholder:text-[#7b7b88] outline-none focus:border-white/16 transition-colors"
                 />
               </div>
 
               {/* Tags */}
               <div className="flex flex-col gap-1.5">
-                <label className="text-[13px] text-[#737380]">
+                <label className="text-[13px] text-[#7b7b88]">
                   Tags{" "}
-                  <span className="text-[#4a4a54]">
+                  <span className="text-[#61616b]">
                     (comma separated, optional)
                   </span>
                 </label>
@@ -198,7 +208,7 @@ function UploadModal({ open, onClose, onUploaded }) {
                   value={tags}
                   onChange={(e) => setTags(e.target.value)}
                   placeholder="gaming, tutorial, vlog"
-                  className="h-9 px-3 rounded-lg border border-white/8 bg-white/3 text-[14px] text-white placeholder:text-[#4a4a54] outline-none focus:border-white/16 transition-colors"
+                  className="h-9 px-3 rounded-lg border border-white/8 bg-white/3 text-[14px] text-white placeholder:text-[#7b7b88] outline-none focus:border-white/16 transition-colors"
                 />
               </div>
 

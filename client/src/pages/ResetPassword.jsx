@@ -64,7 +64,7 @@ function ResetPassword() {
           >
             <Link
               to="/login"
-              className="inline-flex items-center gap-1.5 text-[13px] text-[#737380] hover:text-white transition-colors mb-8"
+              className="inline-flex items-center gap-1.5 text-[13px] text-[#7b7b88] hover:text-white transition-colors mb-8"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
               Back to log in
@@ -83,7 +83,7 @@ function ResetPassword() {
               <h1 className="font-heading text-2xl font-semibold text-white tracking-[-0.01em]">
                 This link isn&apos;t valid
               </h1>
-              <p className="text-[14px] text-[#737380] mt-1.5 leading-relaxed">
+              <p className="text-[14px] text-[#7b7b88] mt-1.5 leading-relaxed">
                 Reset links expire after 30 minutes and only work once. Request
                 a fresh one and it&apos;ll be in your inbox in a moment.
               </p>
@@ -103,7 +103,7 @@ function ResetPassword() {
                 <h1 className="font-heading text-2xl font-semibold text-white tracking-[-0.01em]">
                   Set a new password
                 </h1>
-                <p className="text-[14px] text-[#737380] mt-1.5">
+                <p className="text-[14px] text-[#7b7b88] mt-1.5">
                   Choose something you haven&apos;t used before. This signs you
                   out everywhere else.
                 </p>
@@ -123,7 +123,7 @@ function ResetPassword() {
                 )}
 
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[13px] text-[#737380]">
+                  <label className="text-[13px] text-[#7b7b88]">
                     New password
                   </label>
                   <div className="relative">
@@ -134,12 +134,13 @@ function ResetPassword() {
                       placeholder="At least 8 characters"
                       required
                       autoFocus
-                      className="w-full h-9 px-3 pr-9 rounded-lg border border-white/8 bg-white/3 text-[14px] text-white placeholder:text-[#4a4a54] outline-none focus:border-white/16 transition-colors"
+                      className="w-full h-9 px-3 pr-9 rounded-lg border border-white/8 bg-white/3 text-[14px] text-white placeholder:text-[#7b7b88] outline-none focus:border-white/16 transition-colors"
                     />
                     <button
+                      aria-label={showPassword ? "Hide password" : "Show password"}
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#737380] hover:text-white transition-colors"
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#7b7b88] hover:text-white transition-colors"
                     >
                       {showPassword ? (
                         <EyeOff className="w-3.5 h-3.5" />
@@ -151,7 +152,7 @@ function ResetPassword() {
                 </div>
 
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[13px] text-[#737380]">
+                  <label className="text-[13px] text-[#7b7b88]">
                     Confirm password
                   </label>
                   <input
@@ -160,7 +161,7 @@ function ResetPassword() {
                     onChange={(e) => setConfirm(e.target.value)}
                     placeholder="••••••••"
                     required
-                    className="h-9 px-3 rounded-lg border border-white/8 bg-white/3 text-[14px] text-white placeholder:text-[#4a4a54] outline-none focus:border-white/16 transition-colors"
+                    className="h-9 px-3 rounded-lg border border-white/8 bg-white/3 text-[14px] text-white placeholder:text-[#7b7b88] outline-none focus:border-white/16 transition-colors"
                   />
                 </div>
 
@@ -186,7 +187,7 @@ function ResetPassword() {
           <div className="font-heading text-lg font-semibold text-white mb-2">
             ThumbCraft
           </div>
-          <p className="text-[14px] text-[#737380] leading-relaxed">
+          <p className="text-[14px] text-[#7b7b88] leading-relaxed">
             Thumbnails that drive clicks. Analyze, test, and create designs that
             actually convert.
           </p>

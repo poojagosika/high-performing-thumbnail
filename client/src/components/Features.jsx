@@ -59,7 +59,7 @@ function Features() {
           transition={{ duration: 0.4 }}
           className="text-center mb-14"
         >
-          <p className="text-[13px] text-[#737380] font-medium uppercase tracking-widest mb-3">
+          <p className="text-[13px] text-[#7b7b88] font-medium uppercase tracking-widest mb-3">
             Features
           </p>
           <h2 className="font-heading text-2xl sm:text-3xl font-semibold text-white tracking-[-0.01em]">
@@ -80,11 +80,11 @@ function Features() {
                 transition={{ duration: 0.4, delay: i * 0.06 }}
                 className="bg-[#0a0a0f] p-6 hover:bg-[#0e0e16] transition-colors duration-300"
               >
-                <Icon className="w-4 h-4 text-[#737380] mb-3" />
+                <Icon className="w-4 h-4 text-[#7b7b88] mb-3" />
                 <h3 className="font-heading text-[15px] font-medium text-white mb-1.5">
                   {feature.title}
                 </h3>
-                <p className="text-[13px] text-[#737380] leading-relaxed">
+                <p className="text-[13px] text-[#7b7b88] leading-relaxed">
                   {feature.description}
                 </p>
               </motion.div>

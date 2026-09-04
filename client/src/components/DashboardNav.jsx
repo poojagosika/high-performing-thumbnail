@@ -32,13 +32,13 @@ function DashboardNav() {
         <div className="hidden sm:flex items-center gap-4">
           <Link
             to="/dashboard"
-            className="text-[13px] text-[#737380] hover:text-white transition-colors"
+            className="text-[13px] text-[#7b7b88] hover:text-white transition-colors"
           >
             Dashboard
           </Link>
           <Link
             to="/settings"
-            className="text-[13px] text-[#737380] hover:text-white transition-colors"
+            className="text-[13px] text-[#7b7b88] hover:text-white transition-colors"
           >
             Settings
           </Link>
@@ -56,11 +56,12 @@ function DashboardNav() {
                 </span>
               </div>
             )}
-            <span className="text-[13px] text-[#737380]">{user?.name}</span>
+            <span className="text-[13px] text-[#7b7b88]">{user?.name}</span>
           </div>
           <button
+            aria-label="Log out"
             onClick={() => setLogoutOpen(true)}
-            className="text-[#737380] hover:text-white transition-colors"
+            className="text-[#7b7b88] hover:text-white transition-colors"
           >
             <LogOut className="w-4 h-4" />
           </button>
@@ -68,7 +69,7 @@ function DashboardNav() {
 
         {/* Mobile toggle */}
         <button
-          className="sm:hidden p-1.5 text-[#737380] hover:text-white"
+          className="sm:hidden p-1.5 text-[#7b7b88] hover:text-white"
           onClick={() => setMenuOpen(!menuOpen)}
           aria-label="Toggle menu"
         >
@@ -83,13 +84,13 @@ function DashboardNav() {
           animate={{ opacity: 1 }}
           className="sm:hidden bg-[#0a0a0f] border-b border-white/6 px-6 pb-4 flex flex-col gap-2"
         >
-          <div className="text-[13px] text-[#737380] py-1.5">
+          <div className="text-[13px] text-[#7b7b88] py-1.5">
             {user?.name} &middot; {user?.email}
           </div>
           <Link
             to="/"
             onClick={() => setMenuOpen(false)}
-            className="flex items-center gap-2 text-[13px] text-[#737380] hover:text-white py-1.5 transition-colors"
+            className="flex items-center gap-2 text-[13px] text-[#7b7b88] hover:text-white py-1.5 transition-colors"
           >
             <Home className="w-3.5 h-3.5" />
             Home
@@ -97,7 +98,7 @@ function DashboardNav() {
           <Link
             to="/dashboard"
             onClick={() => setMenuOpen(false)}
-            className="flex items-center gap-2 text-[13px] text-[#737380] hover:text-white py-1.5 transition-colors"
+            className="flex items-center gap-2 text-[13px] text-[#7b7b88] hover:text-white py-1.5 transition-colors"
           >
             <LayoutDashboard className="w-3.5 h-3.5" />
             Dashboard
@@ -105,7 +106,7 @@ function DashboardNav() {
           <Link
             to="/settings"
             onClick={() => setMenuOpen(false)}
-            className="flex items-center gap-2 text-[13px] text-[#737380] hover:text-white py-1.5 transition-colors"
+            className="flex items-center gap-2 text-[13px] text-[#7b7b88] hover:text-white py-1.5 transition-colors"
           >
             <Settings className="w-3.5 h-3.5" />
             Settings
@@ -115,7 +116,7 @@ function DashboardNav() {
               setMenuOpen(false);
               setLogoutOpen(true);
             }}
-            className="flex items-center gap-2 text-[13px] text-[#737380] hover:text-white py-1.5 transition-colors text-left"
+            className="flex items-center gap-2 text-[13px] text-[#7b7b88] hover:text-white py-1.5 transition-colors text-left"
           >
             <LogOut className="w-3.5 h-3.5" />
             Log out

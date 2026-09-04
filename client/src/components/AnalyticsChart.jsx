@@ -69,7 +69,7 @@ function AnalyticsChart({ thumbnails }) {
     >
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <BarChart3 className="w-4 h-4 text-[#737380]" />
+          <BarChart3 className="w-4 h-4 text-[#7b7b88]" />
           <h3 className="text-[14px] font-medium text-white">Analytics</h3>
         </div>
         <div className="flex items-center rounded-lg border border-white/8 bg-white/3 overflow-hidden">
@@ -80,7 +80,7 @@ function AnalyticsChart({ thumbnails }) {
               className={`h-7 px-2.5 flex items-center gap-1.5 text-[11px] font-medium transition-colors ${
                 activeTab === id
                   ? "bg-white/8 text-white"
-                  : "text-[#4a4a54] hover:text-white"
+                  : "text-[#61616b] hover:text-white"
               }`}
             >
               <Icon className="w-3 h-3" />
@@ -126,7 +126,7 @@ function AnalyticsChart({ thumbnails }) {
             {uploadData.map((week, i) => (
               <div key={week.date} className="flex-1 text-center">
                 {i === 0 || i === uploadData.length - 1 || i === Math.floor(uploadData.length / 2) ? (
-                  <span className="text-[9px] text-[#4a4a54]">
+                  <span className="text-[9px] text-[#61616b]">
                     {formatWeek(week.date)}
                   </span>
                 ) : null}
@@ -134,10 +134,10 @@ function AnalyticsChart({ thumbnails }) {
             ))}
           </div>
           <div className="flex items-center justify-between mt-3 pt-3 border-t border-white/4">
-            <span className="text-[11px] text-[#4a4a54]">
+            <span className="text-[11px] text-[#61616b]">
               Last {uploadData.length} weeks
             </span>
-            <span className="text-[11px] text-[#737380]">
+            <span className="text-[11px] text-[#7b7b88]">
               {thumbnails.length} total uploads
             </span>
           </div>
@@ -150,7 +150,7 @@ function AnalyticsChart({ thumbnails }) {
             <div className="space-y-2">
               {tagData.map((item, i) => (
                 <div key={item.tag} className="flex items-center gap-3">
-                  <span className="text-[12px] text-[#737380] w-20 truncate shrink-0">
+                  <span className="text-[12px] text-[#7b7b88] w-20 truncate shrink-0">
                     {item.tag}
                   </span>
                   <div className="flex-1 h-5 bg-white/3 rounded overflow-hidden">
@@ -160,7 +160,7 @@ function AnalyticsChart({ thumbnails }) {
                       transition={{ duration: 0.5, delay: i * 0.05, ease: "easeOut" }}
                       className="h-full bg-white/10 rounded flex items-center justify-end px-2"
                     >
-                      <span className="text-[10px] text-[#737380] font-medium">
+                      <span className="text-[10px] text-[#7b7b88] font-medium">
                         {item.count}
                       </span>
                     </motion.div>
@@ -169,16 +169,16 @@ function AnalyticsChart({ thumbnails }) {
               ))}
             </div>
           ) : (
-            <p className="text-[12px] text-[#4a4a54] text-center py-6">
+            <p className="text-[12px] text-[#61616b] text-center py-6">
               No tags added yet
             </p>
           )}
           {tagData.length > 0 && (
             <div className="flex items-center justify-between mt-3 pt-3 border-t border-white/4">
-              <span className="text-[11px] text-[#4a4a54]">
+              <span className="text-[11px] text-[#61616b]">
                 Top {tagData.length} tags
               </span>
-              <span className="text-[11px] text-[#737380]">
+              <span className="text-[11px] text-[#7b7b88]">
                 {[...new Set(thumbnails.flatMap((t) => t.tags || []))].length} unique tags
               </span>
             </div>

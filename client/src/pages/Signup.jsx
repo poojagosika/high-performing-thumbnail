@@ -53,7 +53,7 @@ function Signup() {
           >
             <Link
               to="/"
-              className="inline-flex items-center gap-1.5 text-[13px] text-[#737380] hover:text-white transition-colors mb-8"
+              className="inline-flex items-center gap-1.5 text-[13px] text-[#7b7b88] hover:text-white transition-colors mb-8"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
               Back
@@ -68,7 +68,7 @@ function Signup() {
             <h1 className="font-heading text-2xl font-semibold text-white tracking-[-0.01em]">
               Create your account
             </h1>
-            <p className="text-[14px] text-[#737380] mt-1.5">
+            <p className="text-[14px] text-[#7b7b88] mt-1.5">
               Start creating thumbnails that convert.
             </p>
           </motion.div>
@@ -88,33 +88,33 @@ function Signup() {
 
             {/* Name */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-[13px] text-[#737380]">Name</label>
+              <label className="text-[13px] text-[#7b7b88]">Name</label>
               <input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Your name"
                 required
-                className="h-9 px-3 rounded-lg border border-white/8 bg-white/3 text-[14px] text-white placeholder:text-[#4a4a54] outline-none focus:border-white/16 transition-colors"
+                className="h-9 px-3 rounded-lg border border-white/8 bg-white/3 text-[14px] text-white placeholder:text-[#7b7b88] outline-none focus:border-white/16 transition-colors"
               />
             </div>
 
             {/* Email */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-[13px] text-[#737380]">Email</label>
+              <label className="text-[13px] text-[#7b7b88]">Email</label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
                 required
-                className="h-9 px-3 rounded-lg border border-white/8 bg-white/3 text-[14px] text-white placeholder:text-[#4a4a54] outline-none focus:border-white/16 transition-colors"
+                className="h-9 px-3 rounded-lg border border-white/8 bg-white/3 text-[14px] text-white placeholder:text-[#7b7b88] outline-none focus:border-white/16 transition-colors"
               />
             </div>
 
             {/* Password */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-[13px] text-[#737380]">Password</label>
+              <label className="text-[13px] text-[#7b7b88]">Password</label>
               <div className="relative">
                 <input
                   type={showPassword ? "text" : "password"}
@@ -123,12 +123,13 @@ function Signup() {
                   placeholder="Min. 8 characters"
                   required
                   minLength={8}
-                  className="w-full h-9 px-3 pr-9 rounded-lg border border-white/8 bg-white/3 text-[14px] text-white placeholder:text-[#4a4a54] outline-none focus:border-white/16 transition-colors"
+                  className="w-full h-9 px-3 pr-9 rounded-lg border border-white/8 bg-white/3 text-[14px] text-white placeholder:text-[#7b7b88] outline-none focus:border-white/16 transition-colors"
                 />
                 <button
+                  aria-label={showPassword ? "Hide password" : "Show password"}
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#737380] hover:text-white transition-colors"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#7b7b88] hover:text-white transition-colors"
                 >
                   {showPassword ? (
                     <EyeOff className="w-3.5 h-3.5" />
@@ -166,7 +167,7 @@ function Signup() {
             className="flex items-center gap-3 my-6"
           >
             <div className="flex-1 h-px bg-white/6" />
-            <span className="text-[12px] text-[#4a4a54]">or</span>
+            <span className="text-[12px] text-[#61616b]">or</span>
             <div className="flex-1 h-px bg-white/6" />
           </motion.div>
 
@@ -178,7 +179,7 @@ function Signup() {
           >
             <Button
               variant="outline"
-              className="w-full h-9 text-[13px] border-white/8 text-[#737380] hover:text-white hover:border-white/12 bg-transparent font-medium"
+              className="w-full h-9 text-[13px] border-white/8 text-[#7b7b88] hover:text-white hover:border-white/12 bg-transparent font-medium"
             >
               Continue with Google
             </Button>
@@ -189,19 +190,19 @@ function Signup() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={stagger(5)}
-            className="text-[12px] text-[#4a4a54] text-center mt-5 leading-relaxed"
+            className="text-[12px] text-[#61616b] text-center mt-5 leading-relaxed"
           >
             By creating an account, you agree to our{" "}
             <a
               href="#"
-              className="text-[#737380] hover:text-white underline underline-offset-2"
+              className="text-[#7b7b88] hover:text-white underline underline-offset-2"
             >
               Terms
             </a>{" "}
             and{" "}
             <a
               href="#"
-              className="text-[#737380] hover:text-white underline underline-offset-2"
+              className="text-[#7b7b88] hover:text-white underline underline-offset-2"
             >
               Privacy Policy
             </a>
@@ -213,7 +214,7 @@ function Signup() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={stagger(6)}
-            className="text-[13px] text-[#737380] text-center mt-4"
+            className="text-[13px] text-[#7b7b88] text-center mt-4"
           >
             Already have an account?{" "}
             <Link
@@ -232,7 +233,7 @@ function Signup() {
           <div className="font-heading text-lg font-semibold text-white mb-2">
             ThumbCraft
           </div>
-          <p className="text-[14px] text-[#737380] leading-relaxed">
+          <p className="text-[14px] text-[#7b7b88] leading-relaxed">
             Join 10,000+ creators making thumbnails that get clicked.
           </p>
         </div>

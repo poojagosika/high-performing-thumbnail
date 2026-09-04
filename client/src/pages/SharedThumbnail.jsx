@@ -61,12 +61,12 @@ function SharedThumbnail() {
           <h1 className="font-heading text-2xl font-semibold text-white mb-2">
             This link is no longer available
           </h1>
-          <p className="text-[14px] text-[#737380] mb-6">
+          <p className="text-[14px] text-[#7b7b88] mb-6">
             This link may have expired or been revoked.
           </p>
           <Link
             to="/"
-            className="text-[13px] text-[#737380] hover:text-white transition-colors underline underline-offset-4"
+            className="text-[13px] text-[#7b7b88] hover:text-white transition-colors underline underline-offset-4"
           >
             Go to ThumbCraft
           </Link>
@@ -90,11 +90,11 @@ function SharedThumbnail() {
           >
             ThumbCraft
           </Link>
-          <span className="text-[11px] text-[#4a4a54]">Shared thumbnail</span>
+          <span className="text-[11px] text-[#61616b]">Shared thumbnail</span>
         </div>
       </div>
 
-      <main className="max-w-3xl mx-auto px-6 py-10">
+      <main id="main" className="max-w-3xl mx-auto px-6 py-10">
         {/* Image */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
@@ -128,7 +128,7 @@ function SharedThumbnail() {
             {thumb.title}
           </h1>
           <div className="flex items-center gap-3 mt-2">
-            <span className="flex items-center gap-1.5 text-[12px] text-[#737380]">
+            <span className="flex items-center gap-1.5 text-[12px] text-[#7b7b88]">
               <Calendar className="w-3 h-3" />
               {new Date(thumb.createdAt).toLocaleDateString("en-US", {
                 year: "numeric",
@@ -138,11 +138,11 @@ function SharedThumbnail() {
             </span>
             {thumb.tags?.length > 0 && (
               <div className="flex items-center gap-1.5">
-                <Tag className="w-3 h-3 text-[#4a4a54]" />
+                <Tag className="w-3 h-3 text-[#61616b]" />
                 {thumb.tags.map((tag) => (
                   <span
                     key={tag}
-                    className="text-[11px] text-[#737380] bg-white/4 rounded-full px-2 py-0.5"
+                    className="text-[11px] text-[#7b7b88] bg-white/4 rounded-full px-2 py-0.5"
                   >
                     {tag}
                   </span>
@@ -162,13 +162,13 @@ function SharedThumbnail() {
           >
             <div className="rounded-xl border border-white/6 bg-[#111118] p-4">
               <div className="flex items-center gap-1.5 mb-2">
-                <BarChart3 className="w-3.5 h-3.5 text-[#737380]" />
-                <span className="text-[12px] text-[#737380]">Score</span>
+                <BarChart3 className="w-3.5 h-3.5 text-[#7b7b88]" />
+                <span className="text-[12px] text-[#7b7b88]">Score</span>
               </div>
               <span className="font-heading text-2xl font-semibold text-white">
                 {thumb.score != null ? thumb.score : "—"}
                 {thumb.score != null && (
-                  <span className="text-[12px] text-[#4a4a54] font-normal ml-0.5">
+                  <span className="text-[12px] text-[#61616b] font-normal ml-0.5">
                     /100
                   </span>
                 )}
@@ -176,8 +176,8 @@ function SharedThumbnail() {
             </div>
             <div className="rounded-xl border border-white/6 bg-[#111118] p-4">
               <div className="flex items-center gap-1.5 mb-2">
-                <MousePointerClick className="w-3.5 h-3.5 text-[#737380]" />
-                <span className="text-[12px] text-[#737380]">CTR</span>
+                <MousePointerClick className="w-3.5 h-3.5 text-[#7b7b88]" />
+                <span className="text-[12px] text-[#7b7b88]">CTR</span>
               </div>
               <span className="font-heading text-2xl font-semibold text-white">
                 {thumb.ctr != null ? `${thumb.ctr}%` : "—"}
@@ -194,7 +194,7 @@ function SharedThumbnail() {
             transition={stagger(3)}
             className="mt-6 rounded-xl border border-white/6 bg-[#111118] p-5"
           >
-            <h3 className="text-[13px] text-[#737380] font-medium mb-3">
+            <h3 className="text-[13px] text-[#7b7b88] font-medium mb-3">
               Analysis
             </h3>
             <div className="flex flex-col gap-3">
@@ -216,7 +216,7 @@ function SharedThumbnail() {
                 return (
                   <div key={key}>
                     <div className="flex items-center justify-between mb-1">
-                      <span className="flex items-center gap-1.5 text-[12px] text-[#737380]">
+                      <span className="flex items-center gap-1.5 text-[12px] text-[#7b7b88]">
                         <Icon className="w-3 h-3" />
                         {label}
                       </span>
@@ -245,7 +245,7 @@ function SharedThumbnail() {
             transition={stagger(4)}
             className="mt-6 rounded-xl border border-white/6 bg-[#111118] p-5"
           >
-            <h3 className="text-[13px] text-[#737380] font-medium mb-3">
+            <h3 className="text-[13px] text-[#7b7b88] font-medium mb-3">
               Version History ({thumb.versions.length + 1} versions)
             </h3>
             <div className="flex gap-2 overflow-x-auto scrollbar-none">
@@ -262,7 +262,7 @@ function SharedThumbnail() {
                     />
                   </div>
                   <div className="px-2 py-1.5">
-                    <span className="text-[10px] text-[#4a4a54]">
+                    <span className="text-[10px] text-[#61616b]">
                       v{thumb.versions.length - i} ·{" "}
                       {new Date(v.uploadedAt).toLocaleDateString("en-US", {
                         month: "short",

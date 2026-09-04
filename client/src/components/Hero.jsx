@@ -24,7 +24,7 @@ function DashboardPreview() {
             <div className="w-2.5 h-2.5 rounded-full border-white/6" />
           </div>
           <div className="flex-1 flex justify-center">
-            <div className="px-4 py-1 rounded-md border-white/3 text-[11px] text-[#737380] font-mono">
+            <div className="px-4 py-1 rounded-md border-white/3 text-[11px] text-[#7b7b88] font-mono">
               thumbcraft.app/dashboard
             </div>
           </div>
@@ -61,7 +61,7 @@ function DashboardPreview() {
                 className="p-4 sm:p-5 rounded-lg border border-white/4 bg-white/2"
               >
                 <div className="flex items-center justify-between mb-3">
-                  <s.Icon className="w-4 h-4 text-[#737380]" />
+                  <s.Icon className="w-4 h-4 text-[#7b7b88]" />
                   <span className="text-xs font-medium text-emerald-400">
                     {s.change}
                   </span>
@@ -69,7 +69,7 @@ function DashboardPreview() {
                 <div className="text-2xl sm:text-3xl font-heading font-semibold text-white">
                   {s.value}
                 </div>
-                <div className="text-xs text-[#737380] mt-1">{s.label}</div>
+                <div className="text-xs text-[#7b7b88] mt-1">{s.label}</div>
               </motion.div>
             ))}
           </div>
@@ -83,7 +83,7 @@ function DashboardPreview() {
               className="p-4 sm:p-5 rounded-lg border border-emerald-500/10 bg-emerald-500/2"
             >
               <div className="aspect-video rounded-md bg-[#1a1a24] border border-white/4 mb-3 flex items-center justify-center">
-                <span className="text-xs font-mono text-[#737380]">
+                <span className="text-xs font-mono text-[#7b7b88]">
                   THUMBNAIL A
                 </span>
               </div>
@@ -94,13 +94,13 @@ function DashboardPreview() {
                   </div>
                   <div className="text-xl font-heading font-semibold text-white">
                     92
-                    <span className="text-xs text-[#737380] font-normal ml-0.5">
+                    <span className="text-xs text-[#7b7b88] font-normal ml-0.5">
                       /100
                     </span>
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-xs text-[#737380]">CTR</div>
+                  <div className="text-xs text-[#7b7b88]">CTR</div>
                   <div className="text-base font-medium text-emerald-400">
                     12.4%
                   </div>
@@ -115,24 +115,24 @@ function DashboardPreview() {
               className="p-4 sm:p-5 rounded-lg border border-white/4 bg-white/2"
             >
               <div className="aspect-video rounded-md bg-[#1a1a24] border border-white/4 mb-3 flex items-center justify-center">
-                <span className="text-xs font-mono text-[#737380]">
+                <span className="text-xs font-mono text-[#7b7b88]">
                   THUMBNAIL B
                 </span>
               </div>
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-xs text-[#737380] font-medium">
+                  <div className="text-xs text-[#7b7b88] font-medium">
                     Needs work
                   </div>
                   <div className="text-xl font-heading font-semibold text-white">
                     47
-                    <span className="text-xs text-[#737380] font-normal ml-0.5">
+                    <span className="text-xs text-[#7b7b88] font-normal ml-0.5">
                       /100
                     </span>
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-xs text-[#737380]">CTR</div>
+                  <div className="text-xs text-[#7b7b88]">CTR</div>
                   <div className="text-base font-medium text-red-400">3.2%</div>
                 </div>
               </div>
@@ -160,7 +160,7 @@ function Hero() {
         >
           <a
             href="#features"
-            className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/6 bg-white/3 text-[13px] text-[#737380] hover:text-white hover:border-white/10 transition-all duration-200"
+            className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/6 bg-white/3 text-[13px] text-[#7b7b88] hover:text-white hover:border-white/10 transition-all duration-200"
           >
             Introducing ThumbCraft
             <ArrowRight className="w-3 h-3" />
@@ -184,7 +184,7 @@ function Hero() {
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
           transition={stagger(2)}
-          className="mt-4 text-[15px] sm:text-base text-[#737380] max-w-md mx-auto leading-relaxed"
+          className="mt-4 text-[15px] sm:text-base text-[#7b7b88] max-w-md mx-auto leading-relaxed"
         >
           Analyze what makes thumbnails perform. Get AI-powered feedback and
           create designs that actually convert.
@@ -205,7 +205,7 @@ function Hero() {
           </Link>
           <Button
             variant="outline"
-            className="h-9 px-5 text-[13px] border-white/8 text-[#737380] hover:text-white hover:border-white/12 bg-transparent font-medium"
+            className="h-9 px-5 text-[13px] border-white/8 text-[#7b7b88] hover:text-white hover:border-white/12 bg-transparent font-medium"
           >
             View Demo
           </Button>
@@ -218,14 +218,14 @@ function Hero() {
           transition={{ duration: 0.6, delay: 0.5 }}
           className="mt-12 flex flex-col items-center gap-3"
         >
-          <span className="text-[11px] text-[#4a4a54] uppercase tracking-[0.15em] font-medium">
+          <span className="text-[11px] text-[#61616b] uppercase tracking-[0.15em] font-medium">
             Trusted by creators on
           </span>
           <div className="flex items-center gap-6">
             {["YouTube", "Twitch", "TikTok", "Instagram"].map((name) => (
               <span
                 key={name}
-                className="text-[12px] font-medium text-[#4a4a54] tracking-wide"
+                className="text-[12px] font-medium text-[#61616b] tracking-wide"
               >
                 {name}
               </span>

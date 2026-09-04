@@ -1,7 +1,12 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
+import { useDialog } from "../hooks/useDialog";
 
 function LogoutModal({ open, onClose, onConfirm }) {
+  const { dialogProps } = useDialog(open, onClose, {
+    labelledBy: "logout-modal-title",
+  });
+
   return (
     <AnimatePresence>
       {open && (
@@ -18,19 +23,23 @@ function LogoutModal({ open, onClose, onConfirm }) {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 10 }}
             transition={{ duration: 0.2 }}
+            {...dialogProps}
             className="relative w-full max-w-sm rounded-xl border border-white/6 bg-[#111118] shadow-2xl p-5"
           >
-            <h2 className="font-heading text-[15px] font-semibold text-white">
+            <h2
+              id="logout-modal-title"
+              className="font-heading text-[15px] font-semibold text-white"
+            >
               Log out?
             </h2>
-            <p className="text-[13px] text-[#737380] mt-1.5">
+            <p className="text-[13px] text-[#7b7b88] mt-1.5">
               Are you sure you want to log out of your account?
             </p>
             <div className="flex items-center justify-end gap-2 mt-5">
               <Button
                 variant="outline"
                 onClick={onClose}
-                className="h-8 text-[13px] border-white/8 text-[#737380] hover:text-white hover:border-white/12 bg-transparent font-medium"
+                className="h-8 text-[13px] border-white/8 text-[#7b7b88] hover:text-white hover:border-white/12 bg-transparent font-medium"
               >
                 Cancel
               </Button>

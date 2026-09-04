@@ -18,6 +18,7 @@ import { useAuth } from "../context/AuthContext";
 import { matchThumbnails } from "../lib/paletteSearch";
 import api from "../lib/api";
 import { assetUrl } from "../lib/assetUrl";
+import { useDialog } from "../hooks/useDialog";
 
 function CommandPalette() {
   const { user, logout } = useAuth();
@@ -124,6 +125,8 @@ function CommandPalette() {
     setActive(0);
   }, []);
 
+  const { dialogProps } = useDialog(open, close, { label: "Command palette" });
+
   const runItem = useCallback(
     (item) => {
       if (!item) return;
@@ -201,10 +204,11 @@ function CommandPalette() {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.98, y: -8 }}
             transition={{ duration: 0.15 }}
+            {...dialogProps}
             className="relative w-full max-w-lg rounded-xl border border-white/8 bg-[#111118] shadow-2xl overflow-hidden"
           >
             <div className="flex items-center gap-2.5 px-4 border-b border-white/6">
-              <Search className="w-3.5 h-3.5 text-[#4a4a54] shrink-0" />
+              <Search className="w-3.5 h-3.5 text-[#61616b] shrink-0" />
               <input
                 ref={inputRef}
                 value={query}
@@ -214,16 +218,16 @@ function CommandPalette() {
                 }}
                 onKeyDown={onInputKeyDown}
                 placeholder="Search thumbnails or run a command..."
-                className="flex-1 h-12 bg-transparent text-[14px] text-white placeholder:text-[#4a4a54] outline-none"
+                className="flex-1 h-12 bg-transparent text-[14px] text-white placeholder:text-[#7b7b88] outline-none focus:border-white/16 transition-colors"
               />
-              <kbd className="shrink-0 inline-flex items-center h-5 px-1.5 rounded bg-white/6 border border-white/10 text-[10px] font-mono text-[#4a4a54]">
+              <kbd className="shrink-0 inline-flex items-center h-5 px-1.5 rounded bg-white/6 border border-white/10 text-[10px] font-mono text-[#61616b]">
                 Esc
               </kbd>
             </div>
 
             <div ref={listRef} className="max-h-80 overflow-y-auto py-1.5">
               {results.length === 0 ? (
-                <p className="px-4 py-6 text-center text-[13px] text-[#4a4a54]">
+                <p className="px-4 py-6 text-center text-[13px] text-[#61616b]">
                   No matches for &ldquo;{query}&rdquo;
                 </p>
               ) : (
@@ -234,7 +238,7 @@ function CommandPalette() {
                   return (
                     <div key={item.id}>
                       {isFirstOfGroup && (
-                        <p className="px-4 pt-2 pb-1 text-[10px] uppercase tracking-wider text-[#4a4a54]">
+                        <p className="px-4 pt-2 pb-1 text-[10px] uppercase tracking-wider text-[#61616b]">
                           {item.group}
                         </p>
                       )}
@@ -257,21 +261,21 @@ function CommandPalette() {
                         ) : (
                           <div className="w-9 h-6 rounded bg-white/4 flex items-center justify-center shrink-0">
                             {Icon ? (
-                              <Icon className="w-3.5 h-3.5 text-[#737380]" />
+                              <Icon className="w-3.5 h-3.5 text-[#7b7b88]" />
                             ) : (
-                              <ImageIcon className="w-3.5 h-3.5 text-[#737380]" />
+                              <ImageIcon className="w-3.5 h-3.5 text-[#7b7b88]" />
                             )}
                           </div>
                         )}
                         <span
                           className={`text-[13px] truncate flex-1 ${
-                            i === active ? "text-white" : "text-[#737380]"
+                            i === active ? "text-white" : "text-[#7b7b88]"
                           }`}
                         >
                           {item.label}
                         </span>
                         {i === active && (
-                          <CornerDownLeft className="w-3 h-3 text-[#4a4a54] shrink-0" />
+                          <CornerDownLeft className="w-3 h-3 text-[#61616b] shrink-0" />
                         )}
                       </button>
                     </div>

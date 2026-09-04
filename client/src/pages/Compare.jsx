@@ -23,6 +23,7 @@ import DashboardNav from "../components/DashboardNav";
 import { useToast } from "../context/ToastContext";
 import api from "../lib/api";
 import { assetUrl } from "../lib/assetUrl";
+import { useDialog } from "../hooks/useDialog";
 
 const stagger = (i) => ({ duration: 0.4, delay: i * 0.06, ease: "easeOut" });
 
@@ -42,8 +43,8 @@ function StatCard({ label, Icon, valueA, valueB, suffix = "" }) {
   return (
     <div className="rounded-xl border border-white/6 bg-[#111118] p-4">
       <div className="flex items-center gap-1.5 mb-3">
-        <Icon className="w-3.5 h-3.5 text-[#737380]" />
-        <span className="text-[12px] text-[#737380]">{label}</span>
+        <Icon className="w-3.5 h-3.5 text-[#7b7b88]" />
+        <span className="text-[12px] text-[#7b7b88]">{label}</span>
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div className="text-center">
@@ -74,8 +75,8 @@ function AnalysisRow({ label, Icon, valueA, valueB }) {
   return (
     <div>
       <div className="flex items-center gap-1.5 mb-2">
-        <Icon className="w-3 h-3 text-[#4a4a54]" />
-        <span className="text-[12px] text-[#737380]">{label}</span>
+        <Icon className="w-3 h-3 text-[#61616b]" />
+        <span className="text-[12px] text-[#7b7b88]">{label}</span>
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div>
@@ -126,6 +127,10 @@ function Compare() {
   const [comparisonNotes, setComparisonNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+
+  const historyDialog = useDialog(historyOpen, () => setHistoryOpen(false), {
+    labelledBy: "compare-history-title",
+  });
   const [history, setHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const sliderContainerRef = useRef(null);
@@ -247,7 +252,7 @@ function Compare() {
     return (
       <div className="min-h-screen">
         <DashboardNav />
-        <main className="max-w-5xl mx-auto px-6 py-10">
+        <main id="main" className="max-w-5xl mx-auto px-6 py-10">
           <div className="h-4 w-32 rounded bg-white/4 animate-pulse mb-6" />
           <div className="mb-8 space-y-2">
             <div className="h-6 w-40 rounded bg-white/4 animate-pulse" />
@@ -319,7 +324,7 @@ function Compare() {
     <div className="min-h-screen">
       <DashboardNav />
 
-      <main className="max-w-5xl mx-auto px-6 py-10">
+      <main id="main" className="max-w-5xl mx-auto px-6 py-10">
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -327,7 +332,7 @@ function Compare() {
         >
           <Link
             to="/dashboard"
-            className="inline-flex items-center gap-1.5 text-[13px] text-[#737380] hover:text-white transition-colors mb-6"
+            className="inline-flex items-center gap-1.5 text-[13px] text-[#7b7b88] hover:text-white transition-colors mb-6"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             Back to Dashboard
@@ -343,7 +348,7 @@ function Compare() {
           <h1 className="font-heading text-2xl font-semibold text-white tracking-[-0.01em]">
             {isMulti ? "Multi Compare" : "A/B Compare"}
           </h1>
-          <p className="text-[14px] text-[#737380] mt-1">
+          <p className="text-[14px] text-[#7b7b88] mt-1">
             {isMulti
               ? `Comparing ${thumbs.length} thumbnails side by side`
               : "Side-by-side comparison of two thumbnails"}
@@ -390,7 +395,7 @@ function Compare() {
                     {t.tags?.length > 0 && (
                       <div className="flex gap-1 mt-1.5 flex-wrap">
                         {t.tags.slice(0, 3).map((tag) => (
-                          <span key={tag} className="text-[10px] text-[#4a4a54] bg-white/4 rounded-full px-2 py-0.5">
+                          <span key={tag} className="text-[10px] text-[#61616b] bg-white/4 rounded-full px-2 py-0.5">
                             {tag}
                           </span>
                         ))}
@@ -410,14 +415,14 @@ function Compare() {
             >
               <div className={`grid ${thumbs.length <= 3 ? "grid-cols-[120px_repeat(3,1fr)]" : thumbs.length <= 4 ? "grid-cols-[120px_repeat(4,1fr)]" : "grid-cols-[120px_repeat(5,1fr)]"} gap-px bg-white/4`}>
                 {/* Header */}
-                <div className="bg-[#111118] p-3 text-[11px] text-[#4a4a54] uppercase tracking-wider font-medium" />
+                <div className="bg-[#111118] p-3 text-[11px] text-[#61616b] uppercase tracking-wider font-medium" />
                 {thumbs.map((t) => (
                   <div key={t._id} className="bg-[#111118] p-3 text-[12px] text-white font-medium truncate">
                     {t.title}
                   </div>
                 ))}
                 {/* Score row */}
-                <div className="bg-[#111118] p-3 text-[12px] text-[#737380] flex items-center gap-1.5">
+                <div className="bg-[#111118] p-3 text-[12px] text-[#7b7b88] flex items-center gap-1.5">
                   <BarChart3 className="w-3 h-3" />
                   Score
                 </div>
@@ -433,7 +438,7 @@ function Compare() {
                   );
                 })}
                 {/* CTR row */}
-                <div className="bg-[#111118] p-3 text-[12px] text-[#737380] flex items-center gap-1.5">
+                <div className="bg-[#111118] p-3 text-[12px] text-[#7b7b88] flex items-center gap-1.5">
                   <MousePointerClick className="w-3 h-3" />
                   CTR
                 </div>
@@ -447,7 +452,7 @@ function Compare() {
                 {/* Analysis rows */}
                 {analysisItems.map(({ key, label, Icon }) => (
                   <>
-                    <div key={`label-${key}`} className="bg-[#111118] p-3 text-[12px] text-[#737380] flex items-center gap-1.5">
+                    <div key={`label-${key}`} className="bg-[#111118] p-3 text-[12px] text-[#7b7b88] flex items-center gap-1.5">
                       <Icon className="w-3 h-3" />
                       {label}
                     </div>
@@ -491,13 +496,13 @@ function Compare() {
                   transition={stagger(4)}
                   className="rounded-xl border border-white/6 bg-[#111118] p-5 text-center mb-6"
                 >
-                  <p className="text-[13px] text-[#737380]">Verdict</p>
+                  <p className="text-[13px] text-[#7b7b88]">Verdict</p>
                   {isTie ? (
                     <p className="font-heading text-lg font-semibold text-white mt-1">It&apos;s a tie</p>
                   ) : (
                     <>
                       <p className="font-heading text-lg font-semibold text-emerald-400 mt-1">{best.title}</p>
-                      <p className="text-[12px] text-[#4a4a54] mt-1">highest score at {best.score}/100</p>
+                      <p className="text-[12px] text-[#61616b] mt-1">highest score at {best.score}/100</p>
                     </>
                   )}
                 </motion.div>
@@ -522,7 +527,7 @@ function Compare() {
               className={`h-8 px-3 flex items-center gap-1.5 text-[12px] transition-colors ${
                 compareMode === "side"
                   ? "bg-white/8 text-white"
-                  : "text-[#4a4a54] hover:text-white"
+                  : "text-[#61616b] hover:text-white"
               }`}
             >
               <Columns2 className="w-3.5 h-3.5" />
@@ -533,7 +538,7 @@ function Compare() {
               className={`h-8 px-3 flex items-center gap-1.5 text-[12px] transition-colors ${
                 compareMode === "overlay"
                   ? "bg-white/8 text-white"
-                  : "text-[#4a4a54] hover:text-white"
+                  : "text-[#61616b] hover:text-white"
               }`}
             >
               <Layers className="w-3.5 h-3.5" />
@@ -541,7 +546,7 @@ function Compare() {
             </button>
           </div>
           {compareMode === "overlay" && (
-            <span className="text-[11px] text-[#4a4a54]">
+            <span className="text-[11px] text-[#61616b]">
               Drag the slider to compare
             </span>
           )}
@@ -654,7 +659,7 @@ function Compare() {
                   {thumbA.tags.map((tag) => (
                     <span
                       key={tag}
-                      className="text-[11px] text-[#4a4a54] bg-white/4 rounded-full px-2 py-0.5"
+                      className="text-[11px] text-[#61616b] bg-white/4 rounded-full px-2 py-0.5"
                     >
                       {tag}
                     </span>
@@ -689,7 +694,7 @@ function Compare() {
                   {thumbB.tags.map((tag) => (
                     <span
                       key={tag}
-                      className="text-[11px] text-[#4a4a54] bg-white/4 rounded-full px-2 py-0.5"
+                      className="text-[11px] text-[#61616b] bg-white/4 rounded-full px-2 py-0.5"
                     >
                       {tag}
                     </span>
@@ -731,16 +736,16 @@ function Compare() {
             transition={stagger(4)}
             className="rounded-xl border border-white/6 bg-[#111118] p-5"
           >
-            <h3 className="text-[13px] text-[#737380] font-medium mb-4">
+            <h3 className="text-[13px] text-[#7b7b88] font-medium mb-4">
               Analysis Breakdown
             </h3>
 
             {/* Column labels */}
             <div className="grid grid-cols-2 gap-4 mb-4">
-              <span className="text-[11px] text-[#4a4a54] font-medium truncate">
+              <span className="text-[11px] text-[#61616b] font-medium truncate">
                 {thumbA.title}
               </span>
-              <span className="text-[11px] text-[#4a4a54] font-medium truncate">
+              <span className="text-[11px] text-[#61616b] font-medium truncate">
                 {thumbB.title}
               </span>
             </div>
@@ -769,18 +774,18 @@ function Compare() {
           >
             {winner === "tie" ? (
               <>
-                <p className="text-[13px] text-[#737380]">Verdict</p>
+                <p className="text-[13px] text-[#7b7b88]">Verdict</p>
                 <p className="font-heading text-lg font-semibold text-white mt-1">
                   It&apos;s a tie
                 </p>
               </>
             ) : (
               <>
-                <p className="text-[13px] text-[#737380]">Verdict</p>
+                <p className="text-[13px] text-[#7b7b88]">Verdict</p>
                 <p className="font-heading text-lg font-semibold text-emerald-400 mt-1">
                   {winner === "A" ? thumbA.title : thumbB.title}
                 </p>
-                <p className="text-[12px] text-[#4a4a54] mt-1">
+                <p className="text-[12px] text-[#61616b] mt-1">
                   scores {Math.abs((scoreA ?? 0) - (scoreB ?? 0))} points higher
                 </p>
               </>
@@ -796,7 +801,7 @@ function Compare() {
           className="mt-6 rounded-xl border border-white/6 bg-[#111118] p-5"
         >
           <div className="flex items-center justify-between mb-3">
-            <h3 className="flex items-center gap-1.5 text-[13px] text-[#737380] font-medium">
+            <h3 className="flex items-center gap-1.5 text-[13px] text-[#7b7b88] font-medium">
               <StickyNote className="w-3.5 h-3.5" />
               Comparison Notes
             </h3>
@@ -804,7 +809,7 @@ function Compare() {
               <Button
                 variant="outline"
                 onClick={loadHistory}
-                className="h-8 text-[12px] border-white/8 text-[#737380] hover:text-white hover:border-white/12 bg-transparent font-medium gap-1.5"
+                className="h-8 text-[12px] border-white/8 text-[#7b7b88] hover:text-white hover:border-white/12 bg-transparent font-medium gap-1.5"
               >
                 <History className="w-3.5 h-3.5" />
                 History
@@ -824,7 +829,7 @@ function Compare() {
             onChange={(e) => setComparisonNotes(e.target.value)}
             placeholder="Add notes about this comparison..."
             rows={2}
-            className="w-full bg-white/3 border border-white/8 rounded-lg px-3 py-2 text-[13px] text-white placeholder:text-[#4a4a54] outline-none focus:border-white/16 transition-colors resize-none"
+            className="w-full bg-white/3 border border-white/8 rounded-lg px-3 py-2 text-[13px] text-white placeholder:text-[#7b7b88] outline-none focus:border-white/16 transition-colors resize-none"
           />
         </motion.div>
         </>
@@ -847,16 +852,21 @@ function Compare() {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.96, y: 10 }}
               transition={{ duration: 0.2 }}
+              {...historyDialog.dialogProps}
               className="relative w-full max-w-2xl max-h-[80vh] rounded-xl border border-white/6 bg-[#111118] shadow-2xl flex flex-col"
             >
               <div className="flex items-center justify-between p-5 pb-0">
-                <h2 className="font-heading text-[15px] font-semibold text-white flex items-center gap-2">
-                  <History className="w-4 h-4 text-[#737380]" />
+                <h2
+                  id="compare-history-title"
+                  className="font-heading text-[15px] font-semibold text-white flex items-center gap-2"
+                >
+                  <History className="w-4 h-4 text-[#7b7b88]" />
                   Comparison History
                 </h2>
                 <button
+                  aria-label="Close"
                   onClick={() => setHistoryOpen(false)}
-                  className="text-[#4a4a54] hover:text-white transition-colors"
+                  className="text-[#61616b] hover:text-white transition-colors"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -880,9 +890,9 @@ function Compare() {
                   </div>
                 ) : history.length === 0 ? (
                   <div className="text-center py-10">
-                    <History className="w-8 h-8 text-[#4a4a54] mx-auto mb-3" />
-                    <p className="text-[13px] text-[#737380]">No saved comparisons yet</p>
-                    <p className="text-[12px] text-[#4a4a54] mt-1">
+                    <History className="w-8 h-8 text-[#61616b] mx-auto mb-3" />
+                    <p className="text-[13px] text-[#7b7b88]">No saved comparisons yet</p>
+                    <p className="text-[12px] text-[#61616b] mt-1">
                       Save a comparison to see it here
                     </p>
                   </div>
@@ -905,11 +915,11 @@ function Compare() {
                                 />
                               </div>
                             ) : (
-                              <div className="w-14 h-9 rounded bg-white/4 flex items-center justify-center text-[9px] text-[#4a4a54]">
+                              <div className="w-14 h-9 rounded bg-white/4 flex items-center justify-center text-[9px] text-[#61616b]">
                                 Deleted
                               </div>
                             )}
-                            <span className="text-[10px] text-[#4a4a54] font-medium">vs</span>
+                            <span className="text-[10px] text-[#61616b] font-medium">vs</span>
                             {comp.thumbnailB ? (
                               <div className={`w-14 h-9 rounded overflow-hidden border ${comp.winner === "B" ? "border-emerald-500/40" : "border-white/6"}`}>
                                 <img
@@ -919,7 +929,7 @@ function Compare() {
                                 />
                               </div>
                             ) : (
-                              <div className="w-14 h-9 rounded bg-white/4 flex items-center justify-center text-[9px] text-[#4a4a54]">
+                              <div className="w-14 h-9 rounded bg-white/4 flex items-center justify-center text-[9px] text-[#61616b]">
                                 Deleted
                               </div>
                             )}
@@ -931,7 +941,7 @@ function Compare() {
                               <span className="text-[12px] text-white truncate">
                                 {comp.thumbnailA?.title || "Deleted"}
                               </span>
-                              <span className="text-[10px] text-[#4a4a54]">vs</span>
+                              <span className="text-[10px] text-[#61616b]">vs</span>
                               <span className="text-[12px] text-white truncate">
                                 {comp.thumbnailB?.title || "Deleted"}
                               </span>
@@ -944,14 +954,14 @@ function Compare() {
                                 </span>
                               )}
                               {comp.winner === "tie" && (
-                                <span className="text-[10px] text-[#737380]">Tie</span>
+                                <span className="text-[10px] text-[#7b7b88]">Tie</span>
                               )}
-                              <span className="text-[10px] text-[#4a4a54]">
+                              <span className="text-[10px] text-[#61616b]">
                                 {relativeTime(comp.createdAt)}
                               </span>
                             </div>
                             {comp.notes && (
-                              <p className="text-[11px] text-[#737380] mt-1 line-clamp-1">
+                              <p className="text-[11px] text-[#7b7b88] mt-1 line-clamp-1">
                                 {comp.notes}
                               </p>
                             )}
@@ -965,14 +975,15 @@ function Compare() {
                                   navigate(`/compare?a=${comp.thumbnailA._id}&b=${comp.thumbnailB._id}`);
                                   setHistoryOpen(false);
                                 }}
-                                className="h-7 px-2.5 rounded-lg border border-white/8 text-[11px] text-[#737380] hover:text-white hover:border-white/12 transition-colors"
+                                className="h-7 px-2.5 rounded-lg border border-white/8 text-[11px] text-[#7b7b88] hover:text-white hover:border-white/12 transition-colors"
                               >
                                 View
                               </button>
                             )}
                             <button
+                              aria-label="Delete comparison"
                               onClick={() => deleteComparison(comp._id)}
-                              className="h-7 w-7 rounded-lg border border-white/8 flex items-center justify-center text-[#4a4a54] hover:text-red-400 hover:border-red-500/20 transition-colors"
+                              className="h-7 w-7 rounded-lg border border-white/8 flex items-center justify-center text-[#61616b] hover:text-red-400 hover:border-red-500/20 transition-colors"
                             >
                               <Trash2 className="w-3 h-3" />
                             </button>

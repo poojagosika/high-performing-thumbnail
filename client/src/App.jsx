@@ -130,6 +130,9 @@ function App() {
     <BrowserRouter>
       <ToastProvider>
         <AuthProvider>
+          <a href="#main" className="skip-link">
+            Skip to content
+          </a>
           <ScrollToTop />
           <CommandPalette />
           <AppRoutes />
