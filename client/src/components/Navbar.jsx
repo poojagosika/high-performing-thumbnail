@@ -45,7 +45,7 @@ function Navbar() {
       <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-2">
           <span className="font-heading text-[15px] font-semibold text-white tracking-tight">
-            ThumbCraft
+            Thumbnail
           </span>
         </Link>
 

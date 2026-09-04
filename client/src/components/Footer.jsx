@@ -34,7 +34,7 @@ function Footer() {
           {/* Brand */}
           <div className="col-span-2 sm:col-span-1">
             <span className="font-heading text-[15px] font-semibold text-white tracking-tight">
-              ThumbCraft
+              Thumbnail
             </span>
             <p className="text-[13px] text-[#7b7b88] mt-2 leading-relaxed">
               Thumbnails that drive clicks.
@@ -66,7 +66,7 @@ function Footer() {
         {/* Bottom bar */}
         <div className="mt-12 pt-6 border-t border-white/6 flex flex-col sm:flex-row items-center justify-between gap-3">
           <span className="text-[12px] text-[#61616b]">
-            &copy; {new Date().getFullYear()} ThumbCraft. All rights reserved.
+            &copy; {new Date().getFullYear()} Thumbnail. All rights reserved.
           </span>
           <div className="flex items-center gap-5">
             {["Twitter", "GitHub", "Discord"].map((name) => (

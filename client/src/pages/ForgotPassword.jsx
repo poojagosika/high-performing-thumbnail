@@ -165,7 +165,7 @@ function ForgotPassword() {
       <div className="hidden lg:flex flex-1 items-center justify-center bg-[#111118] border-l border-white/6">
         <div className="max-w-xs text-center">
           <div className="font-heading text-lg font-semibold text-white mb-2">
-            ThumbCraft
+            Thumbnail
           </div>
           <p className="text-[14px] text-[#7b7b88] leading-relaxed">
             Thumbnails that drive clicks. Analyze, test, and create designs that

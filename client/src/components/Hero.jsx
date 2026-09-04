@@ -25,7 +25,7 @@ function DashboardPreview() {
           </div>
           <div className="flex-1 flex justify-center">
             <div className="px-4 py-1 rounded-md border-white/3 text-[11px] text-[#7b7b88] font-mono">
-              thumbcraft.app/dashboard
+              thumbnail.poojagosika.com/dashboard
             </div>
           </div>
         </div>
@@ -162,7 +162,7 @@ function Hero() {
             href="#features"
             className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/6 bg-white/3 text-[13px] text-[#7b7b88] hover:text-white hover:border-white/10 transition-all duration-200"
           >
-            Introducing ThumbCraft
+            Introducing Thumbnail
             <ArrowRight className="w-3 h-3" />
           </a>
         </motion.div>

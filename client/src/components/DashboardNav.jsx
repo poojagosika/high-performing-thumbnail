@@ -25,7 +25,7 @@ function DashboardNav() {
           to="/"
           className="font-heading text-[15px] font-semibold text-white tracking-tight"
         >
-          ThumbCraft
+          Thumbnail
         </Link>
 
         {/* Desktop */}

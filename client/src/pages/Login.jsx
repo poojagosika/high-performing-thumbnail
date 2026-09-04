@@ -70,7 +70,7 @@ function Login() {
               Welcome back
             </h1>
             <p className="text-[14px] text-[#7b7b88] mt-1.5">
-              Log in to your ThumbCraft account.
+              Log in to your Thumbnail account.
             </p>
           </motion.div>
 
@@ -208,7 +208,7 @@ function Login() {
       <div className="hidden lg:flex flex-1 items-center justify-center bg-[#111118] border-l border-white/6">
         <div className="max-w-xs text-center">
           <div className="font-heading text-lg font-semibold text-white mb-2">
-            ThumbCraft
+            Thumbnail
           </div>
           <p className="text-[14px] text-[#7b7b88] leading-relaxed">
             Thumbnails that drive clicks. Analyze, test, and create designs that

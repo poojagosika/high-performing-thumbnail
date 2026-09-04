@@ -68,7 +68,7 @@ function SharedThumbnail() {
             to="/"
             className="text-[13px] text-[#7b7b88] hover:text-white transition-colors underline underline-offset-4"
           >
-            Go to ThumbCraft
+            Go to Thumbnail
           </Link>
         </div>
       </div>
@@ -88,7 +88,7 @@ function SharedThumbnail() {
             to="/"
             className="font-heading text-[15px] font-semibold text-white tracking-[-0.01em]"
           >
-            ThumbCraft
+            Thumbnail
           </Link>
           <span className="text-[11px] text-[#61616b]">Shared thumbnail</span>
         </div>
