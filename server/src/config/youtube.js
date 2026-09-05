@@ -43,7 +43,7 @@ function rankCandidates(videos, now = Date.now()) {
     .filter((v) => v.viewCount >= MIN_VIEWS)
     .filter((v) => now - new Date(v.publishedAt).getTime() >= MIN_AGE_MS)
     .map((v) => ({ ...v, viewsPerDay: viewsPerDay(v.viewCount, v.publishedAt, now) }))
-    .sort((a, b) => b.viewsPerDay - a.viewsPerDay || b.viewCount - a.viewCount)
+    .sort((a, b) => b.viewCount - a.viewCount)
     .slice(0, RESULT_COUNT);
 }
 
@@ -101,7 +101,7 @@ async function searchTopic(query, now = Date.now()) {
     q: query,
     type: "video",
     maxResults: String(CANDIDATE_COUNT),
-    order: "relevance",
+    order: "viewCount",
     safeSearch: "moderate",
   });
 
