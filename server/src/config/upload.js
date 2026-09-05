@@ -86,6 +86,17 @@ function persistImage(req, res, next) {
   next();
 }
 
+function writeUpload(buffer, ext) {
+  const filename = `${Date.now()}-${crypto.randomBytes(8).toString("hex")}.${ext}`;
+  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+  fs.writeFileSync(path.join(UPLOAD_DIR, filename), buffer);
+  return `/uploads/${filename}`;
+}
+
+function uploadPath(imageUrl) {
+  return path.resolve(UPLOAD_DIR, path.basename(String(imageUrl || "")));
+}
+
 function removeUpload(imageUrl) {
   if (!imageUrl || typeof imageUrl !== "string") return;
 
@@ -128,6 +139,8 @@ module.exports.persistImage = persistImage;
 module.exports.uploadErrorHandler = uploadErrorHandler;
 module.exports.serveUploadsGuard = serveUploadsGuard;
 module.exports.removeUpload = removeUpload;
+module.exports.writeUpload = writeUpload;
+module.exports.uploadPath = uploadPath;
 module.exports.detectImage = detectImage;
 module.exports.ALLOWED_EXTENSIONS = ALLOWED_EXTENSIONS;
 module.exports.UPLOAD_DIR = UPLOAD_DIR;

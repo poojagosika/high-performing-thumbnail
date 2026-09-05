@@ -17,8 +17,10 @@ const projectSchema = new mongoose.Schema(
     chosenVideoId: { type: String, default: null },
     referenceStyle: { type: mongoose.Schema.Types.Mixed, default: null },
     uploadUrl: { type: String, default: null },
-    gradedUrl: { type: String, default: null },
+    uploadStyle: { type: mongoose.Schema.Types.Mixed, default: null },
     matchReport: { type: mongoose.Schema.Types.Mixed, default: null },
+    gradedUrl: { type: String, default: null },
+    gradedReport: { type: mongoose.Schema.Types.Mixed, default: null },
   },
   { timestamps: true },
 );
