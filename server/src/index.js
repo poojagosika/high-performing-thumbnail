@@ -56,6 +56,7 @@ app.use("/uploads", serveUploadsGuard, express.static(UPLOAD_DIR, {
 
 // Routes
 app.use("/api/auth", require("./routes/auth"));
+app.use("/api/projects", require("./routes/projects"));
 app.use("/api/thumbnails", require("./routes/thumbnails"));
 app.use("/api/activities", require("./routes/activities"));
 app.use("/api/comparisons", require("./routes/comparisons"));

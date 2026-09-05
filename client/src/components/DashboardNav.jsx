@@ -1,7 +1,15 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { motion } from "framer-motion";
-import { LogOut, Menu, X, LayoutDashboard, Home, Settings } from "lucide-react";
+import {
+  LogOut,
+  Menu,
+  X,
+  LayoutDashboard,
+  Home,
+  Settings,
+  Search,
+} from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import LogoutModal from "./LogoutModal";
 import { assetUrl } from "../lib/assetUrl";
@@ -30,6 +38,12 @@ function DashboardNav() {
 
         {/* Desktop */}
         <div className="hidden sm:flex items-center gap-4">
+          <Link
+            to="/research"
+            className="text-[13px] text-[#7b7b88] hover:text-white transition-colors"
+          >
+            Research
+          </Link>
           <Link
             to="/dashboard"
             className="text-[13px] text-[#7b7b88] hover:text-white transition-colors"
@@ -94,6 +108,14 @@ function DashboardNav() {
           >
             <Home className="w-3.5 h-3.5" />
             Home
+          </Link>
+          <Link
+            to="/research"
+            onClick={() => setMenuOpen(false)}
+            className="flex items-center gap-2 text-[13px] text-[#7b7b88] hover:text-white py-1.5 transition-colors"
+          >
+            <Search className="w-3.5 h-3.5" />
+            Research
           </Link>
           <Link
             to="/dashboard"
