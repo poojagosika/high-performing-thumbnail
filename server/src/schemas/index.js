@@ -48,6 +48,16 @@ const resetPasswordSchema = z.object({
   password,
 });
 
+const projectSchema = z.object({
+  title: z.string({ error: "must be a string" }).trim().min(1, "is required").max(200, "is too long"),
+  tags: z.array(z.string().trim().min(1).max(50)).max(20).default([]),
+  description: z.string().trim().max(5000, "is too long").optional().default(""),
+});
+
+const chooseReferenceSchema = z.object({
+  videoId: z.string({ error: "must be a string" }).trim().min(1, "is required").max(64, "is too long"),
+});
+
 const bulkIdsSchema = z.object({
   ids: z.array(objectId).min(1, "No thumbnails selected").max(500),
 });
@@ -119,6 +129,8 @@ module.exports = {
   deleteAccountSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
+  projectSchema,
+  chooseReferenceSchema,
   bulkIdsSchema,
   bulkTagSchema,
   bulkCollectionSchema,

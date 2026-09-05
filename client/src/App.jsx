@@ -8,6 +8,7 @@ import Signup from "./pages/Signup";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
+import Research from "./pages/Research";
 import ThumbnailDetail from "./pages/ThumbnailDetail";
 import Compare from "./pages/Compare";
 import Settings from "./pages/Settings";
@@ -62,6 +63,16 @@ function AppRoutes() {
             <PageTransition>
               <ResetPassword />
             </PageTransition>
+          }
+        />
+        <Route
+          path="/research"
+          element={
+            <ProtectedRoute>
+              <PageTransition>
+                <Research />
+              </PageTransition>
+            </ProtectedRoute>
           }
         />
         <Route
