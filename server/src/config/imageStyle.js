@@ -1,6 +1,8 @@
 const sharp = require("sharp");
 
 const SAMPLE = 64;
+const SIDEBAR_W = 120;
+const SIDEBAR_H = 68;
 const MAX_BYTES = 8 * 1024 * 1024;
 
 const FIXABLE = [
@@ -87,6 +89,100 @@ async function extract(input) {
   };
 }
 
+async function contrastAtSidebar(input) {
+  const { data, info } = await sharp(input)
+    .resize(SIDEBAR_W, SIDEBAR_H, { fit: "fill" })
+    .flatten({ background: { r: 0, g: 0, b: 0 } })
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+
+  const n = info.width * info.height;
+  const lum = new Float64Array(n);
+  let sum = 0;
+
+  for (let i = 0; i < n; i += 1) {
+    lum[i] = 0.2126 * data[i * 3] + 0.7152 * data[i * 3 + 1] + 0.0722 * data[i * 3 + 2];
+    sum += lum[i];
+  }
+
+  const mean = sum / n;
+  let varSum = 0;
+  for (let i = 0; i < n; i += 1) varSum += (lum[i] - mean) ** 2;
+
+  return round2(Math.min(100, (Math.sqrt(varSum / n) / 128) * 100));
+}
+
+function focalConcentration(style) {
+  const even = 100 / 9;
+  const deviation = (style.energyGrid || []).reduce((a, v) => a + Math.abs(v - even), 0);
+  return round2(Math.min(100, (deviation / (2 * (100 - even))) * 100));
+}
+
+const STANDALONE = [
+  { key: "legibility", label: "Legibility at small size", weight: 0.45, target: 60 },
+  { key: "focalConcentration", label: "Focal concentration", weight: 0.3, target: 40 },
+  { key: "colourPunch", label: "Colour punch", weight: 0.25, target: 55 },
+];
+
+const THRESHOLDS = {
+  legibility: { low: 20, high: 55 },
+  focalConcentration: { low: 15, high: 45 },
+  colourPunch: { low: 25, high: 55 },
+};
+
+function observationsFor(attributes) {
+  const out = [];
+
+  const l = attributes.legibility;
+  if (l < THRESHOLDS.legibility.low) {
+    out.push({ category: "Legibility", priority: "high", tip: `At sidebar size the tonal separation falls to ${l} out of 100. Below about ${THRESHOLDS.legibility.low} the image reads as one flat block when small.` });
+  } else if (l < THRESHOLDS.legibility.high) {
+    out.push({ category: "Legibility", priority: "medium", tip: `Tonal separation at sidebar size is ${l}. Bolder shapes and fewer fine details would hold up better in a small player.` });
+  } else {
+    out.push({ category: "Legibility", priority: "low", tip: `Tonal separation holds at ${l} when shrunk to sidebar size, so the shapes still read.` });
+  }
+
+  const f = attributes.focalConcentration;
+  if (f < THRESHOLDS.focalConcentration.low) {
+    out.push({ category: "Focus", priority: "high", tip: `Visual weight is spread evenly across the frame (${f} out of 100), so no single area pulls the eye.` });
+  } else if (f < THRESHOLDS.focalConcentration.high) {
+    out.push({ category: "Focus", priority: "medium", tip: `There is some concentration of visual weight (${f}), but the subject could be made to stand out more from its surroundings.` });
+  } else {
+    out.push({ category: "Focus", priority: "low", tip: `Visual weight concentrates strongly in one area (${f}), giving the eye a clear place to land.` });
+  }
+
+  const c = attributes.colourPunch;
+  if (c < THRESHOLDS.colourPunch.low) {
+    out.push({ category: "Colour", priority: "high", tip: `Saturation and contrast combine to ${c} out of 100. Muted colour tends to disappear beside more vivid thumbnails.` });
+  } else if (c < THRESHOLDS.colourPunch.high) {
+    out.push({ category: "Colour", priority: "medium", tip: `Colour punch measures ${c}. There is room to push saturation or contrast further.` });
+  } else {
+    out.push({ category: "Colour", priority: "low", tip: `Colour punch measures ${c}, strong enough to hold attention next to competing thumbnails.` });
+  }
+
+  return out;
+}
+
+async function analyzeStandalone(input) {
+  const style = await extract(input);
+  const legibility = await contrastAtSidebar(input);
+
+  const attributes = {
+    legibility,
+    focalConcentration: focalConcentration(style),
+    colourPunch: round2(Math.min(100, style.saturation * 0.6 + style.contrast * 0.4)),
+  };
+
+  const score = Math.round(
+    STANDALONE.reduce(
+      (total, d) => total + Math.min(100, (attributes[d.key] / d.target) * 100) * d.weight,
+      0,
+    ),
+  );
+
+  return { score, attributes, style, observations: observationsFor(attributes) };
+}
+
 function compositionDistance(a, b) {
   let total = 0;
   for (let i = 0; i < 9; i += 1) {
@@ -161,6 +257,11 @@ async function gradeToward(input, mine, ref) {
 
 module.exports = {
   extract,
+  analyzeStandalone,
+  contrastAtSidebar,
+  focalConcentration,
+  STANDALONE,
+  THRESHOLDS,
   scoreMatch,
   gradeToward,
   compositionDistance,

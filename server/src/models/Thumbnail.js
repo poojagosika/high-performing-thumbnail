@@ -28,10 +28,9 @@ const thumbnailSchema = new mongoose.Schema(
       default: null,
     },
     analysis: {
-      composition: { type: Number, min: 0, max: 100, default: null },
-      colorBalance: { type: Number, min: 0, max: 100, default: null },
-      textReadability: { type: Number, min: 0, max: 100, default: null },
-      emotionalImpact: { type: Number, min: 0, max: 100, default: null },
+      legibility: { type: Number, min: 0, max: 100, default: null },
+      focalConcentration: { type: Number, min: 0, max: 100, default: null },
+      colourPunch: { type: Number, min: 0, max: 100, default: null },
     },
     tags: [String],
     collectionId: {

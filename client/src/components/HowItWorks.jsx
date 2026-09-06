@@ -14,7 +14,7 @@ const steps = [
     icon: Cpu,
     title: "Get AI-powered analysis",
     description:
-      "Our model evaluates composition, colors, text readability, and emotional impact in seconds.",
+      "We measure legibility at sidebar size, where the visual weight sits, and colour punch — every number computed from your image.",
   },
   {
     number: "03",

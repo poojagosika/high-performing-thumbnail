@@ -22,6 +22,7 @@ const activitySchema = new mongoose.Schema({
       "restored",
       "purged",
       "logged",
+      "analyzed",
     ],
     required: true,
   },

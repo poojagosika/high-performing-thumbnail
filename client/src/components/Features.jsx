@@ -13,7 +13,7 @@ const features = [
     icon: Search,
     title: "Smart Analysis",
     description:
-      "Upload any thumbnail and get instant feedback on composition, color balance, and emotional impact.",
+      "Upload any thumbnail and see how it measures up — whether it still reads at sidebar size, whether one area pulls the eye, and how its colour holds against rivals.",
   },
   {
     icon: BarChart3,

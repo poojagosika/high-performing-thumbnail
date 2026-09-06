@@ -8,7 +8,6 @@ import {
   Layout,
   Palette,
   Type,
-  Heart,
   Trophy,
   Columns2,
   Layers,
@@ -28,10 +27,9 @@ import { useDialog } from "../hooks/useDialog";
 const stagger = (i) => ({ duration: 0.4, delay: i * 0.06, ease: "easeOut" });
 
 const analysisItems = [
-  { key: "composition", label: "Composition", Icon: Layout },
-  { key: "colorBalance", label: "Color Balance", Icon: Palette },
-  { key: "textReadability", label: "Text Readability", Icon: Type },
-  { key: "emotionalImpact", label: "Emotional Impact", Icon: Heart },
+  { key: "legibility", label: "Legibility at small size", Icon: Type },
+  { key: "focalConcentration", label: "Focal concentration", Icon: Layout },
+  { key: "colourPunch", label: "Colour punch", Icon: Palette },
 ];
 
 function StatCard({ label, Icon, valueA, valueB, suffix = "" }) {
