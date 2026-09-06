@@ -10,8 +10,8 @@ const plans = [
     description: "For creators just getting started.",
     features: [
       "5 thumbnail analyses per month",
-      "Basic composition feedback",
-      "CTR score predictions",
+      "Measured legibility and colour report",
+      "Real view counts from YouTube",
       "Community support",
     ],
     cta: "Get Started",

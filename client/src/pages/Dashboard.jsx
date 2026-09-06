@@ -1359,6 +1359,7 @@ function Dashboard() {
                         shared: <Share2 className="w-3 h-3 text-blue-400" />,
                         unshared: <Share2 className="w-3 h-3 text-[#61616b]" />,
                         reuploaded: <History className="w-3 h-3 text-cyan-400" />,
+                        analyzed: <Sparkles className="w-3 h-3 text-violet-400" />,
                       };
                       const labels = {
                         uploaded: "Uploaded",
@@ -1370,6 +1371,7 @@ function Dashboard() {
                         shared: "Shared",
                         unshared: "Unshared",
                         reuploaded: "Reuploaded",
+                        analyzed: "Analyzed",
                       };
                       const timeAgo = (date) => {
                         const s = Math.floor((Date.now() - new Date(date)) / 1000);
