@@ -3,7 +3,6 @@ import { motion } from "framer-motion";
 import { BarChart3, TrendingUp, Trophy, Target } from "lucide-react";
 
 const CHART_H = 160;
-const CHART_W = 100; // percentage-based, SVG viewBox handles this
 const PAD = { top: 12, right: 12, bottom: 28, left: 32 };
 
 function ScoreChart({ thumbnails }) {

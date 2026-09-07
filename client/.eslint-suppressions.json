@@ -1,0 +1,43 @@
+{
+  "src/components/EditModal.jsx": {
+    "react-hooks/set-state-in-effect": {
+      "count": 1
+    }
+  },
+  "src/components/ui/button.jsx": {
+    "react-refresh/only-export-components": {
+      "count": 1
+    }
+  },
+  "src/context/AuthContext.jsx": {
+    "react-refresh/only-export-components": {
+      "count": 1
+    }
+  },
+  "src/context/ToastContext.jsx": {
+    "react-refresh/only-export-components": {
+      "count": 1
+    }
+  },
+  "src/pages/Compare.jsx": {
+    "react-hooks/purity": {
+      "count": 1
+    },
+    "react-hooks/refs": {
+      "count": 4
+    }
+  },
+  "src/pages/Dashboard.jsx": {
+    "react-hooks/preserve-manual-memoization": {
+      "count": 3
+    }
+  },
+  "src/pages/ThumbnailDetail.jsx": {
+    "react-hooks/refs": {
+      "count": 15
+    },
+    "react-hooks/set-state-in-effect": {
+      "count": 1
+    }
+  }
+}
