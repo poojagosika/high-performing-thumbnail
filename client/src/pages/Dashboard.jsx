@@ -517,12 +517,14 @@ function Dashboard() {
     setAnalyzeProgress({ done: 0, total: selectedIds.length });
     let completed = 0;
     for (const thumbId of selectedIds) {
-      try {
-        const updated = await api(`/thumbnails/${thumbId}/analyze`, { method: "POST" });
+      const updated = await api(`/thumbnails/${thumbId}/analyze`, { method: "POST" }).catch(
+        () => null,
+      );
+      if (updated) {
         setThumbnails((prev) =>
           prev.map((t) => (t._id === updated._id ? updated : t)),
         );
-      } catch {}
+      }
       completed++;
       setAnalyzeProgress({ done: completed, total: selectedIds.length });
     }
@@ -1751,7 +1753,7 @@ function Dashboard() {
               />
               {searchFocused && searchSuggestions.length > 0 && (
                 <div className="absolute top-full left-0 right-0 mt-1.5 rounded-xl border border-white/8 bg-[#111118] shadow-2xl overflow-hidden z-50">
-                  {searchSuggestions.map((s, i) => (
+                  {searchSuggestions.map((s) => (
                     <button
                       key={`${s.type}-${s.id}`}
                       onClick={() => {
@@ -2507,7 +2509,7 @@ function Dashboard() {
             </span>
             <Button
               onClick={() => {
-                const params = compareIds.map((id, i) => `ids=${id}`).join("&");
+                const params = compareIds.map((id) => `ids=${id}`).join("&");
                 navigate(`/compare?${params}`);
               }}
               className="h-8 text-[13px] bg-white text-[#0a0a0f] hover:bg-white/90 font-medium gap-1.5"

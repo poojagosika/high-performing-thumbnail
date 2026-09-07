@@ -149,7 +149,6 @@ function ThumbnailDetail() {
   const [cropOpen, setCropOpen] = useState(false);
   const [cropArea, setCropArea] = useState({ x: 0, y: 0, w: 100, h: 100 });
   const [cropPreset, setCropPreset] = useState(null);
-  const [cropDragging, setCropDragging] = useState(null);
   const [annotateOpen, setAnnotateOpen] = useState(false);
 
   const zoomDialog = useDialog(zoomed, () => { setZoomed(false); setZoomLevel(1); setPanOffset({ x: 0, y: 0 }); }, { label: "Zoomed thumbnail" });
@@ -166,7 +165,6 @@ function ThumbnailDetail() {
   const annoCanvasRef = useRef(null);
   const annoImgRef = useRef(null);
   const annoContainerRef = useRef(null);
-  const cropCanvasRef = useRef(null);
   const cropImgRef = useRef(null);
   const cropContainerRef = useRef(null);
   const downloadRef = useRef(null);
@@ -185,7 +183,7 @@ function ThumbnailDetail() {
 
     setNotesInput("");
     setNotesSaved(true);
-    setComparingVersion(null);
+    setVersionCompare(null);
     setPalette([]);
 
     api(`/thumbnails/${id}`)
@@ -617,7 +615,6 @@ function ThumbnailDetail() {
           const ratio = cropPreset.w / cropPreset.h;
           const img = cropImgRef.current;
           if (img) {
-            const imgRatio = img.naturalWidth / img.naturalHeight;
             const pixelW = (w / 100) * img.naturalWidth;
             const newH = pixelW / ratio;
             h = (newH / img.naturalHeight) * 100;
@@ -1027,7 +1024,7 @@ function ThumbnailDetail() {
             </p>
 
             {/* Version History */}
-            {(thumb.versions?.length > 0 || true) && (
+            {thumb.versions?.length > 0 && (
               <div className="mt-4 rounded-xl border border-white/6 bg-[#111118] p-4">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="flex items-center gap-1.5 text-[13px] text-[#7b7b88] font-medium">
@@ -2493,7 +2490,7 @@ function ThumbnailDetail() {
                   crossOrigin="anonymous"
                   className="w-full object-contain"
                   draggable={false}
-                  onLoad={(e) => {
+                  onLoad={() => {
                     if (!cropPreset) {
                       setCropArea({ x: 5, y: 5, w: 90, h: 90 });
                     }

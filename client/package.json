@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
+    "lint:ci": "eslint . --suppressions-location .eslint-suppressions.json",
     "preview": "vite preview"
   },
   "imports": {
