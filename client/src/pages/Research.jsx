@@ -1,4 +1,5 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
+import { Link, useParams, useNavigate } from "react-router";
 import { motion } from "framer-motion";
 import {
   Search,
@@ -13,6 +14,9 @@ import {
   Wand2,
   Download,
   RotateCcw,
+  History,
+  Trash2,
+  Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import DashboardNav from "../components/DashboardNav";
@@ -39,19 +43,91 @@ const scoreTone = (score) =>
 const severityTone = (severity) =>
   severity === "high" ? "text-red-400" : severity === "medium" ? "text-amber-400" : "text-emerald-400";
 
+const ago = (date) => {
+  const seconds = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
+  if (seconds < 60) return "just now";
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  return new Date(date).toLocaleDateString();
+};
+
+const stageOf = (p) => {
+  if (p.hasGraded) return "graded";
+  if (p.hasUpload) return "matched";
+  if (p.chosenVideoId) return "reference picked";
+  return "not started";
+};
+
 function Research() {
   const toast = useToast();
+  const { id } = useParams();
+  const navigate = useNavigate();
 
   const [title, setTitle] = useState("");
   const [tags, setTags] = useState("");
   const [description, setDescription] = useState("");
-  const [project, setProject] = useState(null);
+  const [entry, setEntry] = useState({ id: null, project: null, notFound: false });
   const [error, setError] = useState("");
   const [searching, setSearching] = useState(false);
   const [choosing, setChoosing] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [grading, setGrading] = useState(false);
+  const [history, setHistory] = useState([]);
+  const [deleting, setDeleting] = useState(null);
+  const [historyTick, setHistoryTick] = useState(0);
   const fileRef = useRef(null);
+
+  const openId = id || null;
+  const project = entry.id === openId ? entry.project : null;
+  const notFound = entry.id === openId && entry.notFound;
+  const loadingProject = Boolean(openId) && entry.id !== openId;
+
+  const applyProject = (data) =>
+    setEntry({ id: String(data.id), project: data, notFound: false });
+
+  const refreshHistory = () => setHistoryTick((n) => n + 1);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    api("/projects")
+      .then((rows) => {
+        if (!cancelled) setHistory(rows);
+      })
+      .catch(() => {
+        if (!cancelled) setHistory([]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [historyTick]);
+
+  useEffect(() => {
+    if (!id || entry.id === id) return;
+
+    let cancelled = false;
+
+    api(`/projects/${id}`)
+      .then((data) => {
+        if (cancelled) return;
+        setEntry({ id: String(data.id), project: data, notFound: false });
+        setTitle(data.title || "");
+        setTags((data.tags || []).join(", "));
+        setDescription(data.description || "");
+      })
+      .catch(() => {
+        if (!cancelled) setEntry({ id, project: null, notFound: true });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id, entry.id]);
 
   const chosen = project?.candidates?.find((c) => c.videoId === project.chosenVideoId);
   const report = project?.gradedReport || project?.matchReport;
@@ -65,7 +141,8 @@ function Research() {
 
     setUploading(true);
     try {
-      setProject(await uploadFile(`/projects/${project.id}/upload`, form));
+      applyProject(await uploadFile(`/projects/${project.id}/upload`, form));
+      refreshHistory();
       toast.success("Measured against your reference");
     } catch (err) {
       toast.error(err.message);
@@ -78,7 +155,8 @@ function Research() {
   const handleGrade = async () => {
     setGrading(true);
     try {
-      setProject(await api(`/projects/${project.id}/grade`, { method: "POST" }));
+      applyProject(await api(`/projects/${project.id}/grade`, { method: "POST" }));
+      refreshHistory();
       toast.success("Colour graded toward the reference");
     } catch (err) {
       toast.error(err.message);
@@ -89,7 +167,8 @@ function Research() {
 
   const handleClear = async () => {
     try {
-      setProject(await api(`/projects/${project.id}/upload`, { method: "DELETE" }));
+      applyProject(await api(`/projects/${project.id}/upload`, { method: "DELETE" }));
+      refreshHistory();
     } catch (err) {
       toast.error(err.message);
     }
@@ -105,7 +184,6 @@ function Research() {
     }
 
     setSearching(true);
-    setProject(null);
 
     try {
       const data = await api("/projects", {
@@ -116,7 +194,9 @@ function Research() {
           description: description.trim(),
         },
       });
-      setProject(data.project);
+      applyProject(data.project);
+      refreshHistory();
+      navigate(`/research/${data.project.id}`, { replace: true });
       if (data.project.candidates.length === 0) {
         toast.info("No videos matched that topic. Try broader wording.");
       }
@@ -127,6 +207,29 @@ function Research() {
     }
   };
 
+  const handleDelete = async (projectId) => {
+    setDeleting(projectId);
+    try {
+      await api(`/projects/${projectId}`, { method: "DELETE" });
+      setHistory((prev) => prev.filter((p) => String(p.id) !== String(projectId)));
+      toast.success("Topic deleted");
+      if (String(projectId) === String(id)) navigate("/research");
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setDeleting(null);
+    }
+  };
+
+  const handleNew = () => {
+    setTitle("");
+    setTags("");
+    setDescription("");
+    setError("");
+    setEntry({ id: null, project: null, notFound: false });
+    navigate("/research");
+  };
+
   const handleChoose = async (videoId) => {
     setChoosing(videoId);
     try {
@@ -134,7 +237,8 @@ function Research() {
         method: "PATCH",
         body: { videoId },
       });
-      setProject(updated);
+      applyProject(updated);
+      refreshHistory();
       toast.success("Reference selected");
     } catch (err) {
       toast.error(err.message);
@@ -152,15 +256,27 @@ function Research() {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={stagger(0)}
-          className="mb-8"
+          className="mb-8 flex items-start justify-between gap-4"
         >
-          <h1 className="font-heading text-2xl font-semibold text-white tracking-[-0.01em]">
-            Find your reference
-          </h1>
-          <p className="text-[14px] text-[#7b7b88] mt-1">
-            Describe your video. We pull the thumbnails already winning on that
-            topic, ranked by how fast they are gaining views.
-          </p>
+          <div>
+            <h1 className="font-heading text-2xl font-semibold text-white tracking-[-0.01em]">
+              Find your reference
+            </h1>
+            <p className="text-[14px] text-[#7b7b88] mt-1">
+              Describe your video. We pull the thumbnails already winning on that
+              topic, ranked by total views.
+            </p>
+          </div>
+          {id && (
+            <Button
+              onClick={handleNew}
+              variant="outline"
+              className="h-8 shrink-0 text-[12px] border-white/8 text-[#7b7b88] hover:text-white hover:border-white/12 bg-transparent font-medium gap-1.5"
+            >
+              <Plus className="w-3 h-3" />
+              New topic
+            </Button>
+          )}
         </motion.div>
 
         <motion.form
@@ -230,7 +346,32 @@ function Research() {
           </div>
         </motion.form>
 
-        {project && (
+        {loadingProject && (
+          <div className="rounded-xl border border-white/6 bg-[#111118] p-8 flex items-center justify-center gap-2">
+            <Loader2 className="w-4 h-4 animate-spin text-[#7b7b88]" />
+            <span className="text-[13px] text-[#7b7b88]">Loading your topic</span>
+          </div>
+        )}
+
+        {notFound && !loadingProject && (
+          <div className="rounded-xl border border-white/6 bg-[#111118] p-8 text-center">
+            <AlertTriangle className="w-4 h-4 text-[#7b7b88] mx-auto mb-2" />
+            <p className="text-[13px] text-white">That topic is not available</p>
+            <p className="text-[12px] text-[#7b7b88] mt-1">
+              It was deleted, or it belongs to another account.
+            </p>
+            <Button
+              onClick={handleNew}
+              variant="outline"
+              className="h-8 mt-4 text-[12px] border-white/8 text-[#7b7b88] hover:text-white hover:border-white/12 bg-transparent font-medium gap-1.5"
+            >
+              <Plus className="w-3 h-3" />
+              Start a new topic
+            </Button>
+          </div>
+        )}
+
+        {project && !loadingProject && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -253,7 +394,7 @@ function Research() {
                 Top {project.candidates.length} for &ldquo;{project.searchQuery}&rdquo;
               </h2>
               <span className="text-[12px] text-[#61616b]">
-                ranked by views per day
+                ranked by total views
               </span>
             </div>
 
@@ -512,6 +653,83 @@ function Research() {
               </div>
             )}
           </motion.div>
+        )}
+
+        {history.length > 0 && (
+          <motion.section
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={stagger(3)}
+            className="mt-10"
+          >
+            <div className="flex items-center gap-1.5 mb-3">
+              <History className="w-3.5 h-3.5 text-[#7b7b88]" />
+              <h2 className="text-[14px] font-medium text-white">Your topics</h2>
+              <span className="text-[12px] text-[#61616b]">
+                already searched, free to reopen
+              </span>
+            </div>
+
+            <div className="rounded-xl border border-white/6 bg-[#111118] overflow-hidden">
+              {history.map((p, i) => {
+                const open = String(p.id) === String(id);
+                return (
+                  <div
+                    key={p.id}
+                    className={`flex items-center gap-3 px-3 py-2.5 transition-colors ${
+                      i > 0 ? "border-t border-white/6" : ""
+                    } ${open ? "bg-white/6" : "hover:bg-white/3"}`}
+                  >
+                    <div className="relative w-16 aspect-video rounded shrink-0 overflow-hidden bg-white/4">
+                      {isFixture(p.previewUrl) ? (
+                        <div className="absolute inset-0 flex items-center justify-center text-[9px] text-[#61616b]">
+                          sample
+                        </div>
+                      ) : (
+                        <img
+                          src={p.previewUrl}
+                          alt=""
+                          loading="lazy"
+                          className="absolute inset-0 w-full h-full object-cover"
+                        />
+                      )}
+                    </div>
+
+                    <Link to={`/research/${p.id}`} className="min-w-0 flex-1">
+                      <p className="text-[13px] text-white truncate">{p.title}</p>
+                      <p className="text-[11px] text-[#61616b] mt-0.5 truncate">
+                        {p.candidateCount} thumbnails · {stageOf(p)} · {ago(p.createdAt)}
+                      </p>
+                    </Link>
+
+                    {p.score != null && (
+                      <span className={`text-[13px] font-medium shrink-0 ${scoreTone(p.score)}`}>
+                        {p.score}
+                      </span>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(p.id)}
+                      disabled={deleting === p.id}
+                      aria-label={`Delete ${p.title}`}
+                      className="shrink-0 p-1.5 rounded text-[#61616b] hover:text-red-400 hover:bg-white/4 transition-colors"
+                    >
+                      {deleting === p.id ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Trash2 className="w-3.5 h-3.5" />
+                      )}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+
+            <p className="text-[11px] text-[#61616b] mt-2">
+              Reopening a topic costs no YouTube quota — the results are already saved.
+            </p>
+          </motion.section>
         )}
       </main>
     </div>

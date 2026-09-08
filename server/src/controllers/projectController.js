@@ -90,6 +90,27 @@ const shape = (project) => ({
   createdAt: project.createdAt,
 });
 
+const summarize = (project) => {
+  const chosen = project.candidates.find((c) => c.videoId === project.chosenVideoId);
+  const preview = chosen || project.candidates[0] || null;
+  const report = project.gradedReport || project.matchReport;
+
+  return {
+    id: project._id,
+    title: project.title,
+    tags: project.tags,
+    searchQuery: project.searchQuery,
+    source: project.source,
+    candidateCount: project.candidates.length,
+    chosenVideoId: project.chosenVideoId,
+    previewUrl: preview ? preview.thumbnailUrl : null,
+    hasUpload: Boolean(project.uploadUrl),
+    hasGraded: Boolean(project.gradedUrl),
+    score: report ? report.score : null,
+    createdAt: project.createdAt,
+  };
+};
+
 async function resolveTopic(query) {
   const cached = await TopicSearch.findOne({ query });
 
@@ -143,7 +164,7 @@ const getProjects = async (req, res) => {
     const projects = await Project.find({ user: req.user._id })
       .sort({ createdAt: -1 })
       .limit(50);
-    res.json(projects.map(shape));
+    res.json(projects.map(summarize));
   } catch (error) {
     res.status(500).json({ message: "Server error" });
   }
@@ -323,4 +344,5 @@ module.exports = {
   deleteProject,
   resolveTopic,
   analyzeReference,
+  summarize,
 };
