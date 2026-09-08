@@ -37,7 +37,12 @@ const mkProject = (doc) => ({
 
 const ProjectStub = {
   create: async (doc) => { const p = mkProject(doc); projects.push(p); return p; },
-  find: () => ({ sort: () => ({ limit: async () => projects }) }),
+  find: (f = {}) => {
+    const matched = projects.filter(
+      (p) => f.user === undefined || String(p.user) === String(f.user),
+    );
+    return { sort: () => ({ limit: async (n) => matched.slice(0, n) }) };
+  },
   findOne: async (f) =>
     projects.find((p) => String(p._id) === String(f._id) && (f.user === undefined || String(p.user) === String(f.user))) || null,
   findOneAndDelete: async (f) => {
@@ -157,6 +162,53 @@ const reset = () => { cacheRows = []; projects = []; apiCalls = 0; nextId = 1; }
   res = mkRes();
   await ctrl.getProject({ user: { _id: "u1" }, params: { id: project.id } }, res);
   check("project still shows its candidates after the cache is gone", res.body.candidates.length === 5, String(res.body.candidates?.length));
+
+  console.log("\nlisting past topics");
+  reset();
+  await ctrl.createProject({ user: { _id: "u1" }, body: { title: "first topic", tags: ["a"] } }, mkRes());
+  res = mkRes();
+  await ctrl.createProject({ user: { _id: "u1" }, body: { title: "second topic", tags: [] } }, res);
+  const second = res.body.project;
+  await ctrl.createProject({ user: { _id: "u2" }, body: { title: "not yours", tags: [] } }, mkRes());
+
+  res = mkRes();
+  await ctrl.getProjects({ user: { _id: "u1" } }, res);
+  check("u1 sees both of their own topics", res.body.length === 2, String(res.body.length));
+  check("and NOT u2's", !res.body.some((p) => p.title === "not yours"), JSON.stringify(res.body.map((p) => p.title)));
+  check("summary carries the title", res.body[0].title === "first topic", res.body[0].title);
+  check("summary counts candidates", res.body[0].candidateCount === 5, String(res.body[0].candidateCount));
+  check("summary omits the candidates array", res.body[0].candidates === undefined);
+  check("summary omits the style blobs", res.body[0].referenceStyle === undefined && res.body[0].uploadStyle === undefined);
+  check("summary reports the stage", res.body[0].hasUpload === false && res.body[0].hasGraded === false);
+  check("summary has no score before a match", res.body[0].score === null, String(res.body[0].score));
+
+  res = mkRes();
+  await ctrl.getProjects({ user: { _id: "u2" } }, res);
+  check("u2 sees only their own", res.body.length === 1 && res.body[0].title === "not yours", JSON.stringify(res.body.map((p) => p.title)));
+
+  res = mkRes();
+  await ctrl.getProjects({ user: { _id: "u3" } }, res);
+  check("a user with no topics gets an empty list", Array.isArray(res.body) && res.body.length === 0, JSON.stringify(res.body));
+
+  console.log("\nresuming a topic spends no quota");
+  const spentBeforeResume = apiCalls;
+  res = mkRes();
+  await ctrl.chooseReference({ user: { _id: "u1" }, params: { id: second.id }, body: { videoId: second.candidates[1].videoId } }, res);
+  check("reference chosen on the saved project", res.body.chosenVideoId === second.candidates[1].videoId, String(res.body?.chosenVideoId));
+
+  res = mkRes();
+  await ctrl.getProject({ user: { _id: "u1" }, params: { id: second.id } }, res);
+  check("reopening returns the project", res.statusCode === 200, JSON.stringify(res.body));
+  check("with its candidates intact", res.body.candidates.length === 5, String(res.body.candidates?.length));
+  check("and the reference it left off at", res.body.chosenVideoId === second.candidates[1].videoId, String(res.body.chosenVideoId));
+  check("RESUME COSTS ZERO YOUTUBE CALLS", apiCalls === spentBeforeResume, `${apiCalls} vs ${spentBeforeResume}`);
+
+  res = mkRes();
+  await ctrl.getProjects({ user: { _id: "u1" } }, res);
+  const resumed = res.body.find((p) => String(p.id) === String(second.id));
+  check("the list reflects the chosen reference", resumed.chosenVideoId === second.candidates[1].videoId, String(resumed.chosenVideoId));
+  check("and offers a preview thumbnail", typeof resumed.previewUrl === "string" && resumed.previewUrl.length > 0, String(resumed.previewUrl));
+  check("listing spends no quota either", apiCalls === spentBeforeResume, String(apiCalls));
 
   console.log("\nquota exhaustion surfaces properly");
   reset();

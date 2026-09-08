@@ -76,6 +76,16 @@ function AppRoutes() {
           }
         />
         <Route
+          path="/research/:id"
+          element={
+            <ProtectedRoute>
+              <PageTransition>
+                <Research />
+              </PageTransition>
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/dashboard"
           element={
             <ProtectedRoute>
