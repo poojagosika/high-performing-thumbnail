@@ -14,7 +14,7 @@ let projects = [];
 let nextId = 1;
 const DEFAULTS = {
   chosenVideoId: null, referenceStyle: null, uploadUrl: null, uploadStyle: null,
-  matchReport: null, gradedUrl: null, gradedReport: null,
+  matchReport: null, matchReports: null, candidateStyles: {}, gradedUrl: null, gradedReport: null,
   description: "", tags: [], candidates: [],
 };
 const mk = (doc) => ({ ...DEFAULTS, ...doc, _id: doc._id || `p${nextId++}`, createdAt: new Date(), save: async function () { return this; } });
@@ -67,9 +67,17 @@ const placeUpload = (buf, ext = "jpg") => {
 };
 
 (async () => {
+  let fetches = 0;
   const server = http.createServer(async (req, res) => {
+    fetches += 1;
     if (req.url === "/thumb.jpg") {
       const img = await noisy([200, 120, 60], 90, 11);
+      res.writeHead(200, { "content-type": "image/jpeg", "content-length": img.length });
+      return res.end(img);
+    }
+    if (req.url.startsWith("/img/")) {
+      const n = Number(req.url.slice(5));
+      const img = await noisy([40 + n * 45, 120, 220 - n * 40], 60, 30 + n);
       res.writeHead(200, { "content-type": "image/jpeg", "content-length": img.length });
       return res.end(img);
     }
@@ -196,18 +204,86 @@ const placeUpload = (buf, ext = "jpg") => {
   await ctrl.clearUpload({ user: { _id: "u2" }, params: { id: p._id } }, res);
   check("another user cannot clear my upload", res.statusCode === 404);
 
-  console.log("\nswitching reference resets downstream work");
-  p = await newProject(`${base}/thumb.jpg`);
-  p.candidates.push({ videoId: "vid2", title: "other", thumbnailUrl: `${base}/thumb.jpg`, viewCount: 100, viewsPerDay: 1 });
+  console.log("\nscoring against all five winners");
+  p = await newProject(`${base}/img/0`);
+  for (let i = 1; i < 5; i += 1) {
+    p.candidates.push({ videoId: `vid${i + 1}`, title: `ref ${i}`, thumbnailUrl: `${base}/img/${i}`, viewCount: 5000 - i, viewsPerDay: 5 });
+  }
+  await ctrl.chooseReference({ user: { _id: "u1" }, params: { id: p._id }, body: { videoId: "vid1" } }, mkRes());
+  const fAll = placeUpload(await noisy([120, 120, 120], 40, 51));
+  const fetchesAtUpload = fetches;
+  res = mkRes();
+  await ctrl.uploadThumbnail({ user: { _id: "u1" }, params: { id: p._id }, file: { filename: fAll } }, res);
+  const reports = res.body.matchReports;
+  check("a report for every candidate", Array.isArray(reports) && reports.length === 5, JSON.stringify(reports?.length));
+  check("each report names its video", reports.every((r) => typeof r.videoId === "string"), JSON.stringify(reports.map((r) => r.videoId)));
+  check("each report scores 0-100", reports.every((r) => r.score >= 0 && r.score <= 100), JSON.stringify(reports.map((r) => r.score)));
+  check("each report splits fixable/manual", reports.every((r) => r.fixable.length === 4 && r.manual.length === 2));
+  check("sorted best first", reports.every((r, i) => i === 0 || reports[i - 1].score >= r.score), JSON.stringify(reports.map((r) => r.score)));
+  check("the top one really is the maximum", reports[0].score === Math.max(...reports.map((r) => r.score)));
+  check("the references genuinely differ", new Set(reports.map((r) => r.score)).size > 1, JSON.stringify(reports.map((r) => r.score)));
+  check("chosen candidate's own report still present", typeof res.body.matchReport?.score === "number");
+  check("chosen candidate's score matches its entry in the list",
+    reports.find((r) => r.videoId === "vid1").score === res.body.matchReport.score,
+    `${reports.find((r) => r.videoId === "vid1")?.score} vs ${res.body.matchReport.score}`);
+  check("styles cached per candidate", Object.keys(p.candidateStyles).length === 5, String(Object.keys(p.candidateStyles).length));
+  check("only the four UNMEASURED references are fetched, the chosen one is reused",
+    fetches - fetchesAtUpload === 4, String(fetches - fetchesAtUpload));
+
+  console.log("\nre-upload reuses every measured style");
+  const cachedBefore = JSON.stringify(p.candidateStyles);
+  const fetchesBeforeReupload = fetches;
+  const fReup = placeUpload(await noisy([100, 140, 90], 40, 53));
+  await ctrl.uploadThumbnail({ user: { _id: "u1" }, params: { id: p._id }, file: { filename: fReup } }, mkRes());
+  check("ZERO further reference fetches", fetches === fetchesBeforeReupload, `${fetches} vs ${fetchesBeforeReupload}`);
+  check("cached styles untouched", JSON.stringify(p.candidateStyles) === cachedBefore);
+  check("but the scores are recomputed for the new image", p.matchReports.length === 5);
+
+  console.log("\none unreachable reference does not sink the rest");
+  p = await newProject(`${base}/img/0`);
+  p.candidates.push({ videoId: "vid2", title: "dead", thumbnailUrl: `${base}/boom`, viewCount: 10, viewsPerDay: 1 });
+  p.candidates.push({ videoId: "vid3", title: "ok", thumbnailUrl: `${base}/img/2`, viewCount: 10, viewsPerDay: 1 });
+  await ctrl.chooseReference({ user: { _id: "u1" }, params: { id: p._id }, body: { videoId: "vid1" } }, mkRes());
+  const fDead = placeUpload(await noisy([120, 120, 120], 40, 52));
+  res = mkRes();
+  await ctrl.uploadThumbnail({ user: { _id: "u1" }, params: { id: p._id }, file: { filename: fDead } }, res);
+  check("upload still succeeds", res.statusCode === 200, JSON.stringify(res.body).slice(0, 120));
+  check("the reachable two are scored", res.body.matchReports.length === 2, String(res.body.matchReports?.length));
+  check("the dead one is omitted, not zero-scored", !res.body.matchReports.some((r) => r.videoId === "vid2"));
+
+  const fetchesBeforeRetry = fetches;
+  const fRetry = placeUpload(await noisy([100, 140, 90], 40, 53));
+  await ctrl.uploadThumbnail({ user: { _id: "u1" }, params: { id: p._id }, file: { filename: fRetry } }, mkRes());
+  check("an unreachable reference is retried next time, not cached as dead", fetches > fetchesBeforeRetry, `${fetches} vs ${fetchesBeforeRetry}`);
+
+  console.log("\nswitching reference keeps your upload and re-scores");
+  p = await newProject(`${base}/img/0`);
+  p.candidates.push({ videoId: "vid2", title: "other", thumbnailUrl: `${base}/img/3`, viewCount: 100, viewsPerDay: 1 });
   await ctrl.chooseReference({ user: { _id: "u1" }, params: { id: p._id }, body: { videoId: "vid1" } }, mkRes());
   const f5 = placeUpload(await noisy([120, 120, 120], 40, 15));
   await ctrl.uploadThumbnail({ user: { _id: "u1" }, params: { id: p._id }, file: { filename: f5 } }, mkRes());
+  const scoreVsFirst = p.matchReport.score;
+  const styleBefore = JSON.stringify(p.uploadStyle);
   await ctrl.gradeThumbnail({ user: { _id: "u1" }, params: { id: p._id } }, mkRes());
+  const staleGraded = p.gradedUrl;
   res = mkRes();
   await ctrl.chooseReference({ user: { _id: "u1" }, params: { id: p._id }, body: { videoId: "vid2" } }, res);
-  check("upload cleared when the reference changes", res.body.uploadUrl === null && res.body.matchReport === null);
-  check("graded cleared too", res.body.gradedUrl === null && res.body.gradedReport === null);
-  check("stale upload file removed", !fs.existsSync(path.join(UPLOAD_DIR, f5)));
+  check("the upload SURVIVES the switch", res.body.uploadUrl !== null, String(res.body.uploadUrl));
+  check("the upload file is still on disk", fs.existsSync(path.join(UPLOAD_DIR, f5)));
+  check("uploadStyle is untouched", JSON.stringify(res.body.uploadStyle) === styleBefore);
+  check("re-scored against the new reference", typeof res.body.matchReport?.score === "number" && res.body.matchReport.score !== scoreVsFirst,
+    `${res.body.matchReport?.score} vs ${scoreVsFirst}`);
+  check("graded output cleared, it targeted the old reference", res.body.gradedUrl === null && res.body.gradedReport === null);
+  check("stale graded file removed", !fs.existsSync(path.join(UPLOAD_DIR, path.basename(staleGraded || "x"))));
+
+  console.log("\nswitching with no upload behaves as before");
+  p = await newProject(`${base}/img/0`);
+  p.candidates.push({ videoId: "vid2", title: "other", thumbnailUrl: `${base}/img/1`, viewCount: 1, viewsPerDay: 1 });
+  await ctrl.chooseReference({ user: { _id: "u1" }, params: { id: p._id }, body: { videoId: "vid1" } }, mkRes());
+  res = mkRes();
+  await ctrl.chooseReference({ user: { _id: "u1" }, params: { id: p._id }, body: { videoId: "vid2" } }, res);
+  check("reference switched", res.body.chosenVideoId === "vid2");
+  check("nothing to keep, nothing to score", res.body.uploadUrl === null && res.body.matchReport === null);
 
   console.log("\nclear upload");
   p = await newProject(`${base}/thumb.jpg`);

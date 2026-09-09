@@ -58,18 +58,45 @@ async function fetchReferenceImage(url) {
   return buffer;
 }
 
-async function analyzeReference(project) {
-  const chosen = project.candidates.find((c) => c.videoId === project.chosenVideoId);
-  if (!chosen || !chosen.thumbnailUrl) return null;
+async function analyzeCandidate(candidate) {
+  if (!candidate || !candidate.thumbnailUrl) return null;
 
   try {
-    const buffer = chosen.thumbnailUrl.startsWith("fixture://")
-      ? await synthesizeFixture(chosen.videoId)
-      : await fetchReferenceImage(chosen.thumbnailUrl);
+    const buffer = candidate.thumbnailUrl.startsWith("fixture://")
+      ? await synthesizeFixture(candidate.videoId)
+      : await fetchReferenceImage(candidate.thumbnailUrl);
     return await extract(buffer);
   } catch {
     return null;
   }
+}
+
+async function analyzeReference(project) {
+  return analyzeCandidate(
+    project.candidates.find((c) => c.videoId === project.chosenVideoId),
+  );
+}
+
+async function analyzeAllCandidates(project) {
+  const styles = { ...(project.candidateStyles || {}) };
+
+  for (const candidate of project.candidates) {
+    if (styles[candidate.videoId]) continue;
+    const style = await analyzeCandidate(candidate);
+    if (style) styles[candidate.videoId] = style;
+  }
+
+  return styles;
+}
+
+function buildMatchReports(project, uploadStyle, styles) {
+  return project.candidates
+    .filter((c) => styles[c.videoId])
+    .map((c) => ({
+      videoId: c.videoId,
+      ...scoreMatch(uploadStyle, styles[c.videoId]),
+    }))
+    .sort((a, b) => b.score - a.score);
 }
 
 const shape = (project) => ({
@@ -85,6 +112,7 @@ const shape = (project) => ({
   uploadUrl: project.uploadUrl,
   uploadStyle: project.uploadStyle,
   matchReport: project.matchReport,
+  matchReports: project.matchReports,
   gradedUrl: project.gradedUrl,
   gradedReport: project.gradedReport,
   createdAt: project.createdAt,
@@ -200,18 +228,31 @@ const chooseReference = async (req, res) => {
       return res.status(400).json({ message: "That thumbnail is not one of your results" });
     }
 
-    if (project.chosenVideoId !== videoId) {
-      removeUpload(project.uploadUrl);
+    const changed = project.chosenVideoId !== videoId;
+
+    if (changed) {
       removeUpload(project.gradedUrl);
-      project.uploadUrl = null;
-      project.uploadStyle = null;
-      project.matchReport = null;
       project.gradedUrl = null;
       project.gradedReport = null;
     }
 
     project.chosenVideoId = videoId;
-    project.referenceStyle = await analyzeReference(project);
+    project.referenceStyle =
+      (project.candidateStyles || {})[videoId] || (await analyzeReference(project));
+
+    if (project.referenceStyle) {
+      project.candidateStyles = {
+        ...(project.candidateStyles || {}),
+        [videoId]: project.referenceStyle,
+      };
+    }
+
+    if (changed && project.uploadStyle) {
+      project.matchReport = project.referenceStyle
+        ? scoreMatch(project.uploadStyle, project.referenceStyle)
+        : null;
+    }
+
     await project.save();
 
     res.json(shape(project));
@@ -266,10 +307,14 @@ const uploadThumbnail = async (req, res) => {
     const uploadUrl = `/uploads/${req.file.filename}`;
     const uploadStyle = await extract(uploadPath(uploadUrl));
 
+    const styles = await analyzeAllCandidates(project);
+
     project.referenceStyle = referenceStyle;
+    project.candidateStyles = styles;
     project.uploadUrl = uploadUrl;
     project.uploadStyle = uploadStyle;
     project.matchReport = scoreMatch(uploadStyle, referenceStyle);
+    project.matchReports = buildMatchReports(project, uploadStyle, styles);
     project.gradedUrl = null;
     project.gradedReport = null;
     await project.save();
@@ -323,6 +368,7 @@ const clearUpload = async (req, res) => {
     project.uploadUrl = null;
     project.uploadStyle = null;
     project.matchReport = null;
+    project.matchReports = null;
     project.gradedUrl = null;
     project.gradedReport = null;
     await project.save();
@@ -344,5 +390,8 @@ module.exports = {
   deleteProject,
   resolveTopic,
   analyzeReference,
+  analyzeCandidate,
+  analyzeAllCandidates,
+  buildMatchReports,
   summarize,
 };
