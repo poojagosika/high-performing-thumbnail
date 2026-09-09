@@ -131,6 +131,10 @@ function Research() {
 
   const chosen = project?.candidates?.find((c) => c.videoId === project.chosenVideoId);
   const report = project?.gradedReport || project?.matchReport;
+  const best = project?.matchReports?.[0] || null;
+
+  const candidateRank = (videoId) =>
+    (project?.candidates?.findIndex((c) => c.videoId === videoId) ?? -1) + 1;
 
   const handleUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -576,6 +580,73 @@ function Research() {
                         </span>
                       )}
                     </div>
+
+                    {project.matchReports?.length > 1 && (
+                      <div className="mt-5 pt-4 border-t border-white/6">
+                        <div className="flex items-baseline justify-between mb-2.5">
+                          <p className="text-[13px] text-white">
+                            How you compare to each winner
+                          </p>
+                          {best && best.videoId !== project.chosenVideoId && (
+                            <span className="text-[11px] text-[#61616b]">
+                              #{candidateRank(best.videoId)} is your closest match
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex flex-col gap-1">
+                          {project.matchReports.map((r) => {
+                            const c = project.candidates.find((x) => x.videoId === r.videoId);
+                            const isChosen = r.videoId === project.chosenVideoId;
+                            const isBest = best && r.videoId === best.videoId;
+                            return (
+                              <button
+                                key={r.videoId}
+                                type="button"
+                                onClick={() => handleChoose(r.videoId)}
+                                disabled={isChosen || choosing === r.videoId}
+                                className={`flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition-colors ${
+                                  isChosen ? "bg-white/8" : "hover:bg-white/4"
+                                }`}
+                              >
+                                <span className="text-[11px] text-[#61616b] w-5 shrink-0">
+                                  #{candidateRank(r.videoId)}
+                                </span>
+                                <span className="text-[12px] text-[#7b7b88] truncate flex-1 min-w-0">
+                                  {c?.title || r.videoId}
+                                </span>
+                                {isBest && !isChosen && (
+                                  <span className="text-[10px] text-emerald-400 shrink-0">
+                                    easiest target
+                                  </span>
+                                )}
+                                {isChosen && (
+                                  <span className="text-[10px] text-[#7b7b88] shrink-0">
+                                    current
+                                  </span>
+                                )}
+                                {choosing === r.videoId && (
+                                  <Loader2 className="w-3 h-3 animate-spin text-[#7b7b88] shrink-0" />
+                                )}
+                                <span className="w-16 h-1 rounded bg-white/8 shrink-0 overflow-hidden">
+                                  <span
+                                    className={`block h-full ${r.score >= 80 ? "bg-emerald-400" : r.score >= 55 ? "bg-amber-400" : "bg-red-400"}`}
+                                    style={{ width: `${r.score}%` }}
+                                  />
+                                </span>
+                                <span className={`text-[12px] font-medium w-7 text-right shrink-0 ${scoreTone(r.score)}`}>
+                                  {r.score}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        <p className="text-[11px] text-[#61616b] mt-2">
+                          Switching keeps your upload and re-scores it against the new reference.
+                        </p>
+                      </div>
+                    )}
 
                     <div className="grid gap-4 sm:grid-cols-2 mt-4">
                       <div>

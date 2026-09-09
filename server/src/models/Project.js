@@ -16,6 +16,8 @@ const projectSchema = new mongoose.Schema(
     candidates: { type: [candidateSchema], default: [] },
     chosenVideoId: { type: String, default: null },
     referenceStyle: { type: mongoose.Schema.Types.Mixed, default: null },
+    candidateStyles: { type: mongoose.Schema.Types.Mixed, default: () => ({}) },
+    matchReports: { type: mongoose.Schema.Types.Mixed, default: null },
     uploadUrl: { type: String, default: null },
     uploadStyle: { type: mongoose.Schema.Types.Mixed, default: null },
     matchReport: { type: mongoose.Schema.Types.Mixed, default: null },
