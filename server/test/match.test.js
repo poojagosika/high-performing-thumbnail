@@ -14,7 +14,8 @@ let projects = [];
 let nextId = 1;
 const DEFAULTS = {
   chosenVideoId: null, referenceStyle: null, uploadUrl: null, uploadStyle: null,
-  matchReport: null, matchReports: null, candidateStyles: {}, gradedUrl: null, gradedReport: null,
+  matchReport: null, matchReports: null, candidateStyles: {}, framedUrl: null, frameReport: null,
+  gradedUrl: null, gradedReport: null,
   description: "", tags: [], candidates: [],
 };
 const mk = (doc) => ({ ...DEFAULTS, ...doc, _id: doc._id || `p${nextId++}`, createdAt: new Date(), save: async function () { return this; } });
@@ -35,6 +36,7 @@ Module._load = function (request, parent) {
   return origLoad.apply(this, arguments);
 };
 const ctrl = require(path.join(SRC, "controllers/projectController"));
+const { extract } = require(path.join(SRC, "config/imageStyle"));
 Module._load = origLoad;
 
 let pass = 0, fail = 0;
@@ -59,6 +61,21 @@ const noisy = (base, spread, seed) => {
   return sharp(buf, { raw: { width: w, height: h, channels: 3 } }).jpeg().toBuffer();
 };
 
+const blobImg = async (w, h, cx, cy, radius) => {
+  const buf = Buffer.alloc(w * h * 3, 20);
+  for (let y = 0; y < h; y += 1) {
+    for (let x = 0; x < w; x += 1) {
+      const d = Math.hypot(x - cx, y - cy);
+      if (d < radius) {
+        const v = Math.round(255 * (1 - d / radius));
+        const i = (y * w + x) * 3;
+        buf[i] = v; buf[i + 1] = v; buf[i + 2] = v;
+      }
+    }
+  }
+  return sharp(buf, { raw: { width: w, height: h, channels: 3 } }).jpeg().toBuffer();
+};
+
 const placeUpload = (buf, ext = "jpg") => {
   const name = `test-${Date.now()}-${Math.random().toString(16).slice(2)}.${ext}`;
   fs.mkdirSync(UPLOAD_DIR, { recursive: true });
@@ -72,6 +89,11 @@ const placeUpload = (buf, ext = "jpg") => {
     fetches += 1;
     if (req.url === "/thumb.jpg") {
       const img = await noisy([200, 120, 60], 90, 11);
+      res.writeHead(200, { "content-type": "image/jpeg", "content-length": img.length });
+      return res.end(img);
+    }
+    if (req.url === "/centred.jpg") {
+      const img = await blobImg(1280, 720, 640, 360, 180);
       res.writeHead(200, { "content-type": "image/jpeg", "content-length": img.length });
       return res.end(img);
     }
@@ -284,6 +306,90 @@ const placeUpload = (buf, ext = "jpg") => {
   await ctrl.chooseReference({ user: { _id: "u1" }, params: { id: p._id }, body: { videoId: "vid2" } }, res);
   check("reference switched", res.body.chosenVideoId === "vid2");
   check("nothing to keep, nothing to score", res.body.uploadUrl === null && res.body.matchReport === null);
+
+  console.log("\nreframing the upload");
+  p = await newProject(`${base}/centred.jpg`);
+  await ctrl.chooseReference({ user: { _id: "u1" }, params: { id: p._id }, body: { videoId: "vid1" } }, mkRes());
+  const fOff = placeUpload(await blobImg(1920, 1080, 420, 540, 260));
+  await ctrl.uploadThumbnail({ user: { _id: "u1" }, params: { id: p._id }, file: { filename: fOff } }, mkRes());
+  const beforeFrameScore = p.matchReport.score;
+  res = mkRes();
+  await ctrl.recomposeThumbnail({ user: { _id: "u1" }, params: { id: p._id } }, res);
+  check("reframe succeeds", res.statusCode === 200, JSON.stringify(res.body).slice(0, 140));
+  check("it actually cropped", res.body.frameReport.cropped === true, JSON.stringify(res.body.frameReport));
+  check("composition gap reported as improved", res.body.frameReport.after < res.body.frameReport.before,
+    `${res.body.frameReport.after} vs ${res.body.frameReport.before}`);
+  check("a framed image was written", typeof res.body.framedUrl === "string" && res.body.framedUrl.length > 0);
+  check("the framed file exists on disk", fs.existsSync(path.join(UPLOAD_DIR, path.basename(res.body.framedUrl))));
+  check("THE ORIGINAL UPLOAD SURVIVES, so it is undoable", fs.existsSync(path.join(UPLOAD_DIR, fOff)));
+  check("the original is still the upload of record", res.body.uploadUrl === `/uploads/${fOff}`);
+  const framedMeta = await sharp(path.join(UPLOAD_DIR, path.basename(res.body.framedUrl))).metadata();
+  check("the framed image is 16:9", Math.abs(framedMeta.width / framedMeta.height - 16 / 9) < 0.02,
+    `${framedMeta.width}x${framedMeta.height}`);
+  check("match re-scored on the framed pixels", res.body.matchReport.score !== beforeFrameScore,
+    `${res.body.matchReport.score} vs ${beforeFrameScore}`);
+
+  console.log("\ngrading works on the framed pixels, not the original");
+  const framedFile = path.basename(p.framedUrl);
+  res = mkRes();
+  await ctrl.gradeThumbnail({ user: { _id: "u1" }, params: { id: p._id } }, res);
+  check("grade succeeds after a reframe", res.statusCode === 200 && res.body.gradedUrl, JSON.stringify(res.body).slice(0, 140));
+  const gradedMeta = await sharp(path.join(UPLOAD_DIR, path.basename(res.body.gradedUrl))).metadata();
+  check("the graded output has the FRAMED dimensions, not the original 1920x1080",
+    gradedMeta.width === framedMeta.width && gradedMeta.height === framedMeta.height,
+    `${gradedMeta.width}x${gradedMeta.height} vs ${framedMeta.width}x${framedMeta.height}`);
+
+  console.log("\nan already well-framed image is left alone");
+  p = await newProject(`${base}/centred.jpg`);
+  await ctrl.chooseReference({ user: { _id: "u1" }, params: { id: p._id }, body: { videoId: "vid1" } }, mkRes());
+  const fGood = placeUpload(await blobImg(1280, 720, 640, 360, 180));
+  await ctrl.uploadThumbnail({ user: { _id: "u1" }, params: { id: p._id }, file: { filename: fGood } }, mkRes());
+  const goodScoreBefore = p.matchReport.score;
+  res = mkRes();
+  await ctrl.recomposeThumbnail({ user: { _id: "u1" }, params: { id: p._id } }, res);
+  check("NO crop is made", res.body.frameReport.cropped === false, JSON.stringify(res.body.frameReport));
+  check("and no framed file is written", res.body.framedUrl === null, String(res.body.framedUrl));
+  check("the score is left untouched", res.body.matchReport.score === goodScoreBefore,
+    `${res.body.matchReport.score} vs ${goodScoreBefore}`);
+
+  console.log("\nreframe guards");
+  p = await newProject(`${base}/centred.jpg`);
+  await ctrl.chooseReference({ user: { _id: "u1" }, params: { id: p._id }, body: { videoId: "vid1" } }, mkRes());
+  res = mkRes();
+  await ctrl.recomposeThumbnail({ user: { _id: "u1" }, params: { id: p._id } }, res);
+  check("reframe with no upload is refused", res.statusCode === 400, JSON.stringify(res.body));
+
+  p = await newProject(`${base}/centred.jpg`);
+  await ctrl.chooseReference({ user: { _id: "u1" }, params: { id: p._id }, body: { videoId: "vid1" } }, mkRes());
+  const fTenant = placeUpload(await blobImg(1920, 1080, 420, 540, 260));
+  await ctrl.uploadThumbnail({ user: { _id: "u1" }, params: { id: p._id }, file: { filename: fTenant } }, mkRes());
+  res = mkRes();
+  await ctrl.recomposeThumbnail({ user: { _id: "u2" }, params: { id: p._id } }, res);
+  check("another user cannot reframe my project", res.statusCode === 404, JSON.stringify(res.body));
+
+  console.log("\nswitching reference after a reframe");
+  await ctrl.recomposeThumbnail({ user: { _id: "u1" }, params: { id: p._id } }, mkRes());
+  const staleFramed = p.framedUrl;
+  p.candidates.push({ videoId: "vid9", title: "other", thumbnailUrl: `${base}/img/3`, viewCount: 1, viewsPerDay: 1 });
+  res = mkRes();
+  await ctrl.chooseReference({ user: { _id: "u1" }, params: { id: p._id }, body: { videoId: "vid9" } }, res);
+  check("the framed image is dropped", res.body.framedUrl === null && res.body.frameReport === null);
+  check("its file is unlinked", !fs.existsSync(path.join(UPLOAD_DIR, path.basename(staleFramed))));
+  check("the original upload still survives", fs.existsSync(path.join(UPLOAD_DIR, fTenant)));
+  check("uploadStyle is re-measured from the ORIGINAL, not left describing the deleted crop",
+    JSON.stringify(res.body.uploadStyle) === JSON.stringify(await extract(path.join(UPLOAD_DIR, fTenant))),
+    JSON.stringify(res.body.uploadStyle).slice(0, 80));
+
+  console.log("\nclear upload removes the framed image too");
+  p = await newProject(`${base}/centred.jpg`);
+  await ctrl.chooseReference({ user: { _id: "u1" }, params: { id: p._id }, body: { videoId: "vid1" } }, mkRes());
+  const fClear = placeUpload(await blobImg(1920, 1080, 420, 540, 260));
+  await ctrl.uploadThumbnail({ user: { _id: "u1" }, params: { id: p._id }, file: { filename: fClear } }, mkRes());
+  await ctrl.recomposeThumbnail({ user: { _id: "u1" }, params: { id: p._id } }, mkRes());
+  const clearFramed = p.framedUrl;
+  await ctrl.clearUpload({ user: { _id: "u1" }, params: { id: p._id } }, mkRes());
+  check("framed file unlinked on clear", !fs.existsSync(path.join(UPLOAD_DIR, path.basename(clearFramed))));
+  check("framed state cleared", p.framedUrl === null && p.frameReport === null);
 
   console.log("\nclear upload");
   p = await newProject(`${base}/thumb.jpg`);
