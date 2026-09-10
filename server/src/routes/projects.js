@@ -11,6 +11,7 @@ const {
   getProject,
   chooseReference,
   uploadThumbnail,
+  recomposeThumbnail,
   gradeThumbnail,
   clearUpload,
   deleteProject,
@@ -25,6 +26,7 @@ router.get("/", getProjects);
 router.get("/:id", validateObjectId(), getProject);
 router.patch("/:id/reference", validateObjectId(), validate(chooseReferenceSchema), chooseReference);
 router.post("/:id/upload", validateObjectId(), uploadLimiter, upload.single("image"), uploadErrorHandler, persistImage, uploadThumbnail);
+router.post("/:id/recompose", validateObjectId(), uploadLimiter, recomposeThumbnail);
 router.post("/:id/grade", validateObjectId(), uploadLimiter, gradeThumbnail);
 router.delete("/:id/upload", validateObjectId(), clearUpload);
 router.delete("/:id", validateObjectId(), deleteProject);

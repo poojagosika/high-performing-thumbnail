@@ -8,6 +8,7 @@ const {
   searchTopic,
 } = require("../config/youtube");
 const { extract, scoreMatch, gradeToward, MAX_BYTES } = require("../config/imageStyle");
+const { recompose } = require("../config/recompose");
 const { removeUpload, writeUpload, uploadPath } = require("../config/upload");
 
 const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -111,6 +112,8 @@ const shape = (project) => ({
   referenceStyle: project.referenceStyle,
   uploadUrl: project.uploadUrl,
   uploadStyle: project.uploadStyle,
+  framedUrl: project.framedUrl,
+  frameReport: project.frameReport,
   matchReport: project.matchReport,
   matchReports: project.matchReports,
   gradedUrl: project.gradedUrl,
@@ -231,9 +234,18 @@ const chooseReference = async (req, res) => {
     const changed = project.chosenVideoId !== videoId;
 
     if (changed) {
+      const wasFramed = Boolean(project.framedUrl);
+
+      removeUpload(project.framedUrl);
       removeUpload(project.gradedUrl);
+      project.framedUrl = null;
+      project.frameReport = null;
       project.gradedUrl = null;
       project.gradedReport = null;
+
+      if (wasFramed && project.uploadUrl) {
+        project.uploadStyle = await extract(uploadPath(project.uploadUrl));
+      }
     }
 
     project.chosenVideoId = videoId;
@@ -302,6 +314,7 @@ const uploadThumbnail = async (req, res) => {
     }
 
     removeUpload(project.uploadUrl);
+    removeUpload(project.framedUrl);
     removeUpload(project.gradedUrl);
 
     const uploadUrl = `/uploads/${req.file.filename}`;
@@ -315,8 +328,61 @@ const uploadThumbnail = async (req, res) => {
     project.uploadStyle = uploadStyle;
     project.matchReport = scoreMatch(uploadStyle, referenceStyle);
     project.matchReports = buildMatchReports(project, uploadStyle, styles);
+    project.framedUrl = null;
+    project.frameReport = null;
     project.gradedUrl = null;
     project.gradedReport = null;
+    await project.save();
+
+    res.json(shape(project));
+  } catch (error) {
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+const recomposeThumbnail = async (req, res) => {
+  try {
+    const project = await Project.findOne({ _id: req.params.id, user: req.user._id });
+
+    if (!project) return res.status(404).json({ message: "Project not found" });
+
+    if (!project.uploadUrl || !project.referenceStyle) {
+      return res.status(400).json({ message: "Upload your thumbnail first" });
+    }
+
+    const result = await recompose(uploadPath(project.uploadUrl), project.referenceStyle);
+
+    if (!result) {
+      return res.status(422).json({ message: "Could not read your thumbnail" });
+    }
+
+    removeUpload(project.framedUrl);
+    removeUpload(project.gradedUrl);
+    project.framedUrl = null;
+    project.gradedUrl = null;
+    project.gradedReport = null;
+
+    if (result.buffer) {
+      const framedUrl = writeUpload(result.buffer, "jpg");
+      const framedStyle = await extract(result.buffer);
+
+      project.framedUrl = framedUrl;
+      project.uploadStyle = framedStyle;
+      project.matchReport = scoreMatch(framedStyle, project.referenceStyle);
+      project.matchReports = buildMatchReports(
+        project,
+        framedStyle,
+        project.candidateStyles || {},
+      );
+    }
+
+    project.frameReport = {
+      cropped: Boolean(result.buffer),
+      before: result.before,
+      after: result.after,
+      crop: result.crop,
+    };
+
     await project.save();
 
     res.json(shape(project));
@@ -336,7 +402,7 @@ const gradeThumbnail = async (req, res) => {
     }
 
     const buffer = await gradeToward(
-      uploadPath(project.uploadUrl),
+      uploadPath(project.framedUrl || project.uploadUrl),
       project.uploadStyle,
       project.referenceStyle,
     );
@@ -363,10 +429,13 @@ const clearUpload = async (req, res) => {
     if (!project) return res.status(404).json({ message: "Project not found" });
 
     removeUpload(project.uploadUrl);
+    removeUpload(project.framedUrl);
     removeUpload(project.gradedUrl);
 
     project.uploadUrl = null;
     project.uploadStyle = null;
+    project.framedUrl = null;
+    project.frameReport = null;
     project.matchReport = null;
     project.matchReports = null;
     project.gradedUrl = null;
@@ -385,6 +454,7 @@ module.exports = {
   getProject,
   chooseReference,
   uploadThumbnail,
+  recomposeThumbnail,
   gradeThumbnail,
   clearUpload,
   deleteProject,

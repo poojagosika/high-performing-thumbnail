@@ -14,6 +14,7 @@ import {
   Wand2,
   Download,
   RotateCcw,
+  Crop,
   History,
   Trash2,
   Plus,
@@ -76,6 +77,7 @@ function Research() {
   const [choosing, setChoosing] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [grading, setGrading] = useState(false);
+  const [framing, setFraming] = useState(false);
   const [history, setHistory] = useState([]);
   const [deleting, setDeleting] = useState(null);
   const [historyTick, setHistoryTick] = useState(0);
@@ -131,6 +133,8 @@ function Research() {
 
   const chosen = project?.candidates?.find((c) => c.videoId === project.chosenVideoId);
   const report = project?.gradedReport || project?.matchReport;
+  const frame = project?.frameReport;
+  const workingUrl = project?.gradedUrl || project?.framedUrl || project?.uploadUrl;
   const best = project?.matchReports?.[0] || null;
 
   const candidateRank = (videoId) =>
@@ -153,6 +157,24 @@ function Research() {
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+
+  const handleFrame = async () => {
+    setFraming(true);
+    try {
+      const updated = await api(`/projects/${project.id}/recompose`, { method: "POST" });
+      applyProject(updated);
+      refreshHistory();
+      toast[updated.frameReport?.cropped ? "success" : "info"](
+        updated.frameReport?.cropped
+          ? "Reframed toward the reference"
+          : "Your framing already matches — nothing to crop",
+      );
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setFraming(false);
     }
   };
 
@@ -529,12 +551,18 @@ function Research() {
 
                   <div>
                     <p className="text-[12px] text-[#7b7b88] mb-1.5">
-                      {project.gradedUrl ? "Yours, graded" : "Yours"}
+                      {project.gradedUrl
+                        ? project.framedUrl
+                          ? "Yours, reframed and graded"
+                          : "Yours, graded"
+                        : project.framedUrl
+                          ? "Yours, reframed"
+                          : "Yours"}
                     </p>
                     <div className="relative aspect-video rounded-lg overflow-hidden bg-white/4 border border-white/6">
                       {project.uploadUrl ? (
                         <img
-                          src={assetUrl(project.gradedUrl || project.uploadUrl)}
+                          src={assetUrl(workingUrl)}
                           alt="Your thumbnail"
                           className="absolute inset-0 w-full h-full object-cover"
                         />
@@ -667,7 +695,7 @@ function Research() {
 
                       <div>
                         <p className="text-[12px] text-[#7b7b88] mb-2">
-                          Only you can fix these
+                          Framing and content
                         </p>
                         <div className="flex flex-col gap-1.5">
                           {report.manual.map((g) => (
@@ -679,9 +707,24 @@ function Research() {
                             </div>
                           ))}
                         </div>
+                        {frame && (
+                          <p className="text-[11px] mt-2 leading-relaxed text-[#61616b]">
+                            {frame.cropped ? (
+                              <>
+                                Reframed: the weight gap moved{" "}
+                                <span className="text-emerald-400">
+                                  {frame.before} → {frame.after}
+                                </span>
+                                . Your original upload is untouched.
+                              </>
+                            ) : (
+                              <>Framing already matches the reference — no crop would improve it.</>
+                            )}
+                          </p>
+                        )}
                         <p className="text-[11px] text-[#61616b] mt-2 leading-relaxed">
-                          Colour grading cannot change these — they need a
-                          different crop or shot.
+                          Reframing can move where the weight sits. Detail density
+                          needs a different shot.
                         </p>
                       </div>
                     </div>
@@ -706,6 +749,19 @@ function Research() {
                           </Button>
                         </a>
                       )}
+                      <Button
+                        onClick={handleFrame}
+                        disabled={framing}
+                        variant="outline"
+                        className="h-8 text-[12px] border-white/8 text-[#7b7b88] hover:text-white hover:border-white/12 bg-transparent font-medium gap-1.5"
+                      >
+                        {framing ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <Crop className="w-3 h-3" />
+                        )}
+                        {project.framedUrl ? "Reframe again" : "Fix the framing"}
+                      </Button>
                       <Button
                         onClick={handleGrade}
                         disabled={grading}

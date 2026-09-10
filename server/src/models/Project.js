@@ -20,6 +20,8 @@ const projectSchema = new mongoose.Schema(
     matchReports: { type: mongoose.Schema.Types.Mixed, default: null },
     uploadUrl: { type: String, default: null },
     uploadStyle: { type: mongoose.Schema.Types.Mixed, default: null },
+    framedUrl: { type: String, default: null },
+    frameReport: { type: mongoose.Schema.Types.Mixed, default: null },
     matchReport: { type: mongoose.Schema.Types.Mixed, default: null },
     gradedUrl: { type: String, default: null },
     gradedReport: { type: mongoose.Schema.Types.Mixed, default: null },
