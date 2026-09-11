@@ -24,6 +24,8 @@ const projectSchema = new mongoose.Schema(
     frameReport: { type: mongoose.Schema.Types.Mixed, default: null },
     matchReport: { type: mongoose.Schema.Types.Mixed, default: null },
     gradedUrl: { type: String, default: null },
+    caption: { type: mongoose.Schema.Types.Mixed, default: null },
+    captionedUrl: { type: String, default: null },
     gradedReport: { type: mongoose.Schema.Types.Mixed, default: null },
   },
   { timestamps: true },

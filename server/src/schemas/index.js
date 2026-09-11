@@ -58,6 +58,14 @@ const chooseReferenceSchema = z.object({
   videoId: z.string({ error: "must be a string" }).trim().min(1, "is required").max(64, "is too long"),
 });
 
+const captionSchema = z.object({
+  text: z.string({ error: "must be a string" }).trim().min(1, "is required").max(120, "is too long"),
+  position: z.enum(["top", "middle", "bottom"]).default("bottom"),
+  scale: z.coerce.number().min(0.06).max(0.3).default(0.16),
+  color: z.string().regex(/^#[0-9a-fA-F]{6}$/, "must be a hex colour").default("#FFFFFF"),
+  strokeColor: z.string().regex(/^#[0-9a-fA-F]{6}$/, "must be a hex colour").default("#000000"),
+});
+
 const bulkIdsSchema = z.object({
   ids: z.array(objectId).min(1, "No thumbnails selected").max(500),
 });
@@ -131,6 +139,7 @@ module.exports = {
   resetPasswordSchema,
   projectSchema,
   chooseReferenceSchema,
+  captionSchema,
   bulkIdsSchema,
   bulkTagSchema,
   bulkCollectionSchema,

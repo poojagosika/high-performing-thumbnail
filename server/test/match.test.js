@@ -15,7 +15,7 @@ let nextId = 1;
 const DEFAULTS = {
   chosenVideoId: null, referenceStyle: null, uploadUrl: null, uploadStyle: null,
   matchReport: null, matchReports: null, candidateStyles: {}, framedUrl: null, frameReport: null,
-  gradedUrl: null, gradedReport: null,
+  gradedUrl: null, gradedReport: null, caption: null, captionedUrl: null,
   description: "", tags: [], candidates: [],
 };
 const mk = (doc) => ({ ...DEFAULTS, ...doc, _id: doc._id || `p${nextId++}`, createdAt: new Date(), save: async function () { return this; } });
@@ -37,6 +37,7 @@ Module._load = function (request, parent) {
 };
 const ctrl = require(path.join(SRC, "controllers/projectController"));
 const { extract } = require(path.join(SRC, "config/imageStyle"));
+const { inkCount } = require(path.join(SRC, "config/caption"));
 Module._load = origLoad;
 
 let pass = 0, fail = 0;
@@ -390,6 +391,84 @@ const placeUpload = (buf, ext = "jpg") => {
   await ctrl.clearUpload({ user: { _id: "u1" }, params: { id: p._id } }, mkRes());
   check("framed file unlinked on clear", !fs.existsSync(path.join(UPLOAD_DIR, path.basename(clearFramed))));
   check("framed state cleared", p.framedUrl === null && p.frameReport === null);
+
+  console.log("\ntext on the thumbnail");
+  p = await newProject(`${base}/centred.jpg`);
+  await ctrl.chooseReference({ user: { _id: "u1" }, params: { id: p._id }, body: { videoId: "vid1" } }, mkRes());
+  const fCap = placeUpload(await blobImg(1280, 720, 640, 360, 200));
+  await ctrl.uploadThumbnail({ user: { _id: "u1" }, params: { id: p._id }, file: { filename: fCap } }, mkRes());
+  const scoreNoText = p.matchReport.score;
+
+  res = mkRes();
+  await ctrl.setCaption({ user: { _id: "u1" }, params: { id: p._id },
+    body: { text: "100 NUGGETS", position: "bottom", scale: 0.16, color: "#FFFFFF", strokeColor: "#000000" } }, res);
+  check("caption applied", res.statusCode === 200, JSON.stringify(res.body).slice(0, 140));
+  check("a captioned image was written", typeof res.body.captionedUrl === "string" && res.body.captionedUrl.length > 0);
+  check("the file exists", fs.existsSync(path.join(UPLOAD_DIR, path.basename(res.body.captionedUrl))));
+  check("the settings are stored, not just the output", res.body.caption.text === "100 NUGGETS");
+  check("the original upload survives", fs.existsSync(path.join(UPLOAD_DIR, fCap)));
+  const capMeta = await sharp(path.join(UPLOAD_DIR, path.basename(res.body.captionedUrl))).metadata();
+  check("dimensions unchanged by captioning", capMeta.width === 1280 && capMeta.height === 720,
+    `${capMeta.width}x${capMeta.height}`);
+  console.log(`      match score without text ${scoreNoText} -> with text ${res.body.matchReport.score}`);
+  check("the score was recomputed on the captioned image", typeof res.body.matchReport.score === "number");
+
+  console.log("\nTHE STALE-CAPTION CASE: grading re-renders the text");
+  const capBeforeGrade = p.captionedUrl;
+  res = mkRes();
+  await ctrl.gradeThumbnail({ user: { _id: "u1" }, params: { id: p._id } }, res);
+  check("grade succeeds with a caption present", res.statusCode === 200 && res.body.gradedUrl);
+  check("the captioned image was re-rendered, not left stale", res.body.captionedUrl !== capBeforeGrade,
+    `${res.body.captionedUrl} vs ${capBeforeGrade}`);
+  check("the stale captioned file is gone", !fs.existsSync(path.join(UPLOAD_DIR, path.basename(capBeforeGrade))));
+  check("the caption settings survived the grade", res.body.caption.text === "100 NUGGETS");
+  const inkGraded = await inkCount(fs.readFileSync(path.join(UPLOAD_DIR, path.basename(res.body.captionedUrl))));
+  const inkPlainGraded = await inkCount(fs.readFileSync(path.join(UPLOAD_DIR, path.basename(res.body.gradedUrl))));
+  check("the text is really on the graded image", inkGraded > inkPlainGraded, `${inkGraded} vs ${inkPlainGraded}`);
+
+  console.log("\nreframing also re-renders the text, it is not cropped off");
+  p = await newProject(`${base}/centred.jpg`);
+  await ctrl.chooseReference({ user: { _id: "u1" }, params: { id: p._id }, body: { videoId: "vid1" } }, mkRes());
+  const fCap2 = placeUpload(await blobImg(1920, 1080, 420, 540, 260));
+  await ctrl.uploadThumbnail({ user: { _id: "u1" }, params: { id: p._id }, file: { filename: fCap2 } }, mkRes());
+  await ctrl.setCaption({ user: { _id: "u1" }, params: { id: p._id }, body: { text: "GONE WRONG", position: "bottom", scale: 0.16, color: "#FFFFFF", strokeColor: "#000000" } }, mkRes());
+  const capBeforeFrame = p.captionedUrl;
+  res = mkRes();
+  await ctrl.recomposeThumbnail({ user: { _id: "u1" }, params: { id: p._id } }, res);
+  check("reframe succeeds with a caption present", res.statusCode === 200);
+  check("captioned image re-rendered on the crop", res.body.captionedUrl !== capBeforeFrame);
+  const framedM = await sharp(path.join(UPLOAD_DIR, path.basename(res.body.framedUrl))).metadata();
+  const capM = await sharp(path.join(UPLOAD_DIR, path.basename(res.body.captionedUrl))).metadata();
+  check("the captioned image matches the CROPPED size, so the text was redrawn on it",
+    capM.width === framedM.width && capM.height === framedM.height,
+    `${capM.width}x${capM.height} vs ${framedM.width}x${framedM.height}`);
+  const inkCap = await inkCount(fs.readFileSync(path.join(UPLOAD_DIR, path.basename(res.body.captionedUrl))));
+  const inkFramed = await inkCount(fs.readFileSync(path.join(UPLOAD_DIR, path.basename(res.body.framedUrl))));
+  check("text present on the reframed image", inkCap > inkFramed, `${inkCap} vs ${inkFramed}`);
+
+  console.log("\nremoving the caption");
+  const toRemove = p.captionedUrl;
+  res = mkRes();
+  await ctrl.removeCaption({ user: { _id: "u1" }, params: { id: p._id } }, res);
+  check("caption cleared", res.body.caption === null && res.body.captionedUrl === null);
+  check("its file unlinked", !fs.existsSync(path.join(UPLOAD_DIR, path.basename(toRemove))));
+  check("earlier stages untouched", fs.existsSync(path.join(UPLOAD_DIR, fCap2)) && res.body.framedUrl !== null);
+
+  console.log("\ncaption guards");
+  p = await newProject(`${base}/centred.jpg`);
+  await ctrl.chooseReference({ user: { _id: "u1" }, params: { id: p._id }, body: { videoId: "vid1" } }, mkRes());
+  res = mkRes();
+  await ctrl.setCaption({ user: { _id: "u1" }, params: { id: p._id }, body: { text: "x" } }, res);
+  check("captioning with no upload is refused", res.statusCode === 400, JSON.stringify(res.body));
+
+  const fGuard = placeUpload(await blobImg(1280, 720, 640, 360, 200));
+  await ctrl.uploadThumbnail({ user: { _id: "u1" }, params: { id: p._id }, file: { filename: fGuard } }, mkRes());
+  res = mkRes();
+  await ctrl.setCaption({ user: { _id: "u2" }, params: { id: p._id }, body: { text: "x" } }, res);
+  check("another user cannot caption my project", res.statusCode === 404, JSON.stringify(res.body));
+  res = mkRes();
+  await ctrl.removeCaption({ user: { _id: "u2" }, params: { id: p._id } }, res);
+  check("another user cannot remove my caption", res.statusCode === 404, JSON.stringify(res.body));
 
   console.log("\nclear upload");
   p = await newProject(`${base}/thumb.jpg`);
