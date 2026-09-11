@@ -4,7 +4,7 @@ const { validate, validateObjectId } = require("../middleware/validate");
 const { researchLimiter, uploadLimiter } = require("../middleware/rateLimit");
 const upload = require("../config/upload");
 const { persistImage, uploadErrorHandler } = require("../config/upload");
-const { projectSchema, chooseReferenceSchema } = require("../schemas");
+const { projectSchema, chooseReferenceSchema, captionSchema } = require("../schemas");
 const {
   createProject,
   getProjects,
@@ -13,6 +13,8 @@ const {
   uploadThumbnail,
   recomposeThumbnail,
   gradeThumbnail,
+  setCaption,
+  removeCaption,
   clearUpload,
   deleteProject,
 } = require("../controllers/projectController");
@@ -28,6 +30,8 @@ router.patch("/:id/reference", validateObjectId(), validate(chooseReferenceSchem
 router.post("/:id/upload", validateObjectId(), uploadLimiter, upload.single("image"), uploadErrorHandler, persistImage, uploadThumbnail);
 router.post("/:id/recompose", validateObjectId(), uploadLimiter, recomposeThumbnail);
 router.post("/:id/grade", validateObjectId(), uploadLimiter, gradeThumbnail);
+router.post("/:id/caption", validateObjectId(), uploadLimiter, validate(captionSchema), setCaption);
+router.delete("/:id/caption", validateObjectId(), removeCaption);
 router.delete("/:id/upload", validateObjectId(), clearUpload);
 router.delete("/:id", validateObjectId(), deleteProject);
 

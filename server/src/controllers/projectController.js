@@ -9,6 +9,7 @@ const {
 } = require("../config/youtube");
 const { extract, scoreMatch, gradeToward, MAX_BYTES } = require("../config/imageStyle");
 const { recompose } = require("../config/recompose");
+const { renderCaption } = require("../config/caption");
 const { removeUpload, writeUpload, uploadPath } = require("../config/upload");
 
 const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -100,6 +101,21 @@ function buildMatchReports(project, uploadStyle, styles) {
     .sort((a, b) => b.score - a.score);
 }
 
+const workingUrl = (project) => project.gradedUrl || project.framedUrl || project.uploadUrl;
+
+async function applyCaption(project) {
+  removeUpload(project.captionedUrl);
+  project.captionedUrl = null;
+
+  if (!project.caption || !project.caption.text) return;
+
+  const source = workingUrl(project);
+  if (!source) return;
+
+  const buffer = await renderCaption(uploadPath(source), project.caption);
+  if (buffer) project.captionedUrl = writeUpload(buffer, "jpg");
+}
+
 const shape = (project) => ({
   id: project._id,
   title: project.title,
@@ -118,6 +134,8 @@ const shape = (project) => ({
   matchReports: project.matchReports,
   gradedUrl: project.gradedUrl,
   gradedReport: project.gradedReport,
+  caption: project.caption,
+  captionedUrl: project.captionedUrl,
   createdAt: project.createdAt,
 });
 
@@ -316,6 +334,7 @@ const uploadThumbnail = async (req, res) => {
     removeUpload(project.uploadUrl);
     removeUpload(project.framedUrl);
     removeUpload(project.gradedUrl);
+    removeUpload(project.captionedUrl);
 
     const uploadUrl = `/uploads/${req.file.filename}`;
     const uploadStyle = await extract(uploadPath(uploadUrl));
@@ -383,6 +402,7 @@ const recomposeThumbnail = async (req, res) => {
       crop: result.crop,
     };
 
+    await applyCaption(project);
     await project.save();
 
     res.json(shape(project));
@@ -414,6 +434,75 @@ const gradeThumbnail = async (req, res) => {
 
     project.gradedUrl = gradedUrl;
     project.gradedReport = scoreMatch(gradedStyle, project.referenceStyle);
+    await applyCaption(project);
+    await project.save();
+
+    res.json(shape(project));
+  } catch (error) {
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+const setCaption = async (req, res) => {
+  try {
+    const project = await Project.findOne({ _id: req.params.id, user: req.user._id });
+
+    if (!project) return res.status(404).json({ message: "Project not found" });
+
+    if (!project.uploadUrl) {
+      return res.status(400).json({ message: "Upload your thumbnail first" });
+    }
+
+    const previous = project.caption;
+    project.caption = req.body;
+
+    try {
+      await applyCaption(project);
+    } catch (error) {
+      project.caption = previous;
+      if (error.code === "NO_GLYPHS") {
+        return res.status(503).json({ message: error.message });
+      }
+      throw error;
+    }
+
+    if (project.referenceStyle && project.captionedUrl) {
+      const captionedStyle = await extract(uploadPath(project.captionedUrl));
+      project.matchReport = scoreMatch(captionedStyle, project.referenceStyle);
+      project.matchReports = buildMatchReports(
+        project,
+        captionedStyle,
+        project.candidateStyles || {},
+      );
+    }
+
+    await project.save();
+
+    res.json(shape(project));
+  } catch (error) {
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+const removeCaption = async (req, res) => {
+  try {
+    const project = await Project.findOne({ _id: req.params.id, user: req.user._id });
+
+    if (!project) return res.status(404).json({ message: "Project not found" });
+
+    removeUpload(project.captionedUrl);
+    project.caption = null;
+    project.captionedUrl = null;
+
+    if (project.referenceStyle && project.uploadStyle) {
+      project.matchReport = scoreMatch(project.uploadStyle, project.referenceStyle);
+      project.matchReports = buildMatchReports(
+        project,
+        project.uploadStyle,
+        project.candidateStyles || {},
+      );
+    }
+
     await project.save();
 
     res.json(shape(project));
@@ -431,7 +520,10 @@ const clearUpload = async (req, res) => {
     removeUpload(project.uploadUrl);
     removeUpload(project.framedUrl);
     removeUpload(project.gradedUrl);
+    removeUpload(project.captionedUrl);
 
+    project.caption = null;
+    project.captionedUrl = null;
     project.uploadUrl = null;
     project.uploadStyle = null;
     project.framedUrl = null;
@@ -456,6 +548,8 @@ module.exports = {
   uploadThumbnail,
   recomposeThumbnail,
   gradeThumbnail,
+  setCaption,
+  removeCaption,
   clearUpload,
   deleteProject,
   resolveTopic,

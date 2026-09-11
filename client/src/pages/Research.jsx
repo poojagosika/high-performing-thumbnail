@@ -15,6 +15,7 @@ import {
   Download,
   RotateCcw,
   Crop,
+  Type,
   History,
   Trash2,
   Plus,
@@ -78,6 +79,11 @@ function Research() {
   const [uploading, setUploading] = useState(false);
   const [grading, setGrading] = useState(false);
   const [framing, setFraming] = useState(false);
+  const [captioning, setCaptioning] = useState(false);
+  const [captionText, setCaptionText] = useState("");
+  const [captionPos, setCaptionPos] = useState("bottom");
+  const [captionScale, setCaptionScale] = useState(0.16);
+  const [captionColor, setCaptionColor] = useState("#FFFFFF");
   const [history, setHistory] = useState([]);
   const [deleting, setDeleting] = useState(null);
   const [historyTick, setHistoryTick] = useState(0);
@@ -121,6 +127,10 @@ function Research() {
         setTitle(data.title || "");
         setTags((data.tags || []).join(", "));
         setDescription(data.description || "");
+        setCaptionText(data.caption?.text || "");
+        setCaptionPos(data.caption?.position || "bottom");
+        setCaptionScale(data.caption?.scale || 0.16);
+        setCaptionColor(data.caption?.color || "#FFFFFF");
       })
       .catch(() => {
         if (!cancelled) setEntry({ id, project: null, notFound: true });
@@ -134,7 +144,8 @@ function Research() {
   const chosen = project?.candidates?.find((c) => c.videoId === project.chosenVideoId);
   const report = project?.gradedReport || project?.matchReport;
   const frame = project?.frameReport;
-  const workingUrl = project?.gradedUrl || project?.framedUrl || project?.uploadUrl;
+  const workingUrl =
+    project?.captionedUrl || project?.gradedUrl || project?.framedUrl || project?.uploadUrl;
   const best = project?.matchReports?.[0] || null;
 
   const candidateRank = (videoId) =>
@@ -157,6 +168,44 @@ function Research() {
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+
+  const handleCaption = async () => {
+    if (!captionText.trim()) return;
+    setCaptioning(true);
+    try {
+      applyProject(
+        await api(`/projects/${project.id}/caption`, {
+          method: "POST",
+          body: {
+            text: captionText.trim(),
+            position: captionPos,
+            scale: captionScale,
+            color: captionColor,
+            strokeColor: "#000000",
+          },
+        }),
+      );
+      refreshHistory();
+      toast.success("Text added");
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setCaptioning(false);
+    }
+  };
+
+  const handleRemoveCaption = async () => {
+    setCaptioning(true);
+    try {
+      applyProject(await api(`/projects/${project.id}/caption`, { method: "DELETE" }));
+      setCaptionText("");
+      refreshHistory();
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setCaptioning(false);
     }
   };
 
@@ -551,13 +600,15 @@ function Research() {
 
                   <div>
                     <p className="text-[12px] text-[#7b7b88] mb-1.5">
-                      {project.gradedUrl
-                        ? project.framedUrl
-                          ? "Yours, reframed and graded"
-                          : "Yours, graded"
-                        : project.framedUrl
-                          ? "Yours, reframed"
-                          : "Yours"}
+                      {[
+                        "Yours",
+                        project.framedUrl ? "reframed" : null,
+                        project.gradedUrl ? "graded" : null,
+                        project.captionedUrl ? "with text" : null,
+                      ]
+                        .filter(Boolean)
+                        .join(", ")
+                        .replace("Yours, ", "Yours — ")}
                     </p>
                     <div className="relative aspect-video rounded-lg overflow-hidden bg-white/4 border border-white/6">
                       {project.uploadUrl ? (
@@ -729,6 +780,96 @@ function Research() {
                       </div>
                     </div>
 
+                    <div className="mt-5 pt-4 border-t border-white/6">
+                      <div className="flex items-baseline justify-between mb-2.5">
+                        <p className="text-[13px] text-white">Text on the thumbnail</p>
+                        {project.captionedUrl && (
+                          <button
+                            type="button"
+                            onClick={handleRemoveCaption}
+                            className="text-[11px] text-[#61616b] hover:text-red-400 transition-colors"
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2">
+                        <input
+                          value={captionText}
+                          onChange={(e) => setCaptionText(e.target.value)}
+                          maxLength={120}
+                          placeholder="100 NUGGETS"
+                          aria-label="Thumbnail text"
+                          className="h-8 flex-1 min-w-[180px] px-2.5 rounded-lg border border-white/8 bg-white/3 text-[13px] text-white placeholder:text-[#61616b] outline-none focus:border-white/16 transition-colors"
+                        />
+
+                        <div className="flex rounded-lg border border-white/8 overflow-hidden">
+                          {["top", "middle", "bottom"].map((pos) => (
+                            <button
+                              key={pos}
+                              type="button"
+                              onClick={() => setCaptionPos(pos)}
+                              className={`px-2.5 h-8 text-[11px] transition-colors ${
+                                captionPos === pos
+                                  ? "bg-white/10 text-white"
+                                  : "text-[#7b7b88] hover:text-white"
+                              }`}
+                            >
+                              {pos}
+                            </button>
+                          ))}
+                        </div>
+
+                        <label className="flex items-center gap-1.5 text-[11px] text-[#61616b]">
+                          size
+                          <input
+                            type="range"
+                            min="0.06"
+                            max="0.3"
+                            step="0.01"
+                            value={captionScale}
+                            onChange={(e) => setCaptionScale(Number(e.target.value))}
+                            aria-label="Text size"
+                            className="w-20 accent-white"
+                          />
+                        </label>
+
+                        <div className="flex gap-1">
+                          {["#FFFFFF", "#FFDD00", "#FF3B30"].map((hex) => (
+                            <button
+                              key={hex}
+                              type="button"
+                              onClick={() => setCaptionColor(hex)}
+                              aria-label={`Text colour ${hex}`}
+                              style={{ background: hex }}
+                              className={`w-6 h-6 rounded border transition-colors ${
+                                captionColor === hex ? "border-white" : "border-white/15"
+                              }`}
+                            />
+                          ))}
+                        </div>
+
+                        <Button
+                          onClick={handleCaption}
+                          disabled={captioning || !captionText.trim()}
+                          className="h-8 text-[12px] bg-white text-[#0a0a0f] hover:bg-white/90 font-medium gap-1.5"
+                        >
+                          {captioning ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : (
+                            <Type className="w-3 h-3" />
+                          )}
+                          {project.captionedUrl ? "Update text" : "Add text"}
+                        </Button>
+                      </div>
+
+                      <p className="text-[11px] text-[#61616b] mt-2">
+                        Drawn last, so reframing and grading keep it. Placement is yours to
+                        pick for now.
+                      </p>
+                    </div>
+
                     <div className="flex flex-wrap justify-end gap-2 mt-5">
                       <Button
                         onClick={handleClear}
@@ -738,8 +879,8 @@ function Research() {
                         <RotateCcw className="w-3 h-3" />
                         Start over
                       </Button>
-                      {project.gradedUrl && (
-                        <a href={assetUrl(project.gradedUrl)} download>
+                      {(project.captionedUrl || project.gradedUrl || project.framedUrl) && (
+                        <a href={assetUrl(workingUrl)} download>
                           <Button
                             variant="outline"
                             className="h-8 text-[12px] border-white/8 text-[#7b7b88] hover:text-white hover:border-white/12 bg-transparent font-medium gap-1.5"
