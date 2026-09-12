@@ -4,12 +4,13 @@ const { buildSvg, layout: textLayout, escapeXml } = require("./caption");
 const { familyFor, strokeFor, weightFor, DEFAULT_FONT } = require("./fonts");
 const { buildHeadline } = require("./headline");
 const { buildRichHeadline } = require("./richtext");
-const { grade, measure } = require("./grade");
+const { grade, measure, isFlat } = require("./grade");
 const { planRecompose } = require("./recompose");
 
 const PLACEHOLDER = { r: 24, g: 24, b: 32 };
 const MAX_UPSCALE = 2.5;
 const SUBJECT_STRENGTH = 0.7;
+const SUBJECT_STRENGTH_FLAT = 0.28;
 const HALO = 9;
 
 const DARK_AT = 31;
@@ -140,7 +141,7 @@ async function imageLayer(slot, source, override, referenceStyle, depth) {
 
   if (slot.cutout && referenceStyle) {
     const graded = await grade(fitted, referenceStyle, {
-      strength: SUBJECT_STRENGTH,
+      strength: isFlat(referenceStyle) ? SUBJECT_STRENGTH_FLAT : SUBJECT_STRENGTH,
       whiteBalance: false,
     });
     if (graded) fitted = graded;

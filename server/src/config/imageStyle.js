@@ -1,4 +1,5 @@
 const sharp = require("sharp");
+const { measure } = require("./grade");
 
 const SAMPLE = 64;
 const SIDEBAR_W = 120;
@@ -79,7 +80,10 @@ async function extract(input) {
   }
   const gridTotal = grid.reduce((a, b) => a + b, 0) || 1;
 
+  const sampled = await measure(input).catch(() => null);
+
   return {
+    dominant: sampled ? sampled.dominant : null,
     brightness: round2((lMean / 255) * 100),
     contrast: round2((Math.sqrt(varSum / n) / 128) * 100),
     saturation: round2((satSum / n) * 100),
