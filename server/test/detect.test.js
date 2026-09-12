@@ -83,6 +83,25 @@ const scene = (w, h) => {
   check("and falls back to the single-image template", layout.template === "side-panel", layout.template);
   check("reporting honestly that nothing was found", layout.confidence === "nothing found", layout.confidence);
 
+  console.log("\nROUND TRIP: the band we ask for is the band that comes out");
+  const { compose } = require(path.join(SRC, "config/compose"));
+  const person = await sharp(await scene(600, 800)).jpeg().toBuffer();
+  const roundTrip = {};
+  for (const band of ["top", "middle", "bottom"]) {
+    const built = await compose(
+      "two-subject",
+      { background: plate, subjectLeft: person, subjectRight: person },
+      { headline: { text: "NEPAL DISASTER", font: "poppins", band } },
+    );
+    fs.writeFileSync(tmp(`rt_${band}.jpg`), built);
+    const read = await analyze(tmp(`rt_${band}.jpg`));
+    roundTrip[band] = read.text.band;
+    check(`asked for ${band}, rendered pixels read back as ${band}`, read.text.band === band,
+      `got ${read.text.band} (y=${read.text.y})`);
+  }
+  check("all three bands land differently, so it is really following the band",
+    new Set(Object.values(roundTrip)).size === 3, JSON.stringify(roundTrip));
+
   console.log("\ndegrading safely");
   const broken = await analyze(tmp("does-not-exist.jpg"));
   check("a missing file returns the empty result, never throws", broken.faceCount === 0);

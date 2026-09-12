@@ -133,6 +133,20 @@ function placeholderLayer(slot) {
   return { input: svg, left: rect.left, top: rect.top, z: slot.z };
 }
 
+const BANDS = {
+  top: 0.02,
+  middle: 0.28,
+  bottom: 0.54,
+};
+
+function bandRect(slot, band) {
+  const base = pixelRect(slot.rect);
+  if (!band || !(band in BANDS)) return base;
+
+  const height = Math.min(base.height, Math.round(CANVAS_H * 0.42));
+  return { ...base, top: Math.round(CANVAS_H * BANDS[band]), height };
+}
+
 function textLayer(slot, override) {
   const settings = { ...(slot.defaults || {}), ...(override || {}) };
   const text = String(settings.text || "").trim();
@@ -141,8 +155,9 @@ function textLayer(slot, override) {
   const rect = pixelRect(slot.rect);
 
   if (slot.style === "headline") {
-    const svg = buildHeadline({ ...settings, text }, rect.width, rect.height);
-    return svg ? { input: svg, left: rect.left, top: rect.top, z: slot.z } : null;
+    const placed = bandRect(slot, settings.band);
+    const svg = buildHeadline({ ...settings, text }, placed.width, placed.height);
+    return svg ? { input: svg, left: placed.left, top: placed.top, z: slot.z } : null;
   }
 
   const canvasScale = clamp01(Number(settings.scale), 0.04, 0.3);
