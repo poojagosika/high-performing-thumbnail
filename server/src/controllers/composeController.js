@@ -18,6 +18,8 @@ const TEXT_FIELDS = [
   "rotate",
   "depth",
   "band",
+  "align",
+  "lines",
 ];
 
 const slotOf = (templateId, key) => {

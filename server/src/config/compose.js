@@ -3,6 +3,7 @@ const { CANVAS_W, CANVAS_H, byId, pixelRect } = require("./templates");
 const { buildSvg, layout: textLayout, escapeXml } = require("./caption");
 const { familyFor, strokeFor, weightFor, DEFAULT_FONT } = require("./fonts");
 const { buildHeadline } = require("./headline");
+const { buildRichHeadline } = require("./richtext");
 const { grade, measure } = require("./grade");
 const { planRecompose } = require("./recompose");
 
@@ -236,10 +237,18 @@ function bandRect(slot, band) {
   return { ...base, top: Math.round(CANVAS_H * BANDS[band]), height };
 }
 
-function textLayer(slot, override) {
+async function textLayer(slot, override) {
   const settings = { ...(slot.defaults || {}), ...(override || {}) };
   const text = String(settings.text || "").trim();
-  if (!text) return null;
+  const rich = Array.isArray(settings.lines) && settings.lines.some((l) => l && String(l.text || "").trim());
+
+  if (!text && !rich) return null;
+
+  if (rich) {
+    const placed = bandRect(slot, settings.band);
+    const svg = await buildRichHeadline(settings, placed.width, placed.height, CANVAS_H);
+    return svg ? { input: svg, left: placed.left, top: placed.top, z: slot.z } : null;
+  }
 
   const rect = pixelRect(slot.rect);
 
@@ -305,7 +314,7 @@ async function compose(templateId, assets = {}, overrides = {}, context = {}) {
 
   for (const slot of [...backgrounds, ...rest]) {
     if (slot.type === "text") {
-      const layer = textLayer(slot, overrides[slot.key]);
+      const layer = await textLayer(slot, overrides[slot.key]);
       if (layer) layers.push(layer);
       continue;
     }

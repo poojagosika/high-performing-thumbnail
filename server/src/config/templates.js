@@ -116,7 +116,7 @@ const TEMPLATES = [
         label: "Headline",
         type: "text",
         z: 3,
-        rect: { x: 0.03, y: 0.04, w: 0.58, h: 0.4 },
+        rect: { x: 0.03, y: 0.03, w: 0.58, h: 0.52 },
         defaults: { text: "", font: "intertight", color: "#111114", strokeColor: "#FFFFFF", scale: 0.13 },
       },
     ],
