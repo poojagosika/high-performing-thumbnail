@@ -84,7 +84,9 @@ function buildSvg(options, width, height, override) {
   const text = String(options.text || "").slice(0, MAX_TEXT).trim();
   const { fontSize, lines } = override || layout(text, width, height, scale);
   const ys = baselines(position, height, fontSize, lines.length);
-  const stroke = Math.max(2, Math.round(fontSize * STROKE_RATIO));
+  const weight = /^(normal|bold|[1-9]00)$/.test(String(options.fontWeight || "")) ? options.fontWeight : "bold";
+  const ratio = Number(options.strokeRatio) > 0 ? Number(options.strokeRatio) : STROKE_RATIO;
+  const stroke = Math.max(2, Math.round(fontSize * ratio));
   const x = Math.round(width / 2);
 
   const runs = (fill, strokeAttrs) =>
@@ -101,7 +103,7 @@ function buildSvg(options, width, height, override) {
 
   return Buffer.from(
     `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">` +
-      `<g font-family="${escapeXml(family)}" font-size="${fontSize}" font-weight="bold" text-anchor="middle">` +
+      `<g font-family="${escapeXml(family)}" font-size="${fontSize}" font-weight="${weight}" text-anchor="middle">` +
       runs("none", ` stroke="${strokeColor}" stroke-width="${stroke}" stroke-linejoin="round"`) +
       runs(color, "") +
       `</g></svg>`,

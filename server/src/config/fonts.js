@@ -5,13 +5,23 @@ const path = require("path");
 const FONT_DIR = path.resolve(__dirname, "..", "..", "assets", "fonts");
 
 const FONTS = [
-  { key: "anton", label: "Anton", family: "Anton", file: "Anton-Regular.ttf" },
-  { key: "bebas", label: "Bebas Neue", family: "Bebas Neue", file: "BebasNeue-Regular.ttf" },
-  { key: "archivo", label: "Archivo Black", family: "Archivo Black", file: "ArchivoBlack-Regular.ttf" },
-  { key: "system", label: "Plain", family: "DejaVu Sans", file: null },
+  { key: "poppins", label: "Poppins", family: "Poppins", file: "Poppins-ExtraBold.ttf", weight: "normal", stroke: 0.12 },
+  { key: "montserrat", label: "Montserrat", family: "Montserrat", file: "Montserrat-var.ttf", weight: "900", stroke: 0.12 },
+  { key: "outfit", label: "Outfit", family: "Outfit", file: "Outfit-var.ttf", weight: "900", stroke: 0.12 },
+  { key: "figtree", label: "Figtree", family: "Figtree", file: "Figtree-var.ttf", weight: "900", stroke: 0.12 },
+  { key: "jakarta", label: "Plus Jakarta", family: "Plus Jakarta Sans", file: "PlusJakartaSans-var.ttf", weight: "800", stroke: 0.12 },
+  { key: "lilita", label: "Lilita One", family: "Lilita One", file: "LilitaOne-Regular.ttf", weight: "normal", stroke: 0.11 },
+  { key: "bangers", label: "Bangers", family: "Bangers", file: "Bangers-Regular.ttf", weight: "normal", stroke: 0.1 },
+  { key: "archivo", label: "Archivo Black", family: "Archivo Black", file: "ArchivoBlack-Regular.ttf", weight: "normal", stroke: 0.14 },
+  { key: "anton", label: "Anton", family: "Anton", file: "Anton-Regular.ttf", weight: "normal", stroke: 0.09 },
+  { key: "system", label: "Plain", family: "DejaVu Sans", file: null, weight: "bold", stroke: 0.14 },
 ];
 
-const DEFAULT_FONT = "anton";
+const DEFAULT_FONT = "poppins";
+
+const strokeFor = (key) => byKey(key).stroke || 0.14;
+
+const weightFor = (key) => byKey(key).weight || "bold";
 
 const byKey = (key) => FONTS.find((f) => f.key === key) || FONTS.find((f) => f.key === DEFAULT_FONT);
 
@@ -55,6 +65,8 @@ module.exports = {
   DEFAULT_FONT,
   byKey,
   familyFor,
+  strokeFor,
+  weightFor,
   missingFiles,
   register,
 };
