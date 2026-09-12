@@ -193,8 +193,9 @@ const pixelAt = async (buf, x, y) => {
     { background: await flat(1280, 720, [200, 20, 20]), subjectLeft: fs.readFileSync(tmp("person.png")) }, {});
   const cornerRect = pixelRect(byId("two-subject").slots.find((s) => s.key === "subjectLeft").rect);
   const corner = await pixelAt(withCut, cornerRect.left + 3, cornerRect.top + 3);
-  check("the background shows through the cut-out's empty corner", corner[0] > 150 && corner[1] < 90,
-    JSON.stringify(corner));
+  check("the background shows through the cut-out's empty corner",
+    corner[0] > 40 && corner[0] > corner[1] * 3 && corner[0] > corner[2] * 3,
+    `${JSON.stringify(corner)} — expected red-dominant, darkened by the background treatment`);
 
   console.log("\nunknown template");
   let threw = false;

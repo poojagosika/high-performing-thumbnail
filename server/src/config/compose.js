@@ -2,9 +2,45 @@ const sharp = require("sharp");
 const { CANVAS_W, CANVAS_H, byId, pixelRect } = require("./templates");
 const { buildSvg, layout: textLayout, escapeXml } = require("./caption");
 const { familyFor, strokeFor, weightFor, DEFAULT_FONT } = require("./fonts");
+const { buildHeadline } = require("./headline");
 
 const PLACEHOLDER = { r: 24, g: 24, b: 32 };
 const clamp01 = (v, lo, hi) => Math.max(lo, Math.min(hi, Number.isFinite(v) ? v : 1));
+
+async function shadowFor(fitted, meta) {
+  return sharp(fitted)
+    .extractChannel("alpha")
+    .blur(14)
+    .toColourspace("b-w")
+    .toBuffer()
+    .then((mask) =>
+      sharp({
+        create: { width: meta.width, height: meta.height, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
+      })
+        .composite([{ input: mask, blend: "dest-in" }])
+        .png()
+        .toBuffer(),
+    )
+    .catch(() => null);
+}
+
+async function treatBackground(buffer) {
+  const meta = await sharp(buffer).metadata();
+  const vignette = Buffer.from(
+    `<svg width="${meta.width}" height="${meta.height}" xmlns="http://www.w3.org/2000/svg">` +
+      `<defs><radialGradient id="v" cx="50%" cy="46%" r="76%">` +
+      `<stop offset="45%" stop-color="#000" stop-opacity="0"/>` +
+      `<stop offset="100%" stop-color="#000" stop-opacity="0.72"/></radialGradient></defs>` +
+      `<rect width="100%" height="100%" fill="url(#v)"/></svg>`,
+  );
+
+  return sharp(buffer)
+    .modulate({ brightness: 0.82, saturation: 1.18 })
+    .linear(1.16, -20)
+    .composite([{ input: vignette }])
+    .png()
+    .toBuffer();
+}
 
 async function imageLayer(slot, source, override) {
   const rect = pixelRect(slot.rect);
@@ -40,7 +76,17 @@ async function imageLayer(slot, source, override) {
     ? rect.top + rect.height - meta.height
     : rect.top + Math.round((rect.height - meta.height) / 2);
 
-  return { input: fitted, left: anchored + dx, top: bottomAligned + dy, z: slot.z };
+  const layers = [];
+
+  if (slot.cutout) {
+    const shadow = await shadowFor(fitted, meta);
+    if (shadow) {
+      layers.push({ input: shadow, left: anchored + dx + 10, top: bottomAligned + dy + 12, z: slot.z - 0.5 });
+    }
+  }
+
+  layers.push({ input: fitted, left: anchored + dx, top: bottomAligned + dy, z: slot.z });
+  return layers;
 }
 
 const LINE_HEIGHT = 1.1;
@@ -93,6 +139,12 @@ function textLayer(slot, override) {
   if (!text) return null;
 
   const rect = pixelRect(slot.rect);
+
+  if (slot.style === "headline") {
+    const svg = buildHeadline({ ...settings, text }, rect.width, rect.height);
+    return svg ? { input: svg, left: rect.left, top: rect.top, z: slot.z } : null;
+  }
+
   const canvasScale = clamp01(Number(settings.scale), 0.04, 0.3);
   const fitted = fitToSlot(text, rect.width, rect.height, Math.round(canvasScale * CANVAS_H));
 
@@ -129,7 +181,8 @@ async function compose(templateId, assets = {}, overrides = {}) {
 
     const source = assets[slot.key];
     if (source) {
-      layers.push(await imageLayer(slot, source, overrides[slot.key]));
+      const prepared = slot.treat === "background" ? await treatBackground(source) : source;
+      layers.push(...(await imageLayer(slot, prepared, overrides[slot.key])));
     } else {
       layers.push(placeholderLayer(slot));
     }
