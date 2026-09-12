@@ -20,16 +20,18 @@ const TEMPLATES = [
         label: "Left subject",
         type: "image",
         cutout: true,
+        anchor: "left",
         z: 1,
-        rect: { x: 0, y: 0.06, w: 0.4, h: 0.94 },
+        rect: { x: 0, y: 0.06, w: 0.44, h: 0.94 },
       },
       {
         key: "subjectRight",
         label: "Right subject (your host)",
         type: "image",
         cutout: true,
+        anchor: "right",
         z: 2,
-        rect: { x: 0.6, y: 0.04, w: 0.4, h: 0.96 },
+        rect: { x: 0.56, y: 0.04, w: 0.44, h: 0.96 },
       },
       {
         key: "headline",
@@ -120,6 +122,7 @@ const summarize = (template) => ({
     label: s.label,
     type: s.type,
     cutout: Boolean(s.cutout),
+    anchor: s.anchor || "center",
     defaults: s.defaults || null,
   })),
 });
