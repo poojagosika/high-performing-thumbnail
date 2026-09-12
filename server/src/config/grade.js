@@ -83,6 +83,14 @@ async function measure(input) {
   };
 }
 
+async function linearRGB(input, gains, offsets) {
+  const meta = await sharp(input).metadata();
+  const a = meta.hasAlpha ? [...gains, 1] : gains;
+  const b = meta.hasAlpha ? [...offsets, 0] : offsets;
+
+  return sharp(input).linear(a, b).png().toBuffer();
+}
+
 function temperatureCoefficients(mine, target) {
   if (!mine.channels || !target.channels) return null;
 
@@ -166,7 +174,7 @@ async function balance(input, mine, target, strength) {
     const scaled = coefficients.map((c) => toward(c, 1, strength));
     if (scaled.every((c) => Math.abs(c - 1) < 0.01)) break;
 
-    const next = await sharp(current).linear(scaled, [0, 0, 0]).png().toBuffer();
+    const next = await linearRGB(current, scaled, [0, 0, 0]);
     const measured = await measure(next);
     if (!measured) break;
 
@@ -218,10 +226,11 @@ async function grade(input, target, options = {}) {
   let stats = balanced.stats;
 
   const plan = planGrade(stats, target, strength);
-  current = await sharp(current)
-    .linear([plan.gain, plan.gain, plan.gain], [plan.lift, plan.lift, plan.lift])
-    .png()
-    .toBuffer();
+  current = await linearRGB(
+    current,
+    [plan.gain, plan.gain, plan.gain],
+    [plan.lift, plan.lift, plan.lift],
+  );
 
   stats = await measure(current);
   if (!stats) return current;
@@ -232,7 +241,7 @@ async function grade(input, target, options = {}) {
     );
 
     if (shift !== 0) {
-      current = await sharp(current).linear([1, 1, 1], [shift, 0, -shift]).png().toBuffer();
+      current = await linearRGB(current, [1, 1, 1], [shift, 0, -shift]);
       stats = (await measure(current)) || stats;
     }
   }
@@ -264,4 +273,4 @@ const axisGap = (a, b) => {
 
 const distance = (a, b) => round2(AXES.reduce((sum, key) => sum + Math.abs(a[key] - b[key]), 0));
 
-module.exports = { measure, planGrade, grade, temperatureCoefficients, curveFor, applyCurve, axisGap, distance, AXES, TONE_AXES, SAMPLE };
+module.exports = { measure, planGrade, grade, temperatureCoefficients, curveFor, applyCurve, linearRGB, axisGap, distance, AXES, TONE_AXES, SAMPLE };

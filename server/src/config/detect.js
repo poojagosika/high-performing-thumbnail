@@ -56,8 +56,11 @@ function layoutFrom(detection) {
   const left = big.filter((f) => f.cx < 0.5);
   const right = big.filter((f) => f.cx >= 0.5);
 
+  const template =
+    left.length && right.length ? "two-subject" : big.length === 1 ? "host-right" : "side-panel";
+
   return {
-    template: left.length && right.length ? "two-subject" : "side-panel",
+    template,
     headlineBand: detection.text.hasText ? detection.text.band : null,
     headlineCoverage: detection.text.coverage,
     subjects: { left: left.length, right: right.length },
