@@ -5,13 +5,21 @@ const path = require("path");
 const FONT_DIR = path.resolve(__dirname, "..", "..", "assets", "fonts");
 
 const FONTS = [
-  { key: "anton", label: "Anton", family: "Anton", file: "Anton-Regular.ttf" },
-  { key: "bebas", label: "Bebas Neue", family: "Bebas Neue", file: "BebasNeue-Regular.ttf" },
-  { key: "archivo", label: "Archivo Black", family: "Archivo Black", file: "ArchivoBlack-Regular.ttf" },
-  { key: "system", label: "Plain", family: "DejaVu Sans", file: null },
+  { key: "archivo", label: "Archivo Black", family: "Archivo Black", file: "ArchivoBlack-Regular.ttf", stroke: 0.14 },
+  { key: "anton", label: "Anton", family: "Anton", file: "Anton-Regular.ttf", stroke: 0.09 },
+  { key: "bebas", label: "Bebas Neue", family: "Bebas Neue", file: "BebasNeue-Regular.ttf", stroke: 0.09 },
+  { key: "fjalla", label: "Fjalla One", family: "Fjalla One", file: "FjallaOne-Regular.ttf", stroke: 0.1 },
+  { key: "passion", label: "Passion One", family: "Passion One", file: "PassionOne-Bold.ttf", stroke: 0.1 },
+  { key: "titan", label: "Titan One", family: "Titan One", file: "TitanOne-Regular.ttf", stroke: 0.13 },
+  { key: "bowlby", label: "Bowlby One", family: "Bowlby One", file: "BowlbyOne-Regular.ttf", stroke: 0.13 },
+  { key: "alfa", label: "Alfa Slab One", family: "Alfa Slab One", file: "AlfaSlabOne-Regular.ttf", stroke: 0.12 },
+  { key: "luckiest", label: "Luckiest Guy", family: "Luckiest Guy", file: "LuckiestGuy-Regular.ttf", stroke: 0.12 },
+  { key: "system", label: "Plain", family: "DejaVu Sans", file: null, stroke: 0.14 },
 ];
 
-const DEFAULT_FONT = "anton";
+const DEFAULT_FONT = "archivo";
+
+const strokeFor = (key) => byKey(key).stroke || 0.14;
 
 const byKey = (key) => FONTS.find((f) => f.key === key) || FONTS.find((f) => f.key === DEFAULT_FONT);
 
@@ -55,6 +63,7 @@ module.exports = {
   DEFAULT_FONT,
   byKey,
   familyFor,
+  strokeFor,
   missingFiles,
   register,
 };

@@ -1,7 +1,7 @@
 const sharp = require("sharp");
 const { CANVAS_W, CANVAS_H, byId, pixelRect } = require("./templates");
 const { buildSvg, layout: textLayout, escapeXml } = require("./caption");
-const { familyFor, DEFAULT_FONT } = require("./fonts");
+const { familyFor, strokeFor, DEFAULT_FONT } = require("./fonts");
 
 const PLACEHOLDER = { r: 24, g: 24, b: 32 };
 const clamp01 = (v, lo, hi) => Math.max(lo, Math.min(hi, Number.isFinite(v) ? v : 1));
@@ -103,6 +103,7 @@ function textLayer(slot, override) {
       color: settings.color,
       strokeColor: settings.strokeColor,
       fontFamily: familyFor(settings.font || DEFAULT_FONT),
+      strokeRatio: strokeFor(settings.font || DEFAULT_FONT),
     },
     rect.width,
     rect.height,
