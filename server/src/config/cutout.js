@@ -6,7 +6,7 @@ const sharp = require("sharp");
 const SCRIPT = path.resolve(__dirname, "..", "..", "scripts", "cutout.py");
 const PYTHON = process.env.PYTHON_BIN || "python3";
 const TIMEOUT_MS = 30000;
-const MIN_COVERAGE = 12;
+const MIN_COVERAGE = 3;
 const MAX_COVERAGE = 92;
 
 class CutoutError extends Error {
@@ -73,6 +73,21 @@ async function cutout(srcPath, dstPath) {
   }
 
   const result = await runScript(srcPath, dstPath);
+
+  if (result.coverage >= MIN_COVERAGE && result.coverage <= MAX_COVERAGE) {
+    const trimmed = await sharp(dstPath)
+      .trim({ threshold: 1 })
+      .png()
+      .toBuffer()
+      .catch(() => null);
+    if (trimmed) {
+      fs.writeFileSync(dstPath, trimmed);
+      const meta = await sharp(dstPath).metadata();
+      result.width = meta.width;
+      result.height = meta.height;
+      result.trimmed = true;
+    }
+  }
 
   if (result.coverage < MIN_COVERAGE) {
     fs.rmSync(dstPath, { force: true });

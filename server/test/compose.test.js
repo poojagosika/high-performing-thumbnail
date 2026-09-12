@@ -168,6 +168,23 @@ const pixelAt = async (buf, x, y) => {
     refused && refused.code);
   check("and no half-made file is left behind", !fs.existsSync(tmp("flat.png")));
 
+  const tiny = await blob(1200, 1200, 600, 600, 130);
+  fs.writeFileSync(tmp("tiny.jpg"), tiny);
+  let tinyResult = null;
+  try {
+    tinyResult = await cutout(tmp("tiny.jpg"), tmp("tiny.png"));
+  } catch (error) {
+    tinyResult = { error: error.code };
+  }
+  console.log(`      small subject covers ${tinyResult.coverage}% of its frame`);
+  check("a subject that is SMALL in frame is still accepted", !tinyResult.error,
+    `refused with ${tinyResult.error}`);
+
+  const tinyMeta = await sharp(tmp("tiny.png")).metadata();
+  check("and is trimmed down to the subject, not left as padding",
+    tinyMeta.width < 1200 && tinyMeta.height < 1200,
+    `${tinyMeta.width}x${tinyMeta.height} from 1200x1200`);
+
   const passthrough = await cutout(tmp("person.png"), tmp("person2.png"));
   check("an already-transparent PNG passes through untouched", passthrough.passthrough === true);
 
