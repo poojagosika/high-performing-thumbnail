@@ -95,9 +95,13 @@ function buildSvg(options, width, height, override) {
       )
       .join("");
 
+  const family = typeof options.fontFamily === "string" && /^[\w ,'"-]{1,120}$/.test(options.fontFamily)
+    ? options.fontFamily
+    : FONT;
+
   return Buffer.from(
     `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">` +
-      `<g font-family="${FONT}" font-size="${fontSize}" font-weight="bold" text-anchor="middle">` +
+      `<g font-family="${escapeXml(family)}" font-size="${fontSize}" font-weight="bold" text-anchor="middle">` +
       runs("none", ` stroke="${strokeColor}" stroke-width="${stroke}" stroke-linejoin="round"`) +
       runs(color, "") +
       `</g></svg>`,
