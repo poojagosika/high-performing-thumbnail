@@ -3,7 +3,7 @@ const { CANVAS_W, CANVAS_H, byId, pixelRect } = require("./templates");
 const { buildSvg, layout: textLayout, escapeXml } = require("./caption");
 const { familyFor, strokeFor, weightFor, DEFAULT_FONT } = require("./fonts");
 const { buildHeadline } = require("./headline");
-const { grade } = require("./grade");
+const { grade, measure } = require("./grade");
 const { planRecompose } = require("./recompose");
 
 const PLACEHOLDER = { r: 24, g: 24, b: 32 };
@@ -119,7 +119,10 @@ async function imageLayer(slot, source, override, referenceStyle) {
         .toBuffer();
 
   if (slot.cutout && referenceStyle) {
-    const graded = await grade(fitted, referenceStyle, { strength: SUBJECT_STRENGTH });
+    const graded = await grade(fitted, referenceStyle, {
+      strength: SUBJECT_STRENGTH,
+      whiteBalance: false,
+    });
     if (graded) fitted = graded;
   }
 
@@ -276,7 +279,11 @@ async function compose(templateId, assets = {}, overrides = {}, context = {}) {
   const referenceStyle = context.referenceStyle || null;
   const layers = [];
 
-  for (const slot of template.slots) {
+  const backgrounds = template.slots.filter((s) => s.treat === "background");
+  const rest = template.slots.filter((s) => s.treat !== "background");
+  let subjectTarget = referenceStyle;
+
+  for (const slot of [...backgrounds, ...rest]) {
     if (slot.type === "text") {
       const layer = textLayer(slot, overrides[slot.key]);
       if (layer) layers.push(layer);
@@ -292,10 +299,15 @@ async function compose(templateId, assets = {}, overrides = {}, context = {}) {
 
     if (slot.cutout) layers.push(scrimLayer(slot));
 
-    const prepared =
-      slot.treat === "background" ? await treatBackground(source, referenceStyle) : source;
+    let prepared = source;
 
-    layers.push(...(await imageLayer(slot, prepared, overrides[slot.key], referenceStyle)));
+    if (slot.treat === "background") {
+      prepared = await treatBackground(source, referenceStyle);
+      const measured = referenceStyle ? await measure(prepared) : null;
+      if (measured) subjectTarget = measured;
+    }
+
+    layers.push(...(await imageLayer(slot, prepared, overrides[slot.key], subjectTarget)));
   }
 
   layers.sort((a, b) => a.z - b.z);

@@ -5,7 +5,7 @@ const sharp = require("sharp");
 
 const SCRIPT = path.resolve(__dirname, "..", "..", "scripts", "cutout.py");
 const PYTHON = process.env.PYTHON_BIN || "python3";
-const TIMEOUT_MS = 30000;
+const TIMEOUT_MS = 120000;
 const MIN_COVERAGE = 3;
 const MAX_COVERAGE = 92;
 
@@ -32,7 +32,7 @@ function runScript(src, dst) {
     execFile(
       PYTHON,
       [SCRIPT, src, dst],
-      { timeout: TIMEOUT_MS, maxBuffer: 1024 * 1024 },
+      { timeout: TIMEOUT_MS, maxBuffer: 8 * 1024 * 1024 },
       (error, stdout) => {
         let parsed = null;
         try {
