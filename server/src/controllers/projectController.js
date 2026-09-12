@@ -1,6 +1,9 @@
 const Project = require("../models/Project");
 const TopicSearch = require("../models/TopicSearch");
 const crypto = require("crypto");
+const fs = require("fs");
+const os = require("os");
+const path = require("path");
 const sharp = require("sharp");
 const {
   YoutubeError,
@@ -11,6 +14,8 @@ const { extract, scoreMatch, gradeToward, MAX_BYTES } = require("../config/image
 const { recompose } = require("../config/recompose");
 const { renderCaption } = require("../config/caption");
 const { detectText } = require("../config/textLayout");
+const { analyze, layoutFrom } = require("../config/detect");
+const { byId, DEFAULT_TEMPLATE } = require("../config/templates");
 const { removeUpload, writeUpload, uploadPath } = require("../config/upload");
 
 const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -83,6 +88,45 @@ async function analyzeReference(project) {
   );
 }
 
+async function detectLayout(candidate) {
+  if (!candidate || !candidate.thumbnailUrl) return null;
+
+  const file = path.join(os.tmpdir(), `reference-${crypto.randomBytes(8).toString("hex")}.jpg`);
+
+  try {
+    const buffer = candidate.thumbnailUrl.startsWith("fixture://")
+      ? await synthesizeFixture(candidate.videoId)
+      : await fetchReferenceImage(candidate.thumbnailUrl);
+
+    fs.writeFileSync(file, buffer);
+    return layoutFrom(await analyze(file));
+  } catch {
+    return null;
+  } finally {
+    fs.rmSync(file, { force: true });
+  }
+}
+
+function adoptLayout(project, layout) {
+  if (!byId(project.templateId)) {
+    project.templateId = (layout && byId(layout.template) && layout.template) || DEFAULT_TEMPLATE;
+  }
+
+  const band = layout && layout.headlineBand;
+  if (!band) return;
+
+  const headline = byId(project.templateId).slots.find((s) => s.style === "headline");
+  if (!headline) return;
+
+  const current = (project.slotOverrides || {})[headline.key] || {};
+  if (current.band) return;
+
+  project.slotOverrides = {
+    ...(project.slotOverrides || {}),
+    [headline.key]: { ...current, band },
+  };
+}
+
 async function analyzeAllCandidates(project) {
   const styles = { ...(project.candidateStyles || {}) };
 
@@ -130,6 +174,11 @@ const shape = (project) => ({
   candidates: project.candidates,
   chosenVideoId: project.chosenVideoId,
   referenceStyle: project.referenceStyle,
+  referenceLayout: project.referenceLayout || null,
+  templateId: project.templateId || null,
+  slots: project.slots || {},
+  slotOverrides: project.slotOverrides || {},
+  composedUrl: project.composedUrl || null,
   uploadUrl: project.uploadUrl,
   uploadStyle: project.uploadStyle,
   framedUrl: project.framedUrl,
@@ -160,6 +209,8 @@ const summarize = (project) => {
     previewUrl: preview ? preview.thumbnailUrl : null,
     hasUpload: Boolean(project.uploadUrl),
     hasGraded: Boolean(project.gradedUrl),
+    hasComposed: Boolean(project.composedUrl),
+    templateId: project.templateId || null,
     score: report ? report.score : null,
     createdAt: project.createdAt,
   };
@@ -287,6 +338,14 @@ const chooseReference = async (req, res) => {
         ? scoreMatch(project.uploadStyle, project.referenceStyle)
         : null;
     }
+
+    if (changed || !project.referenceLayout) {
+      project.referenceLayout = await detectLayout(
+        project.candidates.find((c) => c.videoId === videoId),
+      );
+    }
+
+    adoptLayout(project, project.referenceLayout);
 
     await project.save();
 
@@ -563,4 +622,7 @@ module.exports = {
   analyzeAllCandidates,
   buildMatchReports,
   summarize,
+  shape,
+  detectLayout,
+  adoptLayout,
 };

@@ -181,6 +181,27 @@ function textLayer(slot, override) {
   return { input: svg, left: rect.left, top: rect.top, z: slot.z };
 }
 
+async function clipToCanvas(layer) {
+  const meta = await sharp(layer.input).metadata();
+  const cutLeft = Math.max(0, -layer.left);
+  const cutTop = Math.max(0, -layer.top);
+  const width = Math.min(meta.width - cutLeft, CANVAS_W - Math.max(0, layer.left));
+  const height = Math.min(meta.height - cutTop, CANVAS_H - Math.max(0, layer.top));
+
+  if (width <= 0 || height <= 0) return null;
+
+  if (cutLeft === 0 && cutTop === 0 && width === meta.width && height === meta.height) {
+    return layer;
+  }
+
+  const cropped = await sharp(layer.input)
+    .extract({ left: cutLeft, top: cutTop, width, height })
+    .png()
+    .toBuffer();
+
+  return { ...layer, input: cropped, left: Math.max(0, layer.left), top: Math.max(0, layer.top) };
+}
+
 async function compose(templateId, assets = {}, overrides = {}) {
   const template = byId(templateId);
   if (!template) throw new Error(`Unknown template: ${templateId}`);
@@ -205,12 +226,14 @@ async function compose(templateId, assets = {}, overrides = {}) {
 
   layers.sort((a, b) => a.z - b.z);
 
+  const clipped = (await Promise.all(layers.map(clipToCanvas))).filter(Boolean);
+
   return sharp({
     create: { width: CANVAS_W, height: CANVAS_H, channels: 3, background: { r: 14, g: 14, b: 18 } },
   })
-    .composite(layers.map(({ input, left, top }) => ({ input, left, top })))
+    .composite(clipped.map(({ input, left, top }) => ({ input, left, top })))
     .jpeg({ quality: 90 })
     .toBuffer();
 }
 
-module.exports = { compose, imageLayer, textLayer, placeholderLayer, CANVAS_W, CANVAS_H };
+module.exports = { compose, imageLayer, textLayer, placeholderLayer, clipToCanvas, CANVAS_W, CANVAS_H };

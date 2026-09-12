@@ -95,7 +95,7 @@ const TEMPLATES = [
         type: "text",
         z: 2,
         rect: { x: 0.34, y: 0.58, w: 0.62, h: 0.36 },
-        defaults: { text: "", font: "bebas", color: "#FFFFFF", strokeColor: "#000000", scale: 0.14 },
+        defaults: { text: "", font: "anton", color: "#FFFFFF", strokeColor: "#000000", scale: 0.14 },
       },
     ],
   },

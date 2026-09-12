@@ -12,6 +12,8 @@ const { allowedOrigins } = require("./config/security");
 
 const { serveUploadsGuard, UPLOAD_DIR } = require("./config/upload");
 
+require("./config/fonts").register();
+
 const app = express();
 
 app.set("trust proxy", 1);
