@@ -84,6 +84,7 @@ async function extract(input) {
 
   return {
     dominant: sampled ? sampled.dominant : null,
+    accent: sampled ? sampled.accent : null,
     brightness: round2((lMean / 255) * 100),
     contrast: round2((Math.sqrt(varSum / n) / 128) * 100),
     saturation: round2((satSum / n) * 100),

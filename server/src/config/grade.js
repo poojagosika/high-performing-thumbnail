@@ -17,6 +17,8 @@ const TEMPERATURE_RANGE = [0.72, 1.38];
 const EXPONENT_RANGE = [0.6, 1.7];
 const FLAT_CONTRAST = 12;
 const FLAT_SATURATION_MAX = 1.15;
+const ACCENT_MIN_SHARE = 0.008;
+const ACCENT_MIN_CHROMA = 0.62;
 
 const AXES = ["brightness", "contrast", "saturation", "warmth"];
 const TONE_AXES = ["shadows", "highlights"];
@@ -86,19 +88,42 @@ async function measure(input, options = {}) {
   const mean = (values) => values.reduce((a, b) => a + b, 0) / values.length;
 
   let top = null;
-  for (const cell of hist.values()) if (!top || cell.n > top.n) top = cell;
+  let vivid = null;
+  for (const cell of hist.values()) {
+    if (!top || cell.n > top.n) top = cell;
+    if (cell.n / seen < ACCENT_MIN_SHARE) continue;
+    const r = cell.r / cell.n, g = cell.g / cell.n, b = cell.b / cell.n;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    const chroma = max === 0 ? 0 : (max - min) / max;
+    if (max < 60) continue;
+    if (!vivid || chroma > vivid.chroma) vivid = { r, g, b, chroma, n: cell.n };
+  }
 
   const dominant = top
     ? {
         r: round2(top.r / top.n),
         g: round2(top.g / top.n),
         b: round2(top.b / top.n),
+        hex: `#${[top.r, top.g, top.b].map((v) => Math.round(v / top.n).toString(16).padStart(2, "0")).join("")}`,
         brightness: round2(((0.2126 * top.r + 0.7152 * top.g + 0.0722 * top.b) / top.n / 255) * 100),
         share: round2((top.n / seen) * 100),
       }
     : null;
 
+  const accent =
+    vivid && vivid.chroma > ACCENT_MIN_CHROMA
+      ? {
+          r: round2(vivid.r),
+          g: round2(vivid.g),
+          b: round2(vivid.b),
+          hex: `#${[vivid.r, vivid.g, vivid.b].map((v) => Math.round(v).toString(16).padStart(2, "0")).join("")}`,
+          chroma: round2(vivid.chroma * 100),
+          share: round2((vivid.n / seen) * 100),
+        }
+      : null;
+
   return {
+    accent,
     dominant,
     shadows: round2((mean(sorted.slice(0, quartile)) / 255) * 100),
     highlights: round2((mean(sorted.slice(-quartile)) / 255) * 100),
