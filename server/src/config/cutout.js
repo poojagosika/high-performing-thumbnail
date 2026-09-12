@@ -4,7 +4,6 @@ const path = require("path");
 const sharp = require("sharp");
 
 const SCRIPT = path.resolve(__dirname, "..", "..", "scripts", "cutout.py");
-const MODEL = path.resolve(__dirname, "..", "..", "assets", "models", "u2netp.onnx");
 const PYTHON = process.env.PYTHON_BIN || "python3";
 const TIMEOUT_MS = 30000;
 const MIN_COVERAGE = 12;
@@ -17,11 +16,7 @@ class CutoutError extends Error {
   }
 }
 
-const missingPieces = () =>
-  [
-    fs.existsSync(SCRIPT) ? null : `script ${SCRIPT}`,
-    fs.existsSync(MODEL) ? null : `model ${MODEL}`,
-  ].filter(Boolean);
+const missingPieces = () => (fs.existsSync(SCRIPT) ? [] : [`script ${SCRIPT}`]);
 
 async function hasAlpha(input) {
   const meta = await sharp(input).metadata();
@@ -36,7 +31,7 @@ function runScript(src, dst) {
   return new Promise((resolve, reject) => {
     execFile(
       PYTHON,
-      [SCRIPT, MODEL, src, dst],
+      [SCRIPT, src, dst],
       { timeout: TIMEOUT_MS, maxBuffer: 1024 * 1024 },
       (error, stdout) => {
         let parsed = null;
@@ -106,5 +101,4 @@ module.exports = {
   MIN_COVERAGE,
   MAX_COVERAGE,
   SCRIPT,
-  MODEL,
 };
