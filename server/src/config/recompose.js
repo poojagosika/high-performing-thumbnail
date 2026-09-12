@@ -3,8 +3,8 @@ const { compositionDistance } = require("./imageStyle");
 
 const WORK_W = 256;
 const ASPECT = 16 / 9;
-const MIN_OUT_W = 640;
-const MIN_OUT_H = 360;
+const MIN_OUT_W = 1280;
+const MIN_OUT_H = 720;
 const MIN_SCALE = 0.55;
 const SCALES = [1, 0.92, 0.84, 0.76, 0.68, 0.6];
 const STEPS = 7;
@@ -117,8 +117,11 @@ function baselineRect(field) {
   };
 }
 
-async function planRecompose(input, referenceStyle) {
+async function planRecompose(input, referenceStyle, options = {}) {
   if (!referenceStyle || !Array.isArray(referenceStyle.energyGrid)) return null;
+
+  const minWidth = Number.isFinite(options.minWidth) ? options.minWidth : MIN_OUT_W;
+  const minHeight = Number.isFinite(options.minHeight) ? options.minHeight : MIN_OUT_H;
 
   const meta = await sharp(input).metadata();
   if (!meta.width || !meta.height) return null;
@@ -143,7 +146,7 @@ async function planRecompose(input, referenceStyle) {
 
     const outW = Math.round((rect.width / field.width) * meta.width);
     const outH = Math.round((rect.height / field.height) * meta.height);
-    if (outW < MIN_OUT_W || outH < MIN_OUT_H) continue;
+    if (outW < minWidth || outH < minHeight) continue;
 
     const score = scoreOf(rect);
     if (score < bestScore) {
@@ -164,7 +167,7 @@ async function planRecompose(input, referenceStyle) {
   const width = Math.min(meta.width - left, Math.round(best.width * scaleX));
   const height = Math.min(meta.height - top, Math.round(best.height * scaleY));
 
-  if (width < MIN_OUT_W || height < MIN_OUT_H) {
+  if (width < minWidth || height < minHeight) {
     return { crop: null, before: round2(baselineScore), after: round2(baselineScore) };
   }
 

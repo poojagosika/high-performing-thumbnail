@@ -42,7 +42,10 @@ async function rebuild(project) {
 
   if (!byId(project.templateId)) return;
 
-  const buffer = await compose(project.templateId, assetsOf(project), project.slotOverrides || {});
+  const buffer = await compose(project.templateId, assetsOf(project), project.slotOverrides || {}, {
+    referenceStyle: project.referenceStyle || null,
+  });
+
   project.composedUrl = writeUpload(buffer, "jpg");
 }
 
