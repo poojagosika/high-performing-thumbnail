@@ -10,6 +10,7 @@ const {
 const { extract, scoreMatch, gradeToward, MAX_BYTES } = require("../config/imageStyle");
 const { recompose } = require("../config/recompose");
 const { renderCaption } = require("../config/caption");
+const { detectText } = require("../config/textLayout");
 const { removeUpload, writeUpload, uploadPath } = require("../config/upload");
 
 const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -67,7 +68,10 @@ async function analyzeCandidate(candidate) {
     const buffer = candidate.thumbnailUrl.startsWith("fixture://")
       ? await synthesizeFixture(candidate.videoId)
       : await fetchReferenceImage(candidate.thumbnailUrl);
-    return await extract(buffer);
+
+    const style = await extract(buffer);
+    style.textLayout = await detectText(buffer);
+    return style;
   } catch {
     return null;
   }
@@ -136,6 +140,7 @@ const shape = (project) => ({
   gradedReport: project.gradedReport,
   caption: project.caption,
   captionedUrl: project.captionedUrl,
+  referenceText: project.referenceStyle ? project.referenceStyle.textLayout || null : null,
   createdAt: project.createdAt,
 });
 

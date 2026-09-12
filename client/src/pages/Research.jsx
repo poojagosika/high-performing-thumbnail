@@ -127,9 +127,10 @@ function Research() {
         setTitle(data.title || "");
         setTags((data.tags || []).join(", "));
         setDescription(data.description || "");
+        const hint = data.referenceText?.hasText ? data.referenceText : null;
         setCaptionText(data.caption?.text || "");
-        setCaptionPos(data.caption?.position || "bottom");
-        setCaptionScale(data.caption?.scale || 0.16);
+        setCaptionPos(data.caption?.position || hint?.position || "bottom");
+        setCaptionScale(data.caption?.scale || hint?.scale || 0.16);
         setCaptionColor(data.caption?.color || "#FFFFFF");
       })
       .catch(() => {
@@ -147,6 +148,13 @@ function Research() {
   const workingUrl =
     project?.captionedUrl || project?.gradedUrl || project?.framedUrl || project?.uploadUrl;
   const best = project?.matchReports?.[0] || null;
+  const refText = project?.referenceText || null;
+  const suggestion =
+    refText?.hasText && refText.position
+      ? { position: refText.position, scale: refText.scale || 0.16 }
+      : null;
+  const matchesSuggestion =
+    suggestion && captionPos === suggestion.position && captionScale === suggestion.scale;
 
   const candidateRank = (videoId) =>
     (project?.candidates?.findIndex((c) => c.videoId === videoId) ?? -1) + 1;
@@ -169,6 +177,12 @@ function Research() {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = "";
     }
+  };
+
+  const applySuggestion = () => {
+    if (!suggestion) return;
+    setCaptionPos(suggestion.position);
+    setCaptionScale(suggestion.scale);
   };
 
   const handleCaption = async () => {
@@ -865,8 +879,34 @@ function Research() {
                       </div>
 
                       <p className="text-[11px] text-[#61616b] mt-2">
-                        Drawn last, so reframing and grading keep it. Placement is yours to
-                        pick for now.
+                        {suggestion ? (
+                          <>
+                            Winner #{candidateRank(project.chosenVideoId)} runs its text across
+                            the <span className="text-[#9b9baa]">{suggestion.position}</span>.
+                            {matchesSuggestion ? (
+                              <> You are matching it.</>
+                            ) : (
+                              <>
+                                {" "}
+                                <button
+                                  type="button"
+                                  onClick={applySuggestion}
+                                  className="text-white underline underline-offset-2 hover:text-white/80"
+                                >
+                                  Match the winner
+                                </button>
+                              </>
+                            )}
+                          </>
+                        ) : refText ? (
+                          <>
+                            Winner #{candidateRank(project.chosenVideoId)} carries no readable
+                            text, so placement is your call.
+                          </>
+                        ) : null}
+                      </p>
+                      <p className="text-[11px] text-[#61616b] mt-1">
+                        Drawn last, so reframing and grading keep it.
                       </p>
                     </div>
 

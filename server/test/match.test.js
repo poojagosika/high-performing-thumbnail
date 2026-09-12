@@ -37,7 +37,7 @@ Module._load = function (request, parent) {
 };
 const ctrl = require(path.join(SRC, "controllers/projectController"));
 const { extract } = require(path.join(SRC, "config/imageStyle"));
-const { inkCount } = require(path.join(SRC, "config/caption"));
+const { inkCount, renderCaption } = require(path.join(SRC, "config/caption"));
 Module._load = origLoad;
 
 let pass = 0, fail = 0;
@@ -90,6 +90,13 @@ const placeUpload = (buf, ext = "jpg") => {
     fetches += 1;
     if (req.url === "/thumb.jpg") {
       const img = await noisy([200, 120, 60], 90, 11);
+      res.writeHead(200, { "content-type": "image/jpeg", "content-length": img.length });
+      return res.end(img);
+    }
+    if (req.url.startsWith("/texted/")) {
+      const pos = req.url.slice(8);
+      const plain = await blobImg(1280, 720, 640, 360, 200);
+      const img = await renderCaption(plain, { text: "WINNER TEXT HERE", position: pos });
       res.writeHead(200, { "content-type": "image/jpeg", "content-length": img.length });
       return res.end(img);
     }
@@ -469,6 +476,55 @@ const placeUpload = (buf, ext = "jpg") => {
   res = mkRes();
   await ctrl.removeCaption({ user: { _id: "u2" }, params: { id: p._id } }, res);
   check("another user cannot remove my caption", res.statusCode === 404, JSON.stringify(res.body));
+
+  console.log("\nreading where the winner puts its text");
+  const layouts = {};
+  for (const pos of ["top", "bottom"]) {
+    p = await newProject(`${base}/texted/${pos}`);
+    res = mkRes();
+    await ctrl.chooseReference({ user: { _id: "u1" }, params: { id: p._id }, body: { videoId: "vid1" } }, res);
+    layouts[pos] = res.body.referenceText;
+    check(`a winner with ${pos} text is read as having text`, layouts[pos]?.hasText === true,
+      JSON.stringify(layouts[pos]));
+    check(`and located at ${pos}`, layouts[pos]?.position === pos, JSON.stringify(layouts[pos]?.position));
+  }
+
+  check("THE SUGGESTION VARIES, it is not a hard-coded default",
+    layouts.top.position !== layouts.bottom.position,
+    `${layouts.top.position} vs ${layouts.bottom.position}`);
+
+  p = await newProject(`${base}/centred.jpg`);
+  res = mkRes();
+  await ctrl.chooseReference({ user: { _id: "u1" }, params: { id: p._id }, body: { videoId: "vid1" } }, res);
+  check("a winner with no text is reported as having none", res.body.referenceText?.hasText === false,
+    JSON.stringify(res.body.referenceText));
+  check("and offers no bogus position", res.body.referenceText?.position === null);
+
+  console.log("\ndetection rides the existing cache, it does not refetch");
+  p = await newProject(`${base}/texted/bottom`);
+  p.candidates.push({ videoId: "vid2", title: "b", thumbnailUrl: `${base}/texted/top`, viewCount: 9, viewsPerDay: 1 });
+  await ctrl.chooseReference({ user: { _id: "u1" }, params: { id: p._id }, body: { videoId: "vid1" } }, mkRes());
+  const fDetect = placeUpload(await blobImg(1280, 720, 640, 360, 200));
+  await ctrl.uploadThumbnail({ user: { _id: "u1" }, params: { id: p._id }, file: { filename: fDetect } }, mkRes());
+  check("every candidate carries a detected layout",
+    Object.values(p.candidateStyles).every((st) => st.textLayout),
+    JSON.stringify(Object.keys(p.candidateStyles)));
+  const fetchesBeforeSecond = fetches;
+  const fDetect2 = placeUpload(await blobImg(1280, 720, 600, 340, 190));
+  await ctrl.uploadThumbnail({ user: { _id: "u1" }, params: { id: p._id }, file: { filename: fDetect2 } }, mkRes());
+  check("ZERO extra reference fetches on a second upload", fetches === fetchesBeforeSecond,
+    `${fetches} vs ${fetchesBeforeSecond}`);
+
+  console.log("\nthe user's own placement is never overridden");
+  await ctrl.setCaption({ user: { _id: "u1" }, params: { id: p._id },
+    body: { text: "MINE", position: "middle", scale: 0.2, color: "#FFFFFF", strokeColor: "#000000" } }, mkRes());
+  check("the reference says bottom", p.referenceStyle.textLayout.position === "bottom",
+    p.referenceStyle.textLayout.position);
+  res = mkRes();
+  await ctrl.gradeThumbnail({ user: { _id: "u1" }, params: { id: p._id } }, res);
+  check("but the user's middle placement survives a re-render", res.body.caption.position === "middle",
+    res.body.caption.position);
+  check("and their size too", res.body.caption.scale === 0.2, String(res.body.caption.scale));
 
   console.log("\nclear upload");
   p = await newProject(`${base}/thumb.jpg`);
