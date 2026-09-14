@@ -1,4 +1,6 @@
 const { z } = require("zod");
+const { TEMPLATES } = require("../config/templates");
+const { FONTS } = require("../config/fonts");
 
 const objectId = z.string().regex(/^[a-f0-9]{24}$/i, "must be a valid id");
 
@@ -65,6 +67,31 @@ const captionSchema = z.object({
   color: z.string().regex(/^#[0-9a-fA-F]{6}$/, "must be a hex colour").default("#FFFFFF"),
   strokeColor: z.string().regex(/^#[0-9a-fA-F]{6}$/, "must be a hex colour").default("#000000"),
 });
+
+const hexColour = z.string().regex(/^#[0-9a-fA-F]{6}$/, "must be a hex colour");
+
+const templateChoiceSchema = z.object({
+  templateId: z.enum(TEMPLATES.map((t) => t.id), { error: "is not one of the templates" }),
+});
+
+const slotEditSchema = z
+  .object({
+    text: z.string().trim().max(120, "is too long").optional(),
+    font: z.enum(FONTS.map((f) => f.key), { error: "is not one of the fonts" }).optional(),
+    color: hexColour.optional(),
+    accentColor: hexColour.optional(),
+    strokeColor: hexColour.optional(),
+    depthColor: hexColour.optional(),
+    scale: z.coerce.number().min(0.04).max(0.62).optional(),
+    rotate: z.coerce.number().min(-12).max(12).optional(),
+    depth: z.coerce.number().int().min(0).max(28).optional(),
+    band: z.enum(["top", "middle", "bottom"]).optional(),
+    zoom: z.coerce.number().min(0.5).max(3).optional(),
+    dx: z.coerce.number().min(-1).max(1).optional(),
+    dy: z.coerce.number().min(-1).max(1).optional(),
+    anchor: z.enum(["left", "center", "right"]).optional(),
+  })
+  .refine((v) => Object.keys(v).length > 0, { message: "Nothing to update" });
 
 const bulkIdsSchema = z.object({
   ids: z.array(objectId).min(1, "No thumbnails selected").max(500),
@@ -140,6 +167,8 @@ module.exports = {
   projectSchema,
   chooseReferenceSchema,
   captionSchema,
+  templateChoiceSchema,
+  slotEditSchema,
   bulkIdsSchema,
   bulkTagSchema,
   bulkCollectionSchema,

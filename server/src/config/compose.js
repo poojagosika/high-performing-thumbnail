@@ -3,19 +3,34 @@ const { CANVAS_W, CANVAS_H, byId, pixelRect } = require("./templates");
 const { buildSvg, layout: textLayout, escapeXml } = require("./caption");
 const { familyFor, strokeFor, weightFor, DEFAULT_FONT } = require("./fonts");
 const { buildHeadline } = require("./headline");
+const { grade, measure } = require("./grade");
+const { planRecompose } = require("./recompose");
 
 const PLACEHOLDER = { r: 24, g: 24, b: 32 };
+const MAX_UPSCALE = 2.5;
+const SUBJECT_STRENGTH = 0.7;
+const HALO = 9;
+
 const clamp01 = (v, lo, hi) => Math.max(lo, Math.min(hi, Number.isFinite(v) ? v : 1));
 
-async function shadowFor(fitted, meta) {
+async function haloFor(fitted, meta) {
+  const width = meta.width + HALO * 2;
+  const height = meta.height + HALO * 2;
+
   return sharp(fitted)
+    .extend({
+      top: HALO, bottom: HALO, left: HALO, right: HALO,
+      background: { r: 0, g: 0, b: 0, alpha: 0 },
+    })
     .extractChannel("alpha")
-    .blur(14)
+    .blur(HALO * 0.5)
+    .linear(3.2, -40)
+    .blur(HALO * 0.6)
     .toColourspace("b-w")
     .toBuffer()
     .then((mask) =>
       sharp({
-        create: { width: meta.width, height: meta.height, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
+        create: { width, height, channels: 4, background: { r: 5, g: 5, b: 8, alpha: 0.82 } },
       })
         .composite([{ input: mask, blend: "dest-in" }])
         .png()
@@ -24,7 +39,38 @@ async function shadowFor(fitted, meta) {
     .catch(() => null);
 }
 
-async function treatBackground(buffer) {
+async function frameBackground(buffer, referenceStyle) {
+  if (!referenceStyle) return buffer;
+
+  try {
+    const plan = await planRecompose(buffer, referenceStyle, {
+      minWidth: Math.round(CANVAS_W / MAX_UPSCALE),
+      minHeight: Math.round(CANVAS_H / MAX_UPSCALE),
+    });
+
+    if (!plan || !plan.crop) return buffer;
+    return await sharp(buffer).extract(plan.crop).png().toBuffer();
+  } catch {
+    return buffer;
+  }
+}
+
+async function toneBackground(buffer, referenceStyle) {
+  if (referenceStyle) {
+    const graded = await grade(buffer, referenceStyle);
+    if (graded) return graded;
+  }
+
+  return sharp(buffer)
+    .modulate({ brightness: 0.82, saturation: 1.18 })
+    .linear(1.16, -20)
+    .png()
+    .toBuffer();
+}
+
+async function treatBackground(source, referenceStyle) {
+  const framed = await frameBackground(source, referenceStyle);
+  const buffer = await toneBackground(framed, referenceStyle);
   const meta = await sharp(buffer).metadata();
   const vignette = Buffer.from(
     `<svg width="${meta.width}" height="${meta.height}" xmlns="http://www.w3.org/2000/svg">` +
@@ -34,20 +80,31 @@ async function treatBackground(buffer) {
       `<rect width="100%" height="100%" fill="url(#v)"/></svg>`,
   );
 
-  return sharp(buffer)
-    .modulate({ brightness: 0.82, saturation: 1.18 })
-    .linear(1.16, -20)
-    .composite([{ input: vignette }])
-    .png()
-    .toBuffer();
+  return sharp(buffer).composite([{ input: vignette }]).png().toBuffer();
 }
 
-async function imageLayer(slot, source, override) {
+function scrimLayer(slot) {
   const rect = pixelRect(slot.rect);
-  const zoom = clamp01(override?.zoom, 0.5, 3);
+  const outward = (slot.anchor || "center") === "right";
+
+  const svg = Buffer.from(
+    `<svg width="${rect.width}" height="${rect.height}" xmlns="http://www.w3.org/2000/svg">` +
+      `<defs><linearGradient id="s" x1="${outward ? "100%" : "0%"}" y1="0%" x2="${outward ? "0%" : "100%"}" y2="0%">` +
+      `<stop offset="0%" stop-color="#000" stop-opacity="0.42"/>` +
+      `<stop offset="62%" stop-color="#000" stop-opacity="0"/></linearGradient></defs>` +
+      `<rect width="100%" height="100%" fill="url(#s)"/></svg>`,
+  );
+
+  return { input: svg, left: rect.left, top: rect.top, z: slot.z - 0.75 };
+}
+
+async function imageLayer(slot, source, override, referenceStyle) {
+  const rect = pixelRect(slot.rect);
+  const requested = override?.zoom ?? slot.defaults?.zoom;
+  const zoom = clamp01(requested, 0.5, 3);
   const anchor = override?.anchor || slot.anchor || "center";
 
-  const fitted = slot.cutout
+  let fitted = slot.cutout
     ? await sharp(source)
         .resize({ height: Math.max(1, Math.round(rect.height * zoom)), withoutEnlargement: false })
         .png()
@@ -60,6 +117,14 @@ async function imageLayer(slot, source, override) {
         )
         .png()
         .toBuffer();
+
+  if (slot.cutout && referenceStyle) {
+    const graded = await grade(fitted, referenceStyle, {
+      strength: SUBJECT_STRENGTH,
+      whiteBalance: false,
+    });
+    if (graded) fitted = graded;
+  }
 
   const meta = await sharp(fitted).metadata();
   const dx = Math.round((override?.dx || 0) * rect.width);
@@ -79,9 +144,14 @@ async function imageLayer(slot, source, override) {
   const layers = [];
 
   if (slot.cutout) {
-    const shadow = await shadowFor(fitted, meta);
-    if (shadow) {
-      layers.push({ input: shadow, left: anchored + dx + 10, top: bottomAligned + dy + 12, z: slot.z - 0.5 });
+    const halo = await haloFor(fitted, meta);
+    if (halo) {
+      layers.push({
+        input: halo,
+        left: anchored + dx - HALO,
+        top: bottomAligned + dy - HALO,
+        z: slot.z - 0.5,
+      });
     }
   }
 
@@ -181,13 +251,39 @@ function textLayer(slot, override) {
   return { input: svg, left: rect.left, top: rect.top, z: slot.z };
 }
 
-async function compose(templateId, assets = {}, overrides = {}) {
+async function clipToCanvas(layer) {
+  const meta = await sharp(layer.input).metadata();
+  const cutLeft = Math.max(0, -layer.left);
+  const cutTop = Math.max(0, -layer.top);
+  const width = Math.min(meta.width - cutLeft, CANVAS_W - Math.max(0, layer.left));
+  const height = Math.min(meta.height - cutTop, CANVAS_H - Math.max(0, layer.top));
+
+  if (width <= 0 || height <= 0) return null;
+
+  if (cutLeft === 0 && cutTop === 0 && width === meta.width && height === meta.height) {
+    return layer;
+  }
+
+  const cropped = await sharp(layer.input)
+    .extract({ left: cutLeft, top: cutTop, width, height })
+    .png()
+    .toBuffer();
+
+  return { ...layer, input: cropped, left: Math.max(0, layer.left), top: Math.max(0, layer.top) };
+}
+
+async function compose(templateId, assets = {}, overrides = {}, context = {}) {
   const template = byId(templateId);
   if (!template) throw new Error(`Unknown template: ${templateId}`);
 
+  const referenceStyle = context.referenceStyle || null;
   const layers = [];
 
-  for (const slot of template.slots) {
+  const backgrounds = template.slots.filter((s) => s.treat === "background");
+  const rest = template.slots.filter((s) => s.treat !== "background");
+  let subjectTarget = referenceStyle;
+
+  for (const slot of [...backgrounds, ...rest]) {
     if (slot.type === "text") {
       const layer = textLayer(slot, overrides[slot.key]);
       if (layer) layers.push(layer);
@@ -195,22 +291,35 @@ async function compose(templateId, assets = {}, overrides = {}) {
     }
 
     const source = assets[slot.key];
-    if (source) {
-      const prepared = slot.treat === "background" ? await treatBackground(source) : source;
-      layers.push(...(await imageLayer(slot, prepared, overrides[slot.key])));
-    } else {
+
+    if (!source) {
       layers.push(placeholderLayer(slot));
+      continue;
     }
+
+    if (slot.cutout) layers.push(scrimLayer(slot));
+
+    let prepared = source;
+
+    if (slot.treat === "background") {
+      prepared = await treatBackground(source, referenceStyle);
+      const measured = referenceStyle ? await measure(prepared) : null;
+      if (measured) subjectTarget = measured;
+    }
+
+    layers.push(...(await imageLayer(slot, prepared, overrides[slot.key], subjectTarget)));
   }
 
   layers.sort((a, b) => a.z - b.z);
 
+  const clipped = (await Promise.all(layers.map(clipToCanvas))).filter(Boolean);
+
   return sharp({
     create: { width: CANVAS_W, height: CANVAS_H, channels: 3, background: { r: 14, g: 14, b: 18 } },
   })
-    .composite(layers.map(({ input, left, top }) => ({ input, left, top })))
+    .composite(clipped.map(({ input, left, top }) => ({ input, left, top })))
     .jpeg({ quality: 90 })
     .toBuffer();
 }
 
-module.exports = { compose, imageLayer, textLayer, placeholderLayer, CANVAS_W, CANVAS_H };
+module.exports = { compose, imageLayer, textLayer, placeholderLayer, clipToCanvas, CANVAS_W, CANVAS_H };

@@ -5,19 +5,21 @@ const path = require("path");
 const FONT_DIR = path.resolve(__dirname, "..", "..", "assets", "fonts");
 
 const FONTS = [
-  { key: "poppins", label: "Poppins", family: "Poppins", file: "Poppins-ExtraBold.ttf", weight: "normal", stroke: 0.12 },
-  { key: "montserrat", label: "Montserrat", family: "Montserrat", file: "Montserrat-var.ttf", weight: "900", stroke: 0.12 },
-  { key: "outfit", label: "Outfit", family: "Outfit", file: "Outfit-var.ttf", weight: "900", stroke: 0.12 },
-  { key: "figtree", label: "Figtree", family: "Figtree", file: "Figtree-var.ttf", weight: "900", stroke: 0.12 },
-  { key: "jakarta", label: "Plus Jakarta", family: "Plus Jakarta Sans", file: "PlusJakartaSans-var.ttf", weight: "800", stroke: 0.12 },
-  { key: "lilita", label: "Lilita One", family: "Lilita One", file: "LilitaOne-Regular.ttf", weight: "normal", stroke: 0.11 },
-  { key: "bangers", label: "Bangers", family: "Bangers", file: "Bangers-Regular.ttf", weight: "normal", stroke: 0.1 },
-  { key: "archivo", label: "Archivo Black", family: "Archivo Black", file: "ArchivoBlack-Regular.ttf", weight: "normal", stroke: 0.14 },
+  { key: "bebas", label: "Bebas Neue", family: "Bebas Neue", file: "BebasNeue-Regular.ttf", weight: "normal", stroke: 0.1 },
+  { key: "bigshoulders", label: "Big Shoulders", family: "Big Shoulders Display", file: "BigShouldersDisplay-var.ttf", weight: "900", stroke: 0.09 },
   { key: "anton", label: "Anton", family: "Anton", file: "Anton-Regular.ttf", weight: "normal", stroke: 0.09 },
+  { key: "intertight", label: "Inter Tight", family: "Inter Tight", file: "InterTight-var.ttf", weight: "900", stroke: 0.12 },
+  { key: "lexend", label: "Lexend", family: "Lexend", file: "Lexend-var.ttf", weight: "900", stroke: 0.12 },
+  { key: "spacegrotesk", label: "Space Grotesk", family: "Space Grotesk", file: "SpaceGrotesk-var.ttf", weight: "700", stroke: 0.12 },
+  { key: "bricolage", label: "Bricolage", family: "Bricolage Grotesque", file: "BricolageGrotesque-var.ttf", weight: "800", stroke: 0.12 },
+  { key: "funnel", label: "Funnel Display", family: "Funnel Display", file: "FunnelDisplay-var.ttf", weight: "800", stroke: 0.12 },
+  { key: "unbounded", label: "Unbounded", family: "Unbounded", file: "Unbounded-var.ttf", weight: "900", stroke: 0.13 },
+  { key: "archivo", label: "Archivo Black", family: "Archivo Black", file: "ArchivoBlack-Regular.ttf", weight: "normal", stroke: 0.14 },
+  { key: "jakarta", label: "Plus Jakarta", family: "Plus Jakarta Sans", file: "PlusJakartaSans-var.ttf", weight: "800", stroke: 0.12 },
   { key: "system", label: "Plain", family: "DejaVu Sans", file: null, weight: "bold", stroke: 0.14 },
 ];
 
-const DEFAULT_FONT = "poppins";
+const DEFAULT_FONT = "intertight";
 
 const strokeFor = (key) => byKey(key).stroke || 0.14;
 

@@ -125,6 +125,20 @@ const pixelAt = async (buf, x, y) => {
     JSON.stringify(beforeLeft) === JSON.stringify(afterLeft),
     `${JSON.stringify(beforeLeft)} vs ${JSON.stringify(afterLeft)}`);
 
+  console.log("\nedits that push a layer past the frame");
+  for (const extreme of [{ zoom: 3 }, { zoom: 3, dx: 1, dy: 1 }, { zoom: 0.5, dx: -1, dy: -1 }]) {
+    let built = null;
+    try {
+      built = await compose("two-subject", baseAssets, { ...baseText, subjectRight: extreme });
+    } catch (error) {
+      built = error;
+    }
+    const meta = Buffer.isBuffer(built) ? await sharp(built).metadata() : null;
+    check(`${JSON.stringify(extreme)} still renders at ${CANVAS_W}x${CANVAS_H}`,
+      meta !== null && meta.width === CANVAS_W && meta.height === CANVAS_H,
+      Buffer.isBuffer(built) ? `${meta.width}x${meta.height}` : String(built.message));
+  }
+
   console.log("\nfonts are real choices, not all the same fallback");
   const inks = {};
   for (const font of FONTS) {
