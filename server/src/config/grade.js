@@ -3,6 +3,7 @@ const sharp = require("sharp");
 const SAMPLE = 64;
 const OPAQUE = 128;
 const MIN_VISIBLE = 0.02;
+const PAD = 0.04;
 
 const GAIN_RANGE = [0.55, 2.2];
 const LIFT_RANGE = [-110, 110];
@@ -14,6 +15,10 @@ const WARMTH_TOLERANCE = 1;
 const WARMTH_RANGE = [-40, 40];
 const TEMPERATURE_RANGE = [0.72, 1.38];
 const EXPONENT_RANGE = [0.6, 1.7];
+const FLAT_CONTRAST = 12;
+const FLAT_SATURATION_MAX = 1.15;
+const ACCENT_MIN_SHARE = 0.008;
+const ACCENT_MIN_CHROMA = 0.62;
 
 const AXES = ["brightness", "contrast", "saturation", "warmth"];
 const TONE_AXES = ["shadows", "highlights"];
@@ -22,13 +27,21 @@ const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const round2 = (v) => Math.round(v * 100) / 100;
 const toward = (value, neutral, strength) => neutral + (value - neutral) * strength;
 
-async function measure(input) {
+const inside = (rects, x, y, w, h) =>
+  rects.some(
+    (r) =>
+      x >= (r.x - PAD) * w && x <= (r.x + r.w + PAD) * w &&
+      y >= (r.y - PAD) * h && y <= (r.y + r.h + PAD) * h,
+  );
+
+async function measure(input, options = {}) {
   const { data, info } = await sharp(input)
     .resize(SAMPLE, SAMPLE, { fit: "fill" })
     .ensureAlpha()
     .raw()
     .toBuffer({ resolveWithObject: true });
 
+  const exclude = Array.isArray(options.exclude) ? options.exclude : [];
   const total = info.width * info.height;
   const lum = new Float64Array(total);
   let seen = 0;
@@ -37,9 +50,11 @@ async function measure(input) {
   let bSum = 0;
   let satSum = 0;
   let lSum = 0;
+  const hist = new Map();
 
   for (let i = 0; i < total; i += 1) {
     if (data[i * 4 + 3] < OPAQUE) continue;
+    if (exclude.length && inside(exclude, i % info.width, Math.floor(i / info.width), info.width, info.height)) continue;
 
     const r = data[i * 4];
     const g = data[i * 4 + 1];
@@ -55,6 +70,11 @@ async function measure(input) {
     bSum += b;
     lSum += l;
     satSum += max === 0 ? 0 : (max - min) / max;
+
+    const bin = (r >> 5) * 64 + (g >> 5) * 8 + (b >> 5);
+    const cell = hist.get(bin) || { n: 0, r: 0, g: 0, b: 0 };
+    cell.n += 1; cell.r += r; cell.g += g; cell.b += b;
+    hist.set(bin, cell);
   }
 
   if (seen / total < MIN_VISIBLE) return null;
@@ -67,7 +87,44 @@ async function measure(input) {
   const quartile = Math.max(1, Math.round(seen / 4));
   const mean = (values) => values.reduce((a, b) => a + b, 0) / values.length;
 
+  let top = null;
+  let vivid = null;
+  for (const cell of hist.values()) {
+    if (!top || cell.n > top.n) top = cell;
+    if (cell.n / seen < ACCENT_MIN_SHARE) continue;
+    const r = cell.r / cell.n, g = cell.g / cell.n, b = cell.b / cell.n;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    const chroma = max === 0 ? 0 : (max - min) / max;
+    if (max < 60) continue;
+    if (!vivid || chroma > vivid.chroma) vivid = { r, g, b, chroma, n: cell.n };
+  }
+
+  const dominant = top
+    ? {
+        r: round2(top.r / top.n),
+        g: round2(top.g / top.n),
+        b: round2(top.b / top.n),
+        hex: `#${[top.r, top.g, top.b].map((v) => Math.round(v / top.n).toString(16).padStart(2, "0")).join("")}`,
+        brightness: round2(((0.2126 * top.r + 0.7152 * top.g + 0.0722 * top.b) / top.n / 255) * 100),
+        share: round2((top.n / seen) * 100),
+      }
+    : null;
+
+  const accent =
+    vivid && vivid.chroma > ACCENT_MIN_CHROMA
+      ? {
+          r: round2(vivid.r),
+          g: round2(vivid.g),
+          b: round2(vivid.b),
+          hex: `#${[vivid.r, vivid.g, vivid.b].map((v) => Math.round(v).toString(16).padStart(2, "0")).join("")}`,
+          chroma: round2(vivid.chroma * 100),
+          share: round2((vivid.n / seen) * 100),
+        }
+      : null;
+
   return {
+    accent,
+    dominant,
     shadows: round2((mean(sorted.slice(0, quartile)) / 255) * 100),
     highlights: round2((mean(sorted.slice(-quartile)) / 255) * 100),
     brightness: round2((lMean / 255) * 100),
@@ -81,6 +138,14 @@ async function measure(input) {
     },
     coverage: round2((seen / total) * 100),
   };
+}
+
+async function linearRGB(input, gains, offsets) {
+  const meta = await sharp(input).metadata();
+  const a = meta.hasAlpha ? [...gains, 1] : gains;
+  const b = meta.hasAlpha ? [...offsets, 0] : offsets;
+
+  return sharp(input).linear(a, b).png().toBuffer();
 }
 
 function temperatureCoefficients(mine, target) {
@@ -144,12 +209,20 @@ async function toneRange(current, stats, target, kind, strength) {
   return applyCurve(current, curveFor(kind, exponent));
 }
 
+const isFlat = (stats) => Number.isFinite(stats.contrast) && stats.contrast < FLAT_CONTRAST;
+
 function planGrade(mine, target, strength = 1) {
   const s = clamp(Number.isFinite(strength) ? strength : 1, 0, 1);
 
-  const wanted = clamp(target.contrast / Math.max(mine.contrast, 1), ...GAIN_RANGE);
+  const wanted = isFlat(mine)
+    ? 1
+    : clamp(target.contrast / Math.max(mine.contrast, 1), ...GAIN_RANGE);
   const gain = toward(wanted, 1, s);
-  const brightness = toward(target.brightness, mine.brightness, s);
+  const aim =
+    isFlat(mine) && target.dominant && Number.isFinite(target.dominant.brightness)
+      ? target.dominant.brightness
+      : target.brightness;
+  const brightness = toward(aim, mine.brightness, s);
   const lift = clamp(((brightness - gain * mine.brightness) / 100) * 255, ...LIFT_RANGE);
 
   return { gain: round2(gain), lift: Math.round(lift), strength: s };
@@ -166,7 +239,7 @@ async function balance(input, mine, target, strength) {
     const scaled = coefficients.map((c) => toward(c, 1, strength));
     if (scaled.every((c) => Math.abs(c - 1) < 0.01)) break;
 
-    const next = await sharp(current).linear(scaled, [0, 0, 0]).png().toBuffer();
+    const next = await linearRGB(current, scaled, [0, 0, 0]);
     const measured = await measure(next);
     if (!measured) break;
 
@@ -179,14 +252,17 @@ async function balance(input, mine, target, strength) {
   return { buffer: current, stats, applied: true };
 }
 
-async function saturate(input, mine, target, strength) {
+async function saturate(input, mine, target, strength, options = {}) {
   let current = input;
   let stats = mine;
+
+  if (options.flat) return { buffer: current, stats };
 
   for (let pass = 0; pass < SATURATION_PASSES; pass += 1) {
     if (Math.abs(stats.saturation - target.saturation) <= SATURATION_TOLERANCE) break;
 
-    const wanted = clamp(target.saturation / Math.max(stats.saturation, 1), ...SATURATION_RANGE);
+    const ceiling = options.flat ? FLAT_SATURATION_MAX : SATURATION_RANGE[1];
+    const wanted = clamp(target.saturation / Math.max(stats.saturation, 1), SATURATION_RANGE[0], ceiling);
     const saturation = toward(wanted, 1, strength);
     if (Math.abs(saturation - 1) < 0.01) break;
 
@@ -209,6 +285,7 @@ async function grade(input, target, options = {}) {
 
   const strength = clamp(Number.isFinite(options.strength) ? options.strength : 1, 0, 1);
 
+  const flat = isFlat(mine);
   const whiteBalance = options.whiteBalance !== false;
   const balanced = whiteBalance
     ? await balance(input, mine, target, strength)
@@ -218,10 +295,11 @@ async function grade(input, target, options = {}) {
   let stats = balanced.stats;
 
   const plan = planGrade(stats, target, strength);
-  current = await sharp(current)
-    .linear([plan.gain, plan.gain, plan.gain], [plan.lift, plan.lift, plan.lift])
-    .png()
-    .toBuffer();
+  current = await linearRGB(
+    current,
+    [plan.gain, plan.gain, plan.gain],
+    [plan.lift, plan.lift, plan.lift],
+  );
 
   stats = await measure(current);
   if (!stats) return current;
@@ -232,16 +310,16 @@ async function grade(input, target, options = {}) {
     );
 
     if (shift !== 0) {
-      current = await sharp(current).linear([1, 1, 1], [shift, 0, -shift]).png().toBuffer();
+      current = await linearRGB(current, [1, 1, 1], [shift, 0, -shift]);
       stats = (await measure(current)) || stats;
     }
   }
 
-  const saturated = await saturate(current, stats, target, strength);
+  const saturated = await saturate(current, stats, target, strength, { flat });
   current = saturated.buffer;
   stats = saturated.stats;
 
-  for (const kind of ["highlight", "shadow"]) {
+  for (const kind of flat ? [] : ["highlight", "shadow"]) {
     const next = await toneRange(current, stats, target, kind, strength);
     if (next === current) continue;
 
@@ -252,7 +330,7 @@ async function grade(input, target, options = {}) {
     stats = measured;
   }
 
-  const settled = await saturate(current, stats, target, strength);
+  const settled = await saturate(current, stats, target, strength, { flat });
   return settled.buffer;
 }
 
@@ -264,4 +342,4 @@ const axisGap = (a, b) => {
 
 const distance = (a, b) => round2(AXES.reduce((sum, key) => sum + Math.abs(a[key] - b[key]), 0));
 
-module.exports = { measure, planGrade, grade, temperatureCoefficients, curveFor, applyCurve, axisGap, distance, AXES, TONE_AXES, SAMPLE };
+module.exports = { measure, planGrade, grade, isFlat, temperatureCoefficients, curveFor, applyCurve, linearRGB, axisGap, distance, AXES, TONE_AXES, SAMPLE };

@@ -74,6 +74,15 @@ const templateChoiceSchema = z.object({
   templateId: z.enum(TEMPLATES.map((t) => t.id), { error: "is not one of the templates" }),
 });
 
+const headlineLineSchema = z.object({
+  text: z.string().trim().max(60, "is too long"),
+  font: z.enum(FONTS.map((f) => f.key), { error: "is not one of the fonts" }).optional(),
+  scale: z.coerce.number().min(0.04).max(0.42).optional(),
+  color: hexColour.optional(),
+  strokeColor: hexColour.optional(),
+  box: hexColour.optional(),
+});
+
 const slotEditSchema = z
   .object({
     text: z.string().trim().max(120, "is too long").optional(),
@@ -90,6 +99,8 @@ const slotEditSchema = z
     dx: z.coerce.number().min(-1).max(1).optional(),
     dy: z.coerce.number().min(-1).max(1).optional(),
     anchor: z.enum(["left", "center", "right"]).optional(),
+    align: z.enum(["left", "center"]).optional(),
+    lines: z.array(headlineLineSchema).max(4, "is too many lines").optional(),
   })
   .refine((v) => Object.keys(v).length > 0, { message: "Nothing to update" });
 

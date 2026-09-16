@@ -211,6 +211,42 @@ const pixelAt = async (buf, x, y) => {
     corner[0] > 40 && corner[0] > corner[1] * 3 && corner[0] > corner[2] * 3,
     `${JSON.stringify(corner)} — expected red-dominant, darkened by the background treatment`);
 
+  console.log("\nthe halo is a rim, not a rectangle — only a LIGHT background shows this");
+  const cream = await flat(1280, 720, [250, 245, 210]);
+  const lightRef = { brightness: 63, contrast: 62, saturation: 20, warmth: 11, shadows: 19, highlights: 96,
+    channels: { r: 170, g: 159, b: 142 }, dominant: { r: 251, g: 241, b: 214, brightness: 94, share: 30 },
+    energyGrid: new Array(9).fill(11.1) };
+  const onCream = await compose("two-subject",
+    { background: cream, subjectLeft: fs.readFileSync(tmp("person.png")) }, {}, { referenceStyle: lightRef });
+  const cornerRect2 = pixelRect(byId("two-subject").slots.find((s) => s.key === "subjectLeft").rect);
+  const clean = await pixelAt(onCream, cornerRect2.left + 4, cornerRect2.top + 4);
+  const plain = await pixelAt(onCream, 660, 40);
+  check("a cut-out's empty corner matches the plain background, not a dark box",
+    Math.abs(clean[0] - plain[0]) < 30 && clean[0] > 150,
+    `corner ${JSON.stringify(clean)} vs background ${JSON.stringify(plain)}`);
+
+  console.log("\na light reference produces a light thumbnail");
+  const darkRef = { brightness: 31, contrast: 41, saturation: 38, warmth: 13, shadows: 9, highlights: 60,
+    channels: { r: 102, g: 73, b: 69 }, dominant: { r: 46, g: 42, b: 43, brightness: 17, share: 12 },
+    energyGrid: new Array(9).fill(11.1) };
+  const filled = { background: bg, subjectLeft: subject, subjectRight: subject };
+  const litStats = await sharp(await compose("two-subject", filled, baseText, { referenceStyle: lightRef })).stats();
+  const darkStats = await sharp(await compose("two-subject", filled, baseText, { referenceStyle: darkRef })).stats();
+  const mean = (s) => s.channels.reduce((a, c) => a + c.mean, 0) / s.channels.length;
+  console.log(`      light reference -> ${mean(litStats).toFixed(0)}, dark reference -> ${mean(darkStats).toFixed(0)}`);
+  check("the same inputs come out lighter for a light reference",
+    mean(litStats) > mean(darkStats) + 25, `${mean(litStats).toFixed(0)} vs ${mean(darkStats).toFixed(0)}`);
+
+  console.log("\na designed flat backdrop keeps its colour instead of being cranked");
+  const flatCream = await flat(1280, 720, [250, 244, 210]);
+  const kept = await compose("side-panel", { background: flatCream }, {}, { referenceStyle: lightRef });
+  const keptStats = await sharp(kept).stats();
+  check("a flat cream backdrop stays bright, not dragged to the frame mean",
+    mean(keptStats) > 190, mean(keptStats).toFixed(0));
+  check("and stays flat rather than being posterised",
+    Math.max(...keptStats.channels.map((c) => c.stdev)) < 60,
+    keptStats.channels.map((c) => c.stdev.toFixed(0)).join(","));
+
   console.log("\nunknown template");
   let threw = false;
   try { await compose("no-such-template", {}, {}); } catch { threw = true; }
