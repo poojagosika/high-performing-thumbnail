@@ -5,6 +5,7 @@ const { TEMPLATES, byId, summarize: describeTemplate } = require("../config/temp
 const { cutout, CutoutError } = require("../config/cutout");
 const { removeUpload, writeUpload, uploadPath } = require("../config/upload");
 const { shape } = require("./projectController");
+const { FONTS } = require("../config/fonts");
 
 const IMAGE_FIELDS = ["zoom", "dx", "dy", "anchor"];
 const TEXT_FIELDS = [
@@ -73,7 +74,10 @@ function pruneSlots(project) {
 const owned = (req) => Project.findOne({ _id: req.params.id, user: req.user._id });
 
 const listTemplates = (req, res) => {
-  res.json(TEMPLATES.map(describeTemplate));
+  res.json({
+    templates: TEMPLATES.map(describeTemplate),
+    fonts: FONTS.map((f) => ({ key: f.key, label: f.label })),
+  });
 };
 
 const chooseTemplate = async (req, res) => {

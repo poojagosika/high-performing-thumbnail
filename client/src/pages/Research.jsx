@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Link, useParams, useNavigate } from "react-router";
 import { motion } from "framer-motion";
 import {
@@ -11,14 +11,18 @@ import {
   FlaskConical,
   ExternalLink,
   Upload,
-  Wand2,
   Download,
   RotateCcw,
-  Crop,
-  Type,
   History,
   Trash2,
   Plus,
+  Layout,
+  Image,
+  Type,
+  X,
+  ChevronDown,
+  Move,
+  ZoomIn,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import DashboardNav from "../components/DashboardNav";
@@ -39,12 +43,6 @@ const isFixture = (url) => !url || url.startsWith("fixture://");
 
 const watchUrl = (videoId) => `https://www.youtube.com/watch?v=${videoId}`;
 
-const scoreTone = (score) =>
-  score >= 80 ? "text-emerald-400" : score >= 55 ? "text-amber-400" : "text-red-400";
-
-const severityTone = (severity) =>
-  severity === "high" ? "text-red-400" : severity === "medium" ? "text-amber-400" : "text-emerald-400";
-
 const ago = (date) => {
   const seconds = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
   if (seconds < 60) return "just now";
@@ -58,6 +56,7 @@ const ago = (date) => {
 };
 
 const stageOf = (p) => {
+  if (p.composedUrl) return "composed";
   if (p.hasGraded) return "graded";
   if (p.hasUpload) return "matched";
   if (p.chosenVideoId) return "reference picked";
@@ -76,18 +75,17 @@ function Research() {
   const [error, setError] = useState("");
   const [searching, setSearching] = useState(false);
   const [choosing, setChoosing] = useState(null);
-  const [uploading, setUploading] = useState(false);
-  const [grading, setGrading] = useState(false);
-  const [framing, setFraming] = useState(false);
-  const [captioning, setCaptioning] = useState(false);
-  const [captionText, setCaptionText] = useState("");
-  const [captionPos, setCaptionPos] = useState("bottom");
-  const [captionScale, setCaptionScale] = useState(0.16);
-  const [captionColor, setCaptionColor] = useState("#FFFFFF");
   const [history, setHistory] = useState([]);
   const [deleting, setDeleting] = useState(null);
   const [historyTick, setHistoryTick] = useState(0);
-  const fileRef = useRef(null);
+
+  const [catalog, setCatalog] = useState({ templates: [], fonts: [] });
+  const [changingTemplate, setChangingTemplate] = useState(false);
+  const [slotUploading, setSlotUploading] = useState({});
+  const [slotEditing, setSlotEditing] = useState({});
+  const [clearing, setClearing] = useState(false);
+  const slotFileRefs = useRef({});
+  const editTimers = useRef({});
 
   const openId = id || null;
   const project = entry.id === openId ? entry.project : null;
@@ -101,25 +99,23 @@ function Research() {
 
   useEffect(() => {
     let cancelled = false;
+    api("/projects/templates")
+      .then((data) => { if (!cancelled) setCatalog(data); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
 
+  useEffect(() => {
+    let cancelled = false;
     api("/projects")
-      .then((rows) => {
-        if (!cancelled) setHistory(rows);
-      })
-      .catch(() => {
-        if (!cancelled) setHistory([]);
-      });
-
-    return () => {
-      cancelled = true;
-    };
+      .then((rows) => { if (!cancelled) setHistory(rows); })
+      .catch(() => { if (!cancelled) setHistory([]); });
+    return () => { cancelled = true; };
   }, [historyTick]);
 
   useEffect(() => {
     if (!id || entry.id === id) return;
-
     let cancelled = false;
-
     api(`/projects/${id}`)
       .then((data) => {
         if (cancelled) return;
@@ -127,153 +123,23 @@ function Research() {
         setTitle(data.title || "");
         setTags((data.tags || []).join(", "));
         setDescription(data.description || "");
-        const hint = data.referenceText?.hasText ? data.referenceText : null;
-        setCaptionText(data.caption?.text || "");
-        setCaptionPos(data.caption?.position || hint?.position || "bottom");
-        setCaptionScale(data.caption?.scale || hint?.scale || 0.16);
-        setCaptionColor(data.caption?.color || "#FFFFFF");
       })
       .catch(() => {
         if (!cancelled) setEntry({ id, project: null, notFound: true });
       });
-
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [id, entry.id]);
 
-  const chosen = project?.candidates?.find((c) => c.videoId === project.chosenVideoId);
-  const report = project?.gradedReport || project?.matchReport;
-  const frame = project?.frameReport;
-  const workingUrl =
-    project?.captionedUrl || project?.gradedUrl || project?.framedUrl || project?.uploadUrl;
-  const best = project?.matchReports?.[0] || null;
-  const refText = project?.referenceText || null;
-  const suggestion =
-    refText?.hasText && refText.position
-      ? { position: refText.position, scale: refText.scale || 0.16 }
-      : null;
-  const matchesSuggestion =
-    suggestion && captionPos === suggestion.position && captionScale === suggestion.scale;
-
-  const candidateRank = (videoId) =>
-    (project?.candidates?.findIndex((c) => c.videoId === videoId) ?? -1) + 1;
-
-  const handleUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const form = new FormData();
-    form.append("image", file);
-
-    setUploading(true);
-    try {
-      applyProject(await uploadFile(`/projects/${project.id}/upload`, form));
-      refreshHistory();
-      toast.success("Measured against your reference");
-    } catch (err) {
-      toast.error(err.message);
-    } finally {
-      setUploading(false);
-      if (fileRef.current) fileRef.current.value = "";
-    }
-  };
-
-  const applySuggestion = () => {
-    if (!suggestion) return;
-    setCaptionPos(suggestion.position);
-    setCaptionScale(suggestion.scale);
-  };
-
-  const handleCaption = async () => {
-    if (!captionText.trim()) return;
-    setCaptioning(true);
-    try {
-      applyProject(
-        await api(`/projects/${project.id}/caption`, {
-          method: "POST",
-          body: {
-            text: captionText.trim(),
-            position: captionPos,
-            scale: captionScale,
-            color: captionColor,
-            strokeColor: "#000000",
-          },
-        }),
-      );
-      refreshHistory();
-      toast.success("Text added");
-    } catch (err) {
-      toast.error(err.message);
-    } finally {
-      setCaptioning(false);
-    }
-  };
-
-  const handleRemoveCaption = async () => {
-    setCaptioning(true);
-    try {
-      applyProject(await api(`/projects/${project.id}/caption`, { method: "DELETE" }));
-      setCaptionText("");
-      refreshHistory();
-    } catch (err) {
-      toast.error(err.message);
-    } finally {
-      setCaptioning(false);
-    }
-  };
-
-  const handleFrame = async () => {
-    setFraming(true);
-    try {
-      const updated = await api(`/projects/${project.id}/recompose`, { method: "POST" });
-      applyProject(updated);
-      refreshHistory();
-      toast[updated.frameReport?.cropped ? "success" : "info"](
-        updated.frameReport?.cropped
-          ? "Reframed toward the reference"
-          : "Your framing already matches — nothing to crop",
-      );
-    } catch (err) {
-      toast.error(err.message);
-    } finally {
-      setFraming(false);
-    }
-  };
-
-  const handleGrade = async () => {
-    setGrading(true);
-    try {
-      applyProject(await api(`/projects/${project.id}/grade`, { method: "POST" }));
-      refreshHistory();
-      toast.success("Colour graded toward the reference");
-    } catch (err) {
-      toast.error(err.message);
-    } finally {
-      setGrading(false);
-    }
-  };
-
-  const handleClear = async () => {
-    try {
-      applyProject(await api(`/projects/${project.id}/upload`, { method: "DELETE" }));
-      refreshHistory();
-    } catch (err) {
-      toast.error(err.message);
-    }
-  };
+  const activeTemplate = catalog.templates.find((t) => t.id === project?.templateId) || null;
 
   const handleSearch = async (e) => {
     e.preventDefault();
     setError("");
-
     if (!title.trim()) {
       setError("A title is required — it is what we search YouTube for");
       return;
     }
-
     setSearching(true);
-
     try {
       const data = await api("/projects", {
         method: "POST",
@@ -286,13 +152,140 @@ function Research() {
       applyProject(data.project);
       refreshHistory();
       navigate(`/research/${data.project.id}`, { replace: true });
-      if (data.project.candidates.length === 0) {
+      if (data.project.candidates.length === 0)
         toast.info("No videos matched that topic. Try broader wording.");
-      }
     } catch (err) {
       setError(err.message);
     } finally {
       setSearching(false);
+    }
+  };
+
+  const handleChoose = async (videoId) => {
+    setChoosing(videoId);
+    try {
+      const updated = await api(`/projects/${project.id}/reference`, {
+        method: "PATCH",
+        body: { videoId },
+      });
+      applyProject(updated);
+      refreshHistory();
+      toast.success("Reference selected");
+      if (!updated.templateId) {
+        const suggested = updated.referenceLayout?.template || "two-subject";
+        const valid = catalog.templates.find((t) => t.id === suggested);
+        if (valid) {
+          setChangingTemplate(true);
+          try {
+            const withTemplate = await api(`/projects/${updated.id}/template`, {
+              method: "PATCH",
+              body: { templateId: suggested },
+            });
+            applyProject(withTemplate);
+          } catch {}
+          setChangingTemplate(false);
+        }
+      }
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setChoosing(null);
+    }
+  };
+
+  const handleTemplateChange = async (templateId) => {
+    if (templateId === project?.templateId) return;
+    setChangingTemplate(true);
+    try {
+      applyProject(await api(`/projects/${project.id}/template`, {
+        method: "PATCH",
+        body: { templateId },
+      }));
+      refreshHistory();
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setChangingTemplate(false);
+    }
+  };
+
+  const handleSlotUpload = async (key, e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const form = new FormData();
+    form.append("image", file);
+    setSlotUploading((prev) => ({ ...prev, [key]: true }));
+    try {
+      applyProject(await uploadFile(`/projects/${project.id}/slots/${key}`, form));
+      refreshHistory();
+      toast.success("Uploaded");
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setSlotUploading((prev) => ({ ...prev, [key]: false }));
+      if (slotFileRefs.current[key]) slotFileRefs.current[key].value = "";
+    }
+  };
+
+  const handleSlotEdit = useCallback((key, fields) => {
+    if (editTimers.current[key]) clearTimeout(editTimers.current[key]);
+    editTimers.current[key] = setTimeout(async () => {
+      setSlotEditing((prev) => ({ ...prev, [key]: true }));
+      try {
+        applyProject(await api(`/projects/${project.id}/slots/${key}`, {
+          method: "PATCH",
+          body: fields,
+        }));
+      } catch (err) {
+        toast.error(err.message);
+      } finally {
+        setSlotEditing((prev) => ({ ...prev, [key]: false }));
+      }
+    }, 400);
+  }, [project?.id, toast]);
+
+  const handleSlotEditImmediate = async (key, fields) => {
+    if (editTimers.current[key]) clearTimeout(editTimers.current[key]);
+    setSlotEditing((prev) => ({ ...prev, [key]: true }));
+    try {
+      applyProject(await api(`/projects/${project.id}/slots/${key}`, {
+        method: "PATCH",
+        body: fields,
+      }));
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setSlotEditing((prev) => ({ ...prev, [key]: false }));
+    }
+  };
+
+  const handleSlotClear = async (key) => {
+    setSlotUploading((prev) => ({ ...prev, [key]: true }));
+    try {
+      applyProject(await api(`/projects/${project.id}/slots/${key}`, { method: "DELETE" }));
+      refreshHistory();
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setSlotUploading((prev) => ({ ...prev, [key]: false }));
+    }
+  };
+
+  const handleClearAll = async () => {
+    if (!activeTemplate) return;
+    setClearing(true);
+    try {
+      for (const slot of activeTemplate.slots) {
+        await api(`/projects/${project.id}/slots/${slot.key}`, { method: "DELETE" });
+      }
+      const updated = await api(`/projects/${project.id}`);
+      applyProject(updated);
+      refreshHistory();
+      toast.success("All slots cleared");
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setClearing(false);
     }
   };
 
@@ -319,22 +312,7 @@ function Research() {
     navigate("/research");
   };
 
-  const handleChoose = async (videoId) => {
-    setChoosing(videoId);
-    try {
-      const updated = await api(`/projects/${project.id}/reference`, {
-        method: "PATCH",
-        body: { videoId },
-      });
-      applyProject(updated);
-      refreshHistory();
-      toast.success("Reference selected");
-    } catch (err) {
-      toast.error(err.message);
-    } finally {
-      setChoosing(null);
-    }
-  };
+  const chosen = project?.candidates?.find((c) => c.videoId === project.chosenVideoId);
 
   return (
     <div className="min-h-screen">
@@ -497,12 +475,12 @@ function Research() {
             ) : (
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {project.candidates.map((c, i) => {
-                  const chosen = project.chosenVideoId === c.videoId;
+                  const isChosen = project.chosenVideoId === c.videoId;
                   return (
                     <div
                       key={c.videoId}
                       className={`rounded-xl border overflow-hidden transition-colors ${
-                        chosen
+                        isChosen
                           ? "border-white/40 bg-white/6"
                           : "border-white/6 bg-[#111118]"
                       }`}
@@ -525,7 +503,7 @@ function Research() {
                         <span className="absolute top-2 left-2 h-5 min-w-5 px-1.5 rounded bg-black/70 text-[11px] font-medium text-white inline-flex items-center justify-center">
                           #{i + 1}
                         </span>
-                        {chosen && (
+                        {isChosen && (
                           <span className="absolute top-2 right-2 h-5 px-1.5 rounded bg-white text-[11px] font-medium text-[#0a0a0f] inline-flex items-center gap-1">
                             <Check className="w-3 h-3" />
                             Reference
@@ -564,10 +542,10 @@ function Research() {
 
                         <Button
                           onClick={() => handleChoose(c.videoId)}
-                          disabled={choosing === c.videoId || chosen}
-                          variant={chosen ? "outline" : "default"}
+                          disabled={choosing === c.videoId || isChosen}
+                          variant={isChosen ? "outline" : "default"}
                           className={`w-full h-8 mt-3 text-[12px] font-medium gap-1.5 ${
-                            chosen
+                            isChosen
                               ? "border-white/8 text-[#7b7b88] bg-transparent"
                               : "bg-white text-[#0a0a0f] hover:bg-white/90"
                           }`}
@@ -575,7 +553,7 @@ function Research() {
                           {choosing === c.videoId && (
                             <Loader2 className="w-3 h-3 animate-spin" />
                           )}
-                          {chosen ? "Selected" : "Use as reference"}
+                          {isChosen ? "Selected" : "Use as reference"}
                         </Button>
                       </div>
                     </div>
@@ -585,378 +563,330 @@ function Research() {
             )}
 
             {project.chosenVideoId && (
-              <div className="mt-8 rounded-xl border border-white/6 bg-[#111118] p-5">
-                <h2 className="text-[14px] font-medium text-white mb-1">
-                  Match your thumbnail to it
-                </h2>
-                <p className="text-[13px] text-[#7b7b88] mb-4">
-                  Upload your image and we measure it against the reference, then
-                  grade the colour to close the gap.
-                </p>
-
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <p className="text-[12px] text-[#7b7b88] mb-1.5">Reference</p>
-                    <div className="relative aspect-video rounded-lg overflow-hidden bg-white/4 border border-white/6">
-                      {isFixture(chosen?.thumbnailUrl) ? (
-                        <div className="absolute inset-0 flex items-center justify-center text-[11px] text-[#61616b]">
-                          sample thumbnail
-                        </div>
-                      ) : (
-                        <img
-                          src={chosen?.thumbnailUrl}
-                          alt={chosen?.title}
-                          className="absolute inset-0 w-full h-full object-cover"
-                        />
-                      )}
-                    </div>
+              <div className="mt-8 space-y-5">
+                <div className="rounded-xl border border-white/6 bg-[#111118] p-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <h2 className="text-[14px] font-medium text-white flex items-center gap-1.5">
+                      <Layout className="w-3.5 h-3.5 text-[#7b7b88]" />
+                      Template
+                    </h2>
+                    {changingTemplate && <Loader2 className="w-3.5 h-3.5 animate-spin text-[#7b7b88]" />}
                   </div>
 
-                  <div>
-                    <p className="text-[12px] text-[#7b7b88] mb-1.5">
-                      {[
-                        "Yours",
-                        project.framedUrl ? "reframed" : null,
-                        project.gradedUrl ? "graded" : null,
-                        project.captionedUrl ? "with text" : null,
-                      ]
-                        .filter(Boolean)
-                        .join(", ")
-                        .replace("Yours, ", "Yours — ")}
-                    </p>
-                    <div className="relative aspect-video rounded-lg overflow-hidden bg-white/4 border border-white/6">
-                      {project.uploadUrl ? (
-                        <img
-                          src={assetUrl(workingUrl)}
-                          alt="Your thumbnail"
-                          className="absolute inset-0 w-full h-full object-cover"
-                        />
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => fileRef.current?.click()}
-                          disabled={uploading}
-                          className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 text-[#7b7b88] hover:text-white hover:bg-white/4 transition-colors"
-                        >
-                          {uploading ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <Upload className="w-4 h-4" />
-                          )}
-                          <span className="text-[12px]">Click to upload</span>
-                        </button>
-                      )}
-                    </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {catalog.templates.map((t) => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => handleTemplateChange(t.id)}
+                        disabled={changingTemplate}
+                        className={`rounded-lg border px-3 py-2.5 text-left transition-colors ${
+                          project.templateId === t.id
+                            ? "border-white/40 bg-white/8"
+                            : "border-white/6 bg-white/2 hover:bg-white/4 hover:border-white/12"
+                        }`}
+                      >
+                        <p className="text-[12px] font-medium text-white truncate">{t.name}</p>
+                        <p className="text-[10px] text-[#61616b] mt-0.5">
+                          {t.slots.length} slot{t.slots.length !== 1 ? "s" : ""}
+                        </p>
+                      </button>
+                    ))}
                   </div>
                 </div>
 
-                <input
-                  ref={fileRef}
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  onChange={handleUpload}
-                  className="hidden"
-                />
-
-                {report && (
-                  <div className="mt-5">
-                    <div className="flex items-baseline gap-2">
-                      <span className={`font-heading text-3xl font-semibold ${scoreTone(report.score)}`}>
-                        {report.score}
-                      </span>
-                      <span className="text-[13px] text-[#7b7b88]">
-                        / 100 match
-                      </span>
-                      {project.gradedReport && project.matchReport && (
-                        <span className="text-[12px] text-[#61616b]">
-                          (was {project.matchReport.score} before grading)
-                        </span>
-                      )}
-                    </div>
-
-                    {project.matchReports?.length > 1 && (
-                      <div className="mt-5 pt-4 border-t border-white/6">
-                        <div className="flex items-baseline justify-between mb-2.5">
-                          <p className="text-[13px] text-white">
-                            How you compare to each winner
-                          </p>
-                          {best && best.videoId !== project.chosenVideoId && (
+                {activeTemplate && (
+                  <>
+                    <div className="rounded-xl border border-white/6 bg-[#111118] p-5">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                          <h2 className="text-[14px] font-medium text-white">Preview</h2>
+                          {chosen && !isFixture(chosen.thumbnailUrl) && (
                             <span className="text-[11px] text-[#61616b]">
-                              #{candidateRank(best.videoId)} is your closest match
+                              matching #{project.candidates.findIndex((c) => c.videoId === project.chosenVideoId) + 1}
                             </span>
                           )}
                         </div>
-
-                        <div className="flex flex-col gap-1">
-                          {project.matchReports.map((r) => {
-                            const c = project.candidates.find((x) => x.videoId === r.videoId);
-                            const isChosen = r.videoId === project.chosenVideoId;
-                            const isBest = best && r.videoId === best.videoId;
-                            return (
-                              <button
-                                key={r.videoId}
-                                type="button"
-                                onClick={() => handleChoose(r.videoId)}
-                                disabled={isChosen || choosing === r.videoId}
-                                className={`flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition-colors ${
-                                  isChosen ? "bg-white/8" : "hover:bg-white/4"
-                                }`}
+                        <div className="flex items-center gap-2">
+                          {project.composedUrl && (
+                            <a href={assetUrl(project.composedUrl)} download>
+                              <Button
+                                variant="outline"
+                                className="h-7 text-[11px] border-white/8 text-[#7b7b88] hover:text-white hover:border-white/12 bg-transparent font-medium gap-1"
                               >
-                                <span className="text-[11px] text-[#61616b] w-5 shrink-0">
-                                  #{candidateRank(r.videoId)}
-                                </span>
-                                <span className="text-[12px] text-[#7b7b88] truncate flex-1 min-w-0">
-                                  {c?.title || r.videoId}
-                                </span>
-                                {isBest && !isChosen && (
-                                  <span className="text-[10px] text-emerald-400 shrink-0">
-                                    easiest target
-                                  </span>
-                                )}
-                                {isChosen && (
-                                  <span className="text-[10px] text-[#7b7b88] shrink-0">
-                                    current
-                                  </span>
-                                )}
-                                {choosing === r.videoId && (
-                                  <Loader2 className="w-3 h-3 animate-spin text-[#7b7b88] shrink-0" />
-                                )}
-                                <span className="w-16 h-1 rounded bg-white/8 shrink-0 overflow-hidden">
-                                  <span
-                                    className={`block h-full ${r.score >= 80 ? "bg-emerald-400" : r.score >= 55 ? "bg-amber-400" : "bg-red-400"}`}
-                                    style={{ width: `${r.score}%` }}
-                                  />
-                                </span>
-                                <span className={`text-[12px] font-medium w-7 text-right shrink-0 ${scoreTone(r.score)}`}>
-                                  {r.score}
-                                </span>
-                              </button>
-                            );
-                          })}
-                        </div>
-
-                        <p className="text-[11px] text-[#61616b] mt-2">
-                          Switching keeps your upload and re-scores it against the new reference.
-                        </p>
-                      </div>
-                    )}
-
-                    <div className="grid gap-4 sm:grid-cols-2 mt-4">
-                      <div>
-                        <p className="text-[12px] text-[#7b7b88] mb-2">
-                          We can fix these
-                        </p>
-                        <div className="flex flex-col gap-1.5">
-                          {report.fixable.map((g) => (
-                            <div key={g.key} className="flex items-center justify-between text-[12px]">
-                              <span className="text-[#7b7b88]">{g.label}</span>
-                              <span className={severityTone(g.severity)}>
-                                {g.mine} vs {g.reference}
-                              </span>
-                            </div>
-                          ))}
+                                <Download className="w-3 h-3" />
+                                Download
+                              </Button>
+                            </a>
+                          )}
                         </div>
                       </div>
 
-                      <div>
-                        <p className="text-[12px] text-[#7b7b88] mb-2">
-                          Framing and content
-                        </p>
-                        <div className="flex flex-col gap-1.5">
-                          {report.manual.map((g) => (
-                            <div key={g.key} className="flex items-center justify-between text-[12px]">
-                              <span className="text-[#7b7b88]">{g.label}</span>
-                              <span className={severityTone(g.severity)}>
-                                {g.delta} apart
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                        {frame && (
-                          <p className="text-[11px] mt-2 leading-relaxed text-[#61616b]">
-                            {frame.cropped ? (
-                              <>
-                                Reframed: the weight gap moved{" "}
-                                <span className="text-emerald-400">
-                                  {frame.before} → {frame.after}
-                                </span>
-                                . Your original upload is untouched.
-                              </>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div>
+                          <p className="text-[11px] text-[#61616b] mb-1.5">Reference</p>
+                          <div className="relative aspect-video rounded-lg overflow-hidden bg-white/4 border border-white/6">
+                            {isFixture(chosen?.thumbnailUrl) ? (
+                              <div className="absolute inset-0 flex items-center justify-center text-[11px] text-[#61616b]">
+                                sample thumbnail
+                              </div>
                             ) : (
-                              <>Framing already matches the reference — no crop would improve it.</>
+                              <img
+                                src={chosen?.thumbnailUrl}
+                                alt={chosen?.title}
+                                className="absolute inset-0 w-full h-full object-cover"
+                              />
                             )}
-                          </p>
-                        )}
-                        <p className="text-[11px] text-[#61616b] mt-2 leading-relaxed">
-                          Reframing can move where the weight sits. Detail density
-                          needs a different shot.
-                        </p>
+                          </div>
+                        </div>
+
+                        <div>
+                          <p className="text-[11px] text-[#61616b] mb-1.5">Composed</p>
+                          <div className="relative aspect-video rounded-lg overflow-hidden bg-white/4 border border-white/6">
+                            {project.composedUrl ? (
+                              <img
+                                key={project.composedUrl}
+                                src={assetUrl(project.composedUrl)}
+                                alt="Composed thumbnail"
+                                className="absolute inset-0 w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div className="absolute inset-0 flex items-center justify-center text-[11px] text-[#61616b]">
+                                upload assets to see the preview
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     </div>
 
-                    <div className="mt-5 pt-4 border-t border-white/6">
-                      <div className="flex items-baseline justify-between mb-2.5">
-                        <p className="text-[13px] text-white">Text on the thumbnail</p>
-                        {project.captionedUrl && (
-                          <button
-                            type="button"
-                            onClick={handleRemoveCaption}
-                            className="text-[11px] text-[#61616b] hover:text-red-400 transition-colors"
-                          >
-                            Remove
-                          </button>
-                        )}
-                      </div>
-
-                      <div className="flex flex-wrap items-center gap-2">
-                        <input
-                          value={captionText}
-                          onChange={(e) => setCaptionText(e.target.value)}
-                          maxLength={120}
-                          placeholder="100 NUGGETS"
-                          aria-label="Thumbnail text"
-                          className="h-8 flex-1 min-w-[180px] px-2.5 rounded-lg border border-white/8 bg-white/3 text-[13px] text-white placeholder:text-[#61616b] outline-none focus:border-white/16 transition-colors"
-                        />
-
-                        <div className="flex rounded-lg border border-white/8 overflow-hidden">
-                          {["top", "middle", "bottom"].map((pos) => (
-                            <button
-                              key={pos}
-                              type="button"
-                              onClick={() => setCaptionPos(pos)}
-                              className={`px-2.5 h-8 text-[11px] transition-colors ${
-                                captionPos === pos
-                                  ? "bg-white/10 text-white"
-                                  : "text-[#7b7b88] hover:text-white"
-                              }`}
-                            >
-                              {pos}
-                            </button>
-                          ))}
-                        </div>
-
-                        <label className="flex items-center gap-1.5 text-[11px] text-[#61616b]">
-                          size
-                          <input
-                            type="range"
-                            min="0.06"
-                            max="0.3"
-                            step="0.01"
-                            value={captionScale}
-                            onChange={(e) => setCaptionScale(Number(e.target.value))}
-                            aria-label="Text size"
-                            className="w-20 accent-white"
-                          />
-                        </label>
-
-                        <div className="flex gap-1">
-                          {["#FFFFFF", "#FFDD00", "#FF3B30"].map((hex) => (
-                            <button
-                              key={hex}
-                              type="button"
-                              onClick={() => setCaptionColor(hex)}
-                              aria-label={`Text colour ${hex}`}
-                              style={{ background: hex }}
-                              className={`w-6 h-6 rounded border transition-colors ${
-                                captionColor === hex ? "border-white" : "border-white/15"
-                              }`}
-                            />
-                          ))}
-                        </div>
-
+                    <div className="rounded-xl border border-white/6 bg-[#111118] p-5">
+                      <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-[14px] font-medium text-white">Slots</h2>
                         <Button
-                          onClick={handleCaption}
-                          disabled={captioning || !captionText.trim()}
-                          className="h-8 text-[12px] bg-white text-[#0a0a0f] hover:bg-white/90 font-medium gap-1.5"
+                          onClick={handleClearAll}
+                          disabled={clearing}
+                          variant="outline"
+                          className="h-7 text-[11px] border-white/8 text-[#7b7b88] hover:text-red-400 hover:border-red-400/20 bg-transparent font-medium gap-1"
                         >
-                          {captioning ? (
-                            <Loader2 className="w-3 h-3 animate-spin" />
-                          ) : (
-                            <Type className="w-3 h-3" />
-                          )}
-                          {project.captionedUrl ? "Update text" : "Add text"}
+                          {clearing ? <Loader2 className="w-3 h-3 animate-spin" /> : <RotateCcw className="w-3 h-3" />}
+                          Clear all
                         </Button>
                       </div>
 
-                      <p className="text-[11px] text-[#61616b] mt-2">
-                        {suggestion ? (
-                          <>
-                            Winner #{candidateRank(project.chosenVideoId)} runs its text across
-                            the <span className="text-[#9b9baa]">{suggestion.position}</span>.
-                            {matchesSuggestion ? (
-                              <> You are matching it.</>
-                            ) : (
-                              <>
-                                {" "}
-                                <button
-                                  type="button"
-                                  onClick={applySuggestion}
-                                  className="text-white underline underline-offset-2 hover:text-white/80"
-                                >
-                                  Match the winner
-                                </button>
-                              </>
-                            )}
-                          </>
-                        ) : refText ? (
-                          <>
-                            Winner #{candidateRank(project.chosenVideoId)} carries no readable
-                            text, so placement is your call.
-                          </>
-                        ) : null}
-                      </p>
-                      <p className="text-[11px] text-[#61616b] mt-1">
-                        Drawn last, so reframing and grading keep it.
-                      </p>
-                    </div>
-
-                    <div className="flex flex-wrap justify-end gap-2 mt-5">
-                      <Button
-                        onClick={handleClear}
-                        variant="outline"
-                        className="h-8 text-[12px] border-white/8 text-[#7b7b88] hover:text-white hover:border-white/12 bg-transparent font-medium gap-1.5"
-                      >
-                        <RotateCcw className="w-3 h-3" />
-                        Start over
-                      </Button>
-                      {(project.captionedUrl || project.gradedUrl || project.framedUrl) && (
-                        <a href={assetUrl(workingUrl)} download>
-                          <Button
-                            variant="outline"
-                            className="h-8 text-[12px] border-white/8 text-[#7b7b88] hover:text-white hover:border-white/12 bg-transparent font-medium gap-1.5"
+                      <div className={`grid gap-4 ${activeTemplate.slots.length <= 2 ? "sm:grid-cols-2" : "sm:grid-cols-2"}`}>
+                        {activeTemplate.slots.map((slot) => (
+                          <div
+                            key={slot.key}
+                            className="rounded-lg border border-white/6 bg-white/2 p-3"
                           >
-                            <Download className="w-3 h-3" />
-                            Download
-                          </Button>
-                        </a>
-                      )}
-                      <Button
-                        onClick={handleFrame}
-                        disabled={framing}
-                        variant="outline"
-                        className="h-8 text-[12px] border-white/8 text-[#7b7b88] hover:text-white hover:border-white/12 bg-transparent font-medium gap-1.5"
-                      >
-                        {framing ? (
-                          <Loader2 className="w-3 h-3 animate-spin" />
-                        ) : (
-                          <Crop className="w-3 h-3" />
-                        )}
-                        {project.framedUrl ? "Reframe again" : "Fix the framing"}
-                      </Button>
-                      <Button
-                        onClick={handleGrade}
-                        disabled={grading}
-                        className="h-8 text-[12px] bg-white text-[#0a0a0f] hover:bg-white/90 font-medium gap-1.5"
-                      >
-                        {grading ? (
-                          <Loader2 className="w-3 h-3 animate-spin" />
-                        ) : (
-                          <Wand2 className="w-3 h-3" />
-                        )}
-                        {project.gradedUrl ? "Re-grade" : "Apply grade"}
-                      </Button>
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-1.5">
+                                {slot.type === "image" ? (
+                                  <Image className="w-3 h-3 text-[#7b7b88]" />
+                                ) : (
+                                  <Type className="w-3 h-3 text-[#7b7b88]" />
+                                )}
+                                <span className="text-[12px] font-medium text-white">{slot.label}</span>
+                                {slot.cutout && (
+                                  <span className="text-[9px] px-1 py-0.5 rounded bg-purple-500/20 text-purple-300">
+                                    cutout
+                                  </span>
+                                )}
+                              </div>
+                              {slotEditing[slot.key] && (
+                                <Loader2 className="w-3 h-3 animate-spin text-[#61616b]" />
+                              )}
+                            </div>
+
+                            {slot.type === "image" ? (
+                              <div>
+                                <div className="relative aspect-video rounded-md overflow-hidden bg-white/4 border border-white/6 mb-2">
+                                  {project.slots?.[slot.key]?.url ? (
+                                    <>
+                                      <img
+                                        src={assetUrl(project.slots[slot.key].url)}
+                                        alt={slot.label}
+                                        className="absolute inset-0 w-full h-full object-cover"
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() => handleSlotClear(slot.key)}
+                                        disabled={slotUploading[slot.key]}
+                                        className="absolute top-1.5 right-1.5 w-5 h-5 rounded bg-black/60 flex items-center justify-center text-white/70 hover:text-white hover:bg-black/80 transition-colors"
+                                      >
+                                        {slotUploading[slot.key] ? (
+                                          <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                                        ) : (
+                                          <X className="w-2.5 h-2.5" />
+                                        )}
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() => slotFileRefs.current[slot.key]?.click()}
+                                      disabled={slotUploading[slot.key]}
+                                      className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-[#7b7b88] hover:text-white hover:bg-white/4 transition-colors"
+                                    >
+                                      {slotUploading[slot.key] ? (
+                                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                      ) : (
+                                        <Upload className="w-3.5 h-3.5" />
+                                      )}
+                                      <span className="text-[11px]">Upload</span>
+                                    </button>
+                                  )}
+                                </div>
+
+                                <input
+                                  ref={(el) => { slotFileRefs.current[slot.key] = el; }}
+                                  type="file"
+                                  accept="image/jpeg,image/png,image/webp"
+                                  onChange={(e) => handleSlotUpload(slot.key, e)}
+                                  className="hidden"
+                                />
+
+                                {project.slots?.[slot.key]?.url && (
+                                  <div className="space-y-1.5">
+                                    <label className="flex items-center gap-1.5 text-[10px] text-[#61616b]">
+                                      <ZoomIn className="w-2.5 h-2.5" />
+                                      zoom
+                                      <input
+                                        type="range"
+                                        min="0.5"
+                                        max="3"
+                                        step="0.05"
+                                        defaultValue={project.slotOverrides?.[slot.key]?.zoom ?? slot.defaults?.zoom ?? 1}
+                                        onChange={(e) => handleSlotEdit(slot.key, { zoom: Number(e.target.value) })}
+                                        className="flex-1 accent-white h-1"
+                                      />
+                                    </label>
+                                    <label className="flex items-center gap-1.5 text-[10px] text-[#61616b]">
+                                      <Move className="w-2.5 h-2.5" />
+                                      x
+                                      <input
+                                        type="range"
+                                        min="-1"
+                                        max="1"
+                                        step="0.05"
+                                        defaultValue={project.slotOverrides?.[slot.key]?.dx ?? 0}
+                                        onChange={(e) => handleSlotEdit(slot.key, { dx: Number(e.target.value) })}
+                                        className="flex-1 accent-white h-1"
+                                      />
+                                    </label>
+                                    <label className="flex items-center gap-1.5 text-[10px] text-[#61616b]">
+                                      <Move className="w-2.5 h-2.5" />
+                                      y
+                                      <input
+                                        type="range"
+                                        min="-1"
+                                        max="1"
+                                        step="0.05"
+                                        defaultValue={project.slotOverrides?.[slot.key]?.dy ?? 0}
+                                        onChange={(e) => handleSlotEdit(slot.key, { dy: Number(e.target.value) })}
+                                        className="flex-1 accent-white h-1"
+                                      />
+                                    </label>
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <div className="space-y-2">
+                                <input
+                                  value={project.slotOverrides?.[slot.key]?.text ?? slot.defaults?.text ?? ""}
+                                  onChange={(e) => handleSlotEdit(slot.key, { text: e.target.value })}
+                                  maxLength={120}
+                                  placeholder="YOUR HEADLINE"
+                                  className="w-full h-8 px-2.5 rounded-md border border-white/8 bg-white/3 text-[12px] text-white placeholder:text-[#61616b] outline-none focus:border-white/16 transition-colors"
+                                />
+
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <div className="flex rounded-md border border-white/8 overflow-hidden">
+                                    {["top", "middle", "bottom"].map((pos) => (
+                                      <button
+                                        key={pos}
+                                        type="button"
+                                        onClick={() => handleSlotEditImmediate(slot.key, { band: pos })}
+                                        className={`px-2 h-6 text-[10px] transition-colors ${
+                                          (project.slotOverrides?.[slot.key]?.band ?? slot.defaults?.band ?? "top") === pos
+                                            ? "bg-white/10 text-white"
+                                            : "text-[#7b7b88] hover:text-white"
+                                        }`}
+                                      >
+                                        {pos}
+                                      </button>
+                                    ))}
+                                  </div>
+
+                                  <div className="flex rounded-md border border-white/8 overflow-hidden">
+                                    {["left", "center"].map((align) => (
+                                      <button
+                                        key={align}
+                                        type="button"
+                                        onClick={() => handleSlotEditImmediate(slot.key, { align })}
+                                        className={`px-2 h-6 text-[10px] transition-colors ${
+                                          (project.slotOverrides?.[slot.key]?.align ?? "left") === align
+                                            ? "bg-white/10 text-white"
+                                            : "text-[#7b7b88] hover:text-white"
+                                        }`}
+                                      >
+                                        {align}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <div className="relative">
+                                    <select
+                                      value={project.slotOverrides?.[slot.key]?.font ?? slot.defaults?.font ?? "intertight"}
+                                      onChange={(e) => handleSlotEditImmediate(slot.key, { font: e.target.value })}
+                                      className="h-6 pl-2 pr-5 rounded-md border border-white/8 bg-white/3 text-[10px] text-white outline-none appearance-none cursor-pointer"
+                                    >
+                                      {catalog.fonts.map((f) => (
+                                        <option key={f.key} value={f.key}>{f.label}</option>
+                                      ))}
+                                    </select>
+                                    <ChevronDown className="absolute right-1 top-1/2 -translate-y-1/2 w-2.5 h-2.5 text-[#61616b] pointer-events-none" />
+                                  </div>
+
+                                  <label className="flex items-center gap-1 text-[10px] text-[#61616b]">
+                                    size
+                                    <input
+                                      type="range"
+                                      min="0.04"
+                                      max="0.42"
+                                      step="0.01"
+                                      defaultValue={project.slotOverrides?.[slot.key]?.scale ?? slot.defaults?.scale ?? 0.16}
+                                      onChange={(e) => handleSlotEdit(slot.key, { scale: Number(e.target.value) })}
+                                      className="w-16 accent-white h-1"
+                                    />
+                                  </label>
+
+                                  <div className="flex gap-1">
+                                    {["#FFFFFF", "#12121A", "#FF3B30", "#FFDD00"].map((hex) => (
+                                      <button
+                                        key={hex}
+                                        type="button"
+                                        onClick={() => handleSlotEditImmediate(slot.key, { color: hex })}
+                                        style={{ background: hex }}
+                                        className={`w-5 h-5 rounded border transition-colors ${
+                                          (project.slotOverrides?.[slot.key]?.color ?? slot.defaults?.color ?? "#FFFFFF") === hex
+                                            ? "border-white"
+                                            : "border-white/15"
+                                        }`}
+                                      />
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
+                  </>
                 )}
               </div>
             )}
@@ -1009,12 +939,6 @@ function Research() {
                         {p.candidateCount} thumbnails · {stageOf(p)} · {ago(p.createdAt)}
                       </p>
                     </Link>
-
-                    {p.score != null && (
-                      <span className={`text-[13px] font-medium shrink-0 ${scoreTone(p.score)}`}>
-                        {p.score}
-                      </span>
-                    )}
 
                     <button
                       type="button"
