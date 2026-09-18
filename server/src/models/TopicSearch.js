@@ -14,8 +14,6 @@ const candidateSchema = new mongoose.Schema(
   { _id: false },
 );
 
-const CACHE_TTL_DAYS = 7;
-
 const topicSearchSchema = new mongoose.Schema(
   {
     query: { type: String, required: true, unique: true },
@@ -26,11 +24,7 @@ const topicSearchSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-topicSearchSchema.index(
-  { fetchedAt: 1 },
-  { expireAfterSeconds: CACHE_TTL_DAYS * 24 * 60 * 60 },
-);
+topicSearchSchema.index({ fetchedAt: 1 });
 
 module.exports = mongoose.model("TopicSearch", topicSearchSchema);
 module.exports.candidateSchema = candidateSchema;
-module.exports.CACHE_TTL_DAYS = CACHE_TTL_DAYS;

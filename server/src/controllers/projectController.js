@@ -18,7 +18,7 @@ const { analyze, layoutFrom } = require("../config/detect");
 const { byId, DEFAULT_TEMPLATE } = require("../config/templates");
 const { removeUpload, writeUpload, uploadPath } = require("../config/upload");
 
-const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
 const FETCH_TIMEOUT_MS = 8000;
 
