@@ -16,6 +16,8 @@ const { renderCaption } = require("../config/caption");
 const { detectText } = require("../config/textLayout");
 const { analyze, layoutFrom } = require("../config/detect");
 const { byId, DEFAULT_TEMPLATE } = require("../config/templates");
+const { planThumbnail, overridesFrom } = require("../config/plan");
+const { compose } = require("../config/compose");
 const { removeUpload, writeUpload, uploadPath } = require("../config/upload");
 
 const CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -347,6 +349,30 @@ const chooseReference = async (req, res) => {
 
     adoptLayout(project, project.referenceLayout);
 
+    const plan = planThumbnail({
+      reference: { style: project.referenceStyle, layout: project.referenceLayout },
+      content: { headline: project.title },
+    });
+
+    const planned = overridesFrom(plan);
+    project.slotOverrides = { ...(project.slotOverrides || {}), ...planned };
+
+    removeUpload(project.composedUrl);
+    project.composedUrl = null;
+
+    if (byId(project.templateId)) {
+      const assets = {};
+      for (const [key, slot] of Object.entries(project.slots || {})) {
+        if (slot && slot.url) assets[key] = uploadPath(slot.url);
+      }
+      const buffer = await compose(
+        project.templateId,
+        assets,
+        project.slotOverrides || {},
+        { referenceStyle: project.referenceStyle || null },
+      );
+      project.composedUrl = writeUpload(buffer, "jpg");
+    }
     await project.save();
 
     res.json(shape(project));
