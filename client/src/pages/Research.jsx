@@ -86,6 +86,7 @@ function Research() {
   const [clearing, setClearing] = useState(false);
   const slotFileRefs = useRef({});
   const editTimers = useRef({});
+  const previewRef = useRef(null);
 
   const openId = id || null;
   const project = entry.id === openId ? entry.project : null;
@@ -170,22 +171,8 @@ function Research() {
       });
       applyProject(updated);
       refreshHistory();
-      toast.success("Reference selected");
-      if (!updated.templateId) {
-        const suggested = updated.referenceLayout?.template || "two-subject";
-        const valid = catalog.templates.find((t) => t.id === suggested);
-        if (valid) {
-          setChangingTemplate(true);
-          try {
-            const withTemplate = await api(`/projects/${updated.id}/template`, {
-              method: "PATCH",
-              body: { templateId: suggested },
-            });
-            applyProject(withTemplate);
-          } catch {}
-          setChangingTemplate(false);
-        }
-      }
+      toast.success(updated.composedUrl ? "Reference selected — thumbnail composed" : "Reference selected");
+      setTimeout(() => previewRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 120);
     } catch (err) {
       toast.error(err.message);
     } finally {
@@ -553,7 +540,7 @@ function Research() {
                           {choosing === c.videoId && (
                             <Loader2 className="w-3 h-3 animate-spin" />
                           )}
-                          {isChosen ? "Selected" : "Use as reference"}
+                          {choosing === c.videoId ? "Composing…" : isChosen ? "Selected" : "Use as reference"}
                         </Button>
                       </div>
                     </div>
@@ -597,7 +584,7 @@ function Research() {
 
                 {activeTemplate && (
                   <>
-                    <div className="rounded-xl border border-white/6 bg-[#111118] p-5">
+                    <div ref={previewRef} className="rounded-xl border border-white/6 bg-[#111118] p-5">
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-3">
                           <h2 className="text-[14px] font-medium text-white">Preview</h2>
@@ -652,7 +639,7 @@ function Research() {
                               />
                             ) : (
                               <div className="absolute inset-0 flex items-center justify-center text-[11px] text-[#61616b]">
-                                upload assets to see the preview
+                                no preview yet
                               </div>
                             )}
                           </div>
