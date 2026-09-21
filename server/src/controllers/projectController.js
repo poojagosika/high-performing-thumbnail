@@ -381,6 +381,49 @@ const chooseReference = async (req, res) => {
   }
 };
 
+const replan = async (req, res) => {
+  try {
+    const project = await Project.findOne({ _id: req.params.id, user: req.user._id });
+    if (!project) return res.status(404).json({ message: "Project not found" });
+
+    if (!project.chosenVideoId) {
+      return res.status(400).json({ message: "Pick a reference first" });
+    }
+
+    if (!byId(project.templateId)) {
+      return res.status(400).json({ message: "Choose a template first" });
+    }
+
+    const plan = planThumbnail({
+      reference: { style: project.referenceStyle, layout: project.referenceLayout },
+      content: { headline: project.title },
+    });
+
+    const planned = overridesFrom(plan);
+    project.slotOverrides = { ...(project.slotOverrides || {}), ...planned };
+
+    removeUpload(project.composedUrl);
+    project.composedUrl = null;
+
+    const assets = {};
+    for (const [key, slot] of Object.entries(project.slots || {})) {
+      if (slot && slot.url) assets[key] = uploadPath(slot.url);
+    }
+    const buffer = await compose(
+      project.templateId,
+      assets,
+      project.slotOverrides || {},
+      { referenceStyle: project.referenceStyle || null },
+    );
+    project.composedUrl = writeUpload(buffer, "jpg");
+
+    await project.save();
+    res.json(shape(project));
+  } catch (error) {
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 const deleteProject = async (req, res) => {
   try {
     const project = await Project.findOneAndDelete({
@@ -635,6 +678,7 @@ module.exports = {
   getProjects,
   getProject,
   chooseReference,
+  replan,
   uploadThumbnail,
   recomposeThumbnail,
   gradeThumbnail,

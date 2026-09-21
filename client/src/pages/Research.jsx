@@ -12,6 +12,7 @@ import {
   ExternalLink,
   Upload,
   Download,
+  RefreshCw,
   RotateCcw,
   History,
   Trash2,
@@ -84,6 +85,7 @@ function Research() {
   const [slotUploading, setSlotUploading] = useState({});
   const [slotEditing, setSlotEditing] = useState({});
   const [clearing, setClearing] = useState(false);
+  const [replanning, setReplanning] = useState(false);
   const slotFileRefs = useRef({});
   const editTimers = useRef({});
   const previewRef = useRef(null);
@@ -273,6 +275,20 @@ function Research() {
       toast.error(err.message);
     } finally {
       setClearing(false);
+    }
+  };
+
+  const handleReplan = async () => {
+    setReplanning(true);
+    try {
+      const updated = await api(`/projects/${project.id}/replan`, { method: "POST" });
+      applyProject(updated);
+      refreshHistory();
+      toast.success("Thumbnail recomposed");
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setReplanning(false);
     }
   };
 
@@ -595,6 +611,15 @@ function Research() {
                           )}
                         </div>
                         <div className="flex items-center gap-2">
+                          <Button
+                            onClick={handleReplan}
+                            disabled={replanning}
+                            variant="outline"
+                            className="h-7 text-[11px] border-white/8 text-[#7b7b88] hover:text-white hover:border-white/12 bg-transparent font-medium gap-1"
+                          >
+                            {replanning ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+                            Build from plan
+                          </Button>
                           {project.composedUrl && (
                             <a href={assetUrl(project.composedUrl)} download>
                               <Button
