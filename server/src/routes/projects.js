@@ -23,6 +23,7 @@ const {
   getProjects,
   getProject,
   chooseReference,
+  replan,
   uploadThumbnail,
   recomposeThumbnail,
   gradeThumbnail,
@@ -45,6 +46,7 @@ router.post("/:id/slots/:key", validateObjectId(), uploadLimiter, upload.single(
 router.patch("/:id/slots/:key", validateObjectId(), validate(slotEditSchema), editSlot);
 router.delete("/:id/slots/:key", validateObjectId(), clearSlot);
 router.patch("/:id/reference", validateObjectId(), validate(chooseReferenceSchema), chooseReference);
+router.post("/:id/replan", validateObjectId(), replan);
 router.post("/:id/upload", validateObjectId(), uploadLimiter, upload.single("image"), uploadErrorHandler, persistImage, uploadThumbnail);
 router.post("/:id/recompose", validateObjectId(), uploadLimiter, recomposeThumbnail);
 router.post("/:id/grade", validateObjectId(), uploadLimiter, gradeThumbnail);
