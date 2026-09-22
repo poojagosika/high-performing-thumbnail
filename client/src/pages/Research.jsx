@@ -12,6 +12,7 @@ import {
   ExternalLink,
   Upload,
   Download,
+  Copy,
   RefreshCw,
   RotateCcw,
   History,
@@ -289,6 +290,44 @@ function Research() {
       toast.error(err.message);
     } finally {
       setReplanning(false);
+    }
+  };
+
+  const slug = (text) =>
+    String(text || "thumbnail").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60) || "thumbnail";
+
+  const handleDownload = async () => {
+    if (!project?.composedUrl) return;
+    try {
+      const res = await fetch(assetUrl(project.composedUrl));
+      const blob = await res.blob();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `${slug(project.title)}.jpg`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } catch {
+      toast.error("Download failed");
+    }
+  };
+
+  const handleCopy = async () => {
+    if (!project?.composedUrl) return;
+    try {
+      const res = await fetch(assetUrl(project.composedUrl));
+      const blob = await res.blob();
+      const png = blob.type === "image/png" ? blob : await createImageBitmap(blob)
+        .then((bmp) => {
+          const c = document.createElement("canvas");
+          c.width = bmp.width;
+          c.height = bmp.height;
+          c.getContext("2d").drawImage(bmp, 0, 0);
+          return new Promise((r) => c.toBlob(r, "image/png"));
+        });
+      await navigator.clipboard.write([new ClipboardItem({ "image/png": png })]);
+      toast.success("Copied to clipboard");
+    } catch {
+      toast.error("Copy failed — try downloading instead");
     }
   };
 
@@ -621,15 +660,24 @@ function Research() {
                             Build from plan
                           </Button>
                           {project.composedUrl && (
-                            <a href={assetUrl(project.composedUrl)} download>
+                            <>
                               <Button
+                                onClick={handleDownload}
                                 variant="outline"
                                 className="h-7 text-[11px] border-white/8 text-[#7b7b88] hover:text-white hover:border-white/12 bg-transparent font-medium gap-1"
                               >
                                 <Download className="w-3 h-3" />
                                 Download
                               </Button>
-                            </a>
+                              <Button
+                                onClick={handleCopy}
+                                variant="outline"
+                                className="h-7 text-[11px] border-white/8 text-[#7b7b88] hover:text-white hover:border-white/12 bg-transparent font-medium gap-1"
+                              >
+                                <Copy className="w-3 h-3" />
+                                Copy
+                              </Button>
+                            </>
                           )}
                         </div>
                       </div>
