@@ -119,7 +119,10 @@ const reset = () => { cacheRows = []; projects = []; apiCalls = 0; nextId = 1; }
   await ctrl.createProject({ user: { _id: "u1" }, body: { title: "topic", tags: [] } }, mkRes());
   cacheRows[0].fetchedAt = new Date(Date.now() - 8 * 86400000);
   await ctrl.createProject({ user: { _id: "u1" }, body: { title: "topic", tags: [] } }, mkRes());
-  check("a row older than 7 days refetches", apiCalls === 2, String(apiCalls));
+  check("a row 8 days old is still served from cache", apiCalls === 1, String(apiCalls));
+  cacheRows[0].fetchedAt = new Date(Date.now() - 31 * 86400000);
+  await ctrl.createProject({ user: { _id: "u1" }, body: { title: "topic", tags: [] } }, mkRes());
+  check("a row older than 30 days refetches", apiCalls === 2, String(apiCalls));
 
   console.log("\nchoosing a reference — the IDOR surface");
   reset();
