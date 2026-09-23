@@ -6,6 +6,7 @@ const { buildHeadline } = require("./headline");
 const { buildRichHeadline } = require("./richtext");
 const { grade, measure, isFlat } = require("./grade");
 const { planRecompose } = require("./recompose");
+const { paletteFrom } = require("./plan");
 
 const PLACEHOLDER = { r: 24, g: 24, b: 32 };
 const MAX_UPSCALE = 2.5;
@@ -224,6 +225,32 @@ function placeholderLayer(slot) {
   return { input: svg, left: rect.left, top: rect.top, z: slot.z };
 }
 
+function backdropLayer(slot, referenceStyle) {
+  const rect = pixelRect(slot.rect);
+  const { backdrop, accent, mood } = paletteFrom(referenceStyle);
+  const edgeOpacity = mood === "light" ? 0.12 : 0.55;
+
+  const svg = Buffer.from(
+    `<svg width="${rect.width}" height="${rect.height}" xmlns="http://www.w3.org/2000/svg">` +
+      `<defs>` +
+      `<radialGradient id="glow" cx="50%" cy="42%" r="60%">` +
+      `<stop offset="0" stop-color="${accent}" stop-opacity="0.22"/>` +
+      `<stop offset="1" stop-color="${accent}" stop-opacity="0"/>` +
+      `</radialGradient>` +
+      `<radialGradient id="vignette" cx="50%" cy="50%" r="75%">` +
+      `<stop offset="0.55" stop-color="#000000" stop-opacity="0"/>` +
+      `<stop offset="1" stop-color="#000000" stop-opacity="${edgeOpacity}"/>` +
+      `</radialGradient>` +
+      `</defs>` +
+      `<rect width="100%" height="100%" fill="${backdrop}"/>` +
+      `<rect width="100%" height="100%" fill="url(#glow)"/>` +
+      `<rect width="100%" height="100%" fill="url(#vignette)"/>` +
+      `</svg>`,
+  );
+
+  return { input: svg, left: rect.left, top: rect.top, z: slot.z };
+}
+
 const BANDS = {
   top: 0.02,
   middle: 0.28,
@@ -323,7 +350,11 @@ async function compose(templateId, assets = {}, overrides = {}, context = {}) {
     const source = assets[slot.key];
 
     if (!source) {
-      layers.push(placeholderLayer(slot));
+      layers.push(
+        slot.treat === "background" && referenceStyle
+          ? backdropLayer(slot, referenceStyle)
+          : placeholderLayer(slot),
+      );
       continue;
     }
 
