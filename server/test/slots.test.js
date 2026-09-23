@@ -128,14 +128,17 @@ const call = async (handler, req) => {
   const list = mkRes();
   ctrl.listTemplates({}, list);
   const { TEMPLATES } = require(path.join(SRC, "config/templates"));
-  check("every template is offered", list.body.length === TEMPLATES.length, String(list.body.length));
+  const offered = list.body.templates;
+  check("every template is offered", offered.length === TEMPLATES.length, String(offered.length));
   check("including the one-host layout tech channels use",
-    list.body.some((t) => t.id === "host-right"), list.body.map((t) => t.id).join(", "));
+    offered.some((t) => t.id === "host-right"), offered.map((t) => t.id).join(", "));
   check("with the slots the user has to fill",
-    list.body.every((t) => t.id && t.name && t.slots.length && t.slots.every((s) => s.key && s.label && s.type)),
-    JSON.stringify(list.body[0]));
+    offered.every((t) => t.id && t.name && t.slots.length && t.slots.every((s) => s.key && s.label && s.type)),
+    JSON.stringify(offered[0]));
   check("and says which slots get their background removed",
-    list.body.find((t) => t.id === "two-subject").slots.filter((s) => s.cutout).length === 2);
+    offered.find((t) => t.id === "two-subject").slots.filter((s) => s.cutout).length === 2);
+  check("and lists the fonts the editor can pick from",
+    list.body.fonts.length > 0 && list.body.fonts.every((f) => f.key && f.label));
 
   console.log("\nchoosing a template gives you a draft straight away");
   const project = mkProject();
