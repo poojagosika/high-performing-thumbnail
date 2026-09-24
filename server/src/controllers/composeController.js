@@ -6,6 +6,7 @@ const { cutout, CutoutError } = require("../config/cutout");
 const { removeUpload, writeUpload, uploadPath } = require("../config/upload");
 const { shape } = require("./projectController");
 const { FONTS } = require("../config/fonts");
+const { restyleLines } = require("../config/plan");
 
 const IMAGE_FIELDS = ["zoom", "dx", "dy", "anchor"];
 const TEXT_FIELDS = [
@@ -182,7 +183,13 @@ const editSlot = async (req, res) => {
       return res.status(400).json({ message: `Those settings do not apply to the ${slot.label} slot` });
     }
 
-    const merged = { ...((project.slotOverrides || {})[req.params.key] || {}), ...changes };
+    const current = (project.slotOverrides || {})[req.params.key] || {};
+    const merged = { ...current, ...changes };
+
+    if (slot.type === "text" && changes.lines === undefined && Array.isArray(current.lines) && current.lines.length) {
+      merged.lines = restyleLines(current.lines, changes);
+    }
+
     project.slotOverrides = { ...(project.slotOverrides || {}), [req.params.key]: merged };
 
     await rebuild(project);

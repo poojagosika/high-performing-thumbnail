@@ -87,6 +87,7 @@ function Research() {
   const [slotEditing, setSlotEditing] = useState({});
   const [clearing, setClearing] = useState(false);
   const [replanning, setReplanning] = useState(false);
+  const [textDrafts, setTextDrafts] = useState({});
   const slotFileRefs = useRef({});
   const editTimers = useRef({});
   const previewRef = useRef(null);
@@ -173,6 +174,7 @@ function Research() {
         body: { videoId },
       });
       applyProject(updated);
+      setTextDrafts({});
       refreshHistory();
       toast.success(updated.composedUrl ? "Reference selected — thumbnail composed" : "Reference selected");
       setTimeout(() => previewRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 120);
@@ -284,6 +286,7 @@ function Research() {
     try {
       const updated = await api(`/projects/${project.id}/replan`, { method: "POST" });
       applyProject(updated);
+      setTextDrafts({});
       refreshHistory();
       toast.success("Thumbnail recomposed");
     } catch (err) {
@@ -854,8 +857,12 @@ function Research() {
                             ) : (
                               <div className="space-y-2">
                                 <input
-                                  value={project.slotOverrides?.[slot.key]?.text ?? slot.defaults?.text ?? ""}
-                                  onChange={(e) => handleSlotEdit(slot.key, { text: e.target.value })}
+                                  value={textDrafts[`${project.id}:${slot.key}`] ?? project.slotOverrides?.[slot.key]?.text ?? slot.defaults?.text ?? ""}
+                                  onChange={(e) => {
+                                    const text = e.target.value;
+                                    setTextDrafts((prev) => ({ ...prev, [`${project.id}:${slot.key}`]: text }));
+                                    handleSlotEdit(slot.key, { text });
+                                  }}
                                   maxLength={120}
                                   placeholder="YOUR HEADLINE"
                                   className="w-full h-8 px-2.5 rounded-md border border-white/8 bg-white/3 text-[12px] text-white placeholder:text-[#61616b] outline-none focus:border-white/16 transition-colors"
