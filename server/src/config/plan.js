@@ -136,14 +136,64 @@ function planThumbnail(input = {}) {
   };
 }
 
+const peakOf = (lines) => Math.max(0, ...lines.map((l) => Number(l.scale) || 0));
+const round3 = (v) => Math.round(v * 1000) / 1000;
+
+function restyleLines(lines, changes = {}) {
+  let next = lines.map((l) => ({ ...l }));
+
+  if (changes.text !== undefined) {
+    const parts = splitHeadline(changes.text);
+
+    if (!parts.length) {
+      next = next.map((l) => ({ ...l, text: "" }));
+    } else {
+      const scales = HIERARCHY[parts.length] || HIERARCHY[1];
+      const factor = (peakOf(next) || scales[0]) / Math.max(...scales);
+      const boxed = next.find((l) => l.box);
+      const plain = next.find((l) => !l.box) || next[0] || {};
+
+      next = parts.map((text, i) => {
+        const useBox = boxed && i === parts.length - 1 && parts.length > 1;
+        return { ...(useBox ? boxed : plain), text, scale: round3(scales[i] * factor) };
+      });
+    }
+  }
+
+  if (changes.font !== undefined) {
+    next = next.map((l) => ({ ...l, font: changes.font }));
+  }
+
+  if (changes.color !== undefined) {
+    next = next.map((l) => (l.box ? l : { ...l, color: changes.color }));
+  }
+
+  if (changes.scale !== undefined) {
+    const peak = peakOf(next);
+    if (peak > 0) {
+      const factor = Number(changes.scale) / peak;
+      next = next.map((l) => ({ ...l, scale: round3(clamp(l.scale * factor, 0.04, 0.42)) }));
+    }
+  }
+
+  return next;
+}
+
 function overridesFrom(spec) {
   if (!spec || !spec.headline) return {};
+
+  const { lines } = spec.headline;
+  const lead = lines.find((l) => !l.box) || lines[0];
 
   return {
     [spec.headline.slot]: {
       align: spec.headline.align,
       band: spec.headline.band,
-      lines: spec.headline.lines,
+      lines,
+      text: lines.map((l) => l.text).join(" "),
+      font: lead.font,
+      color: lead.color,
+      scale: peakOf(lines),
     },
   };
 }
@@ -151,6 +201,7 @@ function overridesFrom(spec) {
 module.exports = {
   planThumbnail,
   overridesFrom,
+  restyleLines,
   splitHeadline,
   paletteFrom,
   templateFrom,

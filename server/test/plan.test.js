@@ -4,7 +4,7 @@ const SRC = path.join(__dirname, "..", "src");
 
 require(path.join(SRC, "config/fonts")).register();
 
-const { planThumbnail, overridesFrom, splitHeadline, paletteFrom, templateFrom } =
+const { planThumbnail, overridesFrom, restyleLines, splitHeadline, paletteFrom, templateFrom } =
   require(path.join(SRC, "config/plan"));
 const { evaluateThumbnail } = require(path.join(SRC, "config/evaluate"));
 const { compose } = require(path.join(SRC, "config/compose"));
@@ -162,6 +162,44 @@ const flat = (w, h, rgb) =>
 
   check("every check reports a reason, pass or fail",
     report.checks.every((c) => typeof c.name === "string" && c.detail !== undefined));
+
+  console.log("\nediting a planned headline changes what renders");
+  const planned = overridesFrom(planThumbnail({
+    reference: { style: lightStyle, layout: { template: "two-subject" } },
+    content: { headline: "I ate 100 nuggets" },
+  })).headline;
+  check("the planned override carries the text the editor shows",
+    planned.text === "I ate 100 nuggets", planned.text);
+  check("and the font, colour and size the editor controls start from",
+    planned.font && planned.color && planned.scale === Math.max(...planned.lines.map((l) => l.scale)),
+    JSON.stringify([planned.font, planned.color, planned.scale]));
+
+  const retexted = restyleLines(planned.lines, { text: "I survived 50 hours in the fridge" });
+  check("new text is split into lines again",
+    retexted.map((l) => l.text).join(" ") === "I survived 50 hours in the fridge" && retexted.length === 3,
+    JSON.stringify(retexted.map((l) => l.text)));
+  check("the highlight box moves to the new last line",
+    Boolean(retexted[retexted.length - 1].box) && retexted.slice(0, -1).every((l) => !l.box));
+  check("a single-line headline drops the box",
+    restyleLines(planned.lines, { text: "nuggets" }).every((l) => !l.box));
+  check("clearing the text keeps the styling for the next edit",
+    restyleLines(planned.lines, { text: "" }).every((l, i) => l.text === "" && l.font === planned.lines[i].font));
+
+  check("a font edit reaches every line",
+    restyleLines(planned.lines, { font: "bebas" }).every((l) => l.font === "bebas"));
+  const recoloured = restyleLines(planned.lines, { color: "#FFDD00" });
+  check("a colour edit recolours plain lines and leaves boxed text readable",
+    recoloured.every((l) => (l.box ? l.color === planned.lines.find((p) => p.box).color : l.color === "#FFDD00")),
+    JSON.stringify(recoloured.map((l) => [l.color, l.box])));
+  const resized = restyleLines(planned.lines, { scale: 0.3 });
+  check("a size edit sets the biggest line and keeps the hierarchy",
+    Math.max(...resized.map((l) => l.scale)) === 0.3 &&
+      Math.abs(resized[1].scale / resized[0].scale - planned.lines[1].scale / planned.lines[0].scale) < 0.01,
+    JSON.stringify(resized.map((l) => l.scale)));
+
+  const before = await compose("two-subject", {}, { headline: planned }, { referenceStyle: lightStyle });
+  const after = await compose("two-subject", {}, { headline: { ...planned, lines: retexted } }, { referenceStyle: lightStyle });
+  check("and the render actually changes", !before.equals(after));
 
   console.log(`\n${pass} passed, ${fail} failed\n`);
   process.exit(fail ? 1 : 0);
