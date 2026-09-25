@@ -151,7 +151,7 @@ function restyleLines(lines, changes = {}) {
       const scales = HIERARCHY[parts.length] || HIERARCHY[1];
       const factor = (peakOf(next) || scales[0]) / Math.max(...scales);
       const boxed = next.find((l) => l.box);
-      const plain = next.find((l) => !l.box) || next[0] || {};
+      const plain = next.find((l) => !l.box && !l.rule) || {};
 
       next = parts.map((text, i) => {
         const useBox = boxed && i === parts.length - 1 && parts.length > 1;
@@ -161,18 +161,18 @@ function restyleLines(lines, changes = {}) {
   }
 
   if (changes.font !== undefined) {
-    next = next.map((l) => ({ ...l, font: changes.font }));
+    next = next.map((l) => (l.rule ? l : { ...l, font: changes.font }));
   }
 
   if (changes.color !== undefined) {
-    next = next.map((l) => (l.box ? l : { ...l, color: changes.color }));
+    next = next.map((l) => (l.box || l.rule ? l : { ...l, color: changes.color }));
   }
 
   if (changes.scale !== undefined) {
     const peak = peakOf(next);
     if (peak > 0) {
       const factor = Number(changes.scale) / peak;
-      next = next.map((l) => ({ ...l, scale: round3(clamp(l.scale * factor, 0.04, 0.42)) }));
+      next = next.map((l) => (l.rule ? l : { ...l, scale: round3(clamp(l.scale * factor, 0.04, 0.42)) }));
     }
   }
 

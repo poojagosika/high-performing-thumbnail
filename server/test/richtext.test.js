@@ -117,6 +117,137 @@ const inkOf = async (svg, w, h) => {
   console.log("\na headline with only lines still renders, even though the slot default text is empty");
   check("lines alone are enough", dark > 0);
 
+  console.log("\nthe headline stack: label, caps, divider, shadow");
+  const stack = {
+    caps: true,
+    shadow: true,
+    stroke: false,
+    gap: 0.05,
+    lines: [
+      { text: "Exclusive", box: "#E4161B", scale: 0.07 },
+      { text: "big news", scale: 0.15 },
+      { rule: "#FFE000" },
+      { text: "a quote", scale: 0.06 },
+    ],
+  };
+  const stackSvg = (await buildRichHeadline(stack, 640, 600, 720)).toString();
+  check("caps turns every line upper case",
+    stackSvg.includes(">EXCLUSIVE<") && stackSvg.includes(">BIG NEWS<") && !stackSvg.includes(">big news<"));
+  check("a divider line draws as a bar in its colour", /<rect [^>]*fill="#FFE000"/.test(stackSvg));
+  check("the shadow is applied to the whole stack", stackSvg.includes('filter="url(#drop)"'));
+  check("no outline is drawn when stroke is off", !stackSvg.includes("stroke-width"));
+  check("a divider alone is not a headline",
+    (await buildRichHeadline({ lines: [{ rule: "#FFE000" }] }, 640, 600, 720)) === null);
+
+  const withRule = await inkOf(await buildRichHeadline({ lines: [{ text: "A", color: "#000000" }, { rule: "#000000" }] }, 400, 300, 720), 400, 300);
+  const withoutRule = await inkOf(await buildRichHeadline({ lines: [{ text: "A", color: "#000000" }] }, 400, 300, 720), 400, 300);
+  check("and the divider really paints pixels", withRule > withoutRule, `${withoutRule} -> ${withRule}`);
+
+  console.log("\nflag bands, flanking lines and highlighted words");
+  const fancy = (await buildRichHeadline({
+    caps: true,
+    align: "center",
+    lines: [
+      { text: "India", scale: 0.2, gradient: ["#FF9933", "#FFFFFF", "#138808"] },
+      { text: "in the final", scale: 0.05, flank: "#FFFFFF" },
+      { text: "as *two names* make it <through>", scale: 0.04, accent: "#F6C343" },
+    ],
+  }, 1000, 500, 720)).toString();
+  check("a gradient word is filled with its colour bands",
+    /<linearGradient id="band0"/.test(fancy) && fancy.includes('fill="url(#band0)"') &&
+      ["#FF9933", "#FFFFFF", "#138808"].every((c) => fancy.includes(`stop-color="${c}"`)));
+  check("a flanked line gets a bar on each side", (fancy.match(/<rect [^>]*fill="#FFFFFF"/g) || []).length === 2);
+  check("marked words take the accent colour", fancy.includes('<tspan fill="#F6C343">TWO NAMES</tspan>'));
+  check("and the markers themselves never show", !/\*/.test(fancy));
+  check("highlighted text is still escaped", fancy.includes("&lt;THROUGH&gt;") && !fancy.includes("<THROUGH>"));
+  const literal = (await buildRichHeadline({ lines: [{ text: "5 * 3 = 15" }] }, 600, 200, 720)).toString();
+  check("without an accent colour an asterisk is just an asterisk", literal.includes("5 * 3 = 15"));
+
+  console.log("\na ring circles one word without being clipped");
+  const ringed = (await buildRichHeadline({ lines: [{ text: "SAME 3", scale: 0.2 }, { text: "BUGS", scale: 0.2, ring: "#E52521" }] }, 660, 600, 720)).toString();
+  const ellipse = ringed.match(/<ellipse cx="(\d+)" cy="(\d+)" rx="(\d+)" ry="(\d+)"[^>]*stroke="#E52521"/);
+  check("the ringed line gets a red ellipse", Boolean(ellipse));
+  if (ellipse) {
+    const [cx, cy, rx, ry] = ellipse.slice(1).map(Number);
+    check("the ring stays inside the headline area", cx - rx >= 0 && cx + rx <= 660 && cy - ry >= 0 && cy + ry <= 600,
+      JSON.stringify({ cx, cy, rx, ry }));
+  }
+  const unringed = await buildRichHeadline({ lines: [{ text: "SAME 3", scale: 0.2 }, { text: "BUGS", scale: 0.2 }] }, 660, 600, 720);
+  check("and only when asked for", !unringed.toString().includes("<ellipse"));
+  const ringPx = await inkOf(Buffer.from(ringed.replace(/fill="#FFFFFF"/g, 'fill="#000000"').replace(/#E52521/g, "#000000")), 660, 600);
+  const plainPx = await inkOf(Buffer.from(unringed.toString().replace(/fill="#FFFFFF"/g, 'fill="#000000"')), 660, 600);
+  check("the ring really paints", ringPx > plainPx, `${plainPx} -> ${ringPx}`);
+  check("the host template puts you on the right and the headline on the left",
+    byId("host-headline").slots.find((s) => s.key === "host").anchor === "right" &&
+      byId("host-headline").slots.find((s) => s.key === "headline").rect.x < 0.1);
+
+  console.log("\nsmall lines switch to the support font, big ones keep the headline font");
+  const paired = normalise({
+    font: "poppinsblack",
+    supportFont: "barlowcondensed",
+    lines: [{ text: "BIG", scale: 0.2 }, { text: "small", scale: 0.05 }, { text: "chosen", scale: 0.04, font: "barlowsemi" }],
+  });
+  check("the big line keeps the headline font", paired[0].font === "poppinsblack", paired[0].font);
+  check("the small line takes the support font", paired[1].font === "barlowcondensed", paired[1].font);
+  check("a font picked for a line always wins", paired[2].font === "barlowsemi", paired[2].font);
+  check("with no support font nothing changes",
+    normalise({ font: "anton", lines: [{ text: "small", scale: 0.05 }] })[0].font === "anton");
+  const poppinsW = await measureText("GOLD", familyFor("poppinsblack"), weightFor("poppinsblack"), 80);
+  const barlowW = await measureText("GOLD", familyFor("barlowcondensed"), weightFor("barlowcondensed"), 80);
+  check("the new fonts really load: Poppins is much wider than Barlow Condensed",
+    poppinsW.width > barlowW.width * 1.4, `${poppinsW.width} vs ${barlowW.width}`);
+  const heavy = await measureText("GOLD", familyFor("poppinsblack"), weightFor("poppinsblack"), 80);
+  const extra = await measureText("GOLD", familyFor("poppins"), weightFor("poppins"), 80);
+  check("and Poppins Black and ExtraBold are different cuts", heavy.width !== extra.width, `${heavy.width} vs ${extra.width}`);
+  check("the three-panel template pairs Poppins with Barlow",
+    byId("three-panel").slots.find((s) => s.key === "headline").defaults.supportFont === "barlowcondensed");
+
+  console.log("\nthe three-panel template slants its photos and fades the bottom");
+  const panel = (rgb) => sharp({ create: { width: 800, height: 800, channels: 3, background: { r: rgb[0], g: rgb[1], b: rgb[2] } } }).png().toBuffer();
+  const tri = await compose("three-panel", {
+    panelLeft: await panel([220, 40, 40]), panelCenter: await panel([40, 200, 60]), panelRight: await panel([40, 60, 220]),
+  }, {});
+  const at = async (x, y) => {
+    const { data } = await sharp(tri).extract({ left: x, top: y, width: 1, height: 1 }).raw().toBuffer({ resolveWithObject: true });
+    return [...data];
+  };
+  const topSeam = await at(Math.round(0.34 * 1280), 20);
+  check("near the top, just left of the slant, is still the middle panel", topSeam[1] > 150 && topSeam[0] < 100, JSON.stringify(topSeam));
+  const upperLeft = await at(200, 60);
+  const upperRight = await at(1100, 60);
+  check("each panel shows its own photo", upperLeft[0] > 180 && upperRight[2] > 180, `${upperLeft} ${upperRight}`);
+  const divider = await at(Math.round(0.3265 * 1280), 10);
+  check("a white divider runs between the panels", divider.every((v) => v > 200), JSON.stringify(divider));
+  const bottom = await at(200, 710);
+  check("the bottom fades to navy for the headline", bottom[0] < 40 && bottom[2] > bottom[0], JSON.stringify(bottom));
+
+  console.log("\nthe photo template keeps a narrow photo sharp and unstretched");
+  const photoSlot = byId("photo-headline").slots.find((s) => s.key === "photo");
+  const square = await sharp({ create: { width: 600, height: 600, channels: 3, background: { r: 30, g: 170, b: 220 } } }).png().toBuffer();
+  const extended = await compose("photo-headline", { photo: square }, {});
+  const px = async (buf, x, y) => {
+    const { data } = await sharp(buf).extract({ left: x, top: y, width: 1, height: 1 }).raw().toBuffer({ resolveWithObject: true });
+    return [...data];
+  };
+  const right = await px(extended, 1200, 360);
+  const farLeft = await px(extended, 20, 360);
+  check("the photo itself sits on the right at full strength", right[2] > 200 && right[1] > 150, JSON.stringify(right));
+  check("the rest is filled with a darkened copy, not left empty",
+    farLeft[2] > 60 && farLeft[2] < right[2], JSON.stringify(farLeft));
+  check("and the template says so", photoSlot.fill === "extend" && photoSlot.anchor === "right");
+
+  const wideShot = await sharp({ create: { width: 1600, height: 900, channels: 3, background: { r: 30, g: 170, b: 220 } } }).png().toBuffer();
+  const full = await compose("photo-headline", { photo: wideShot }, {});
+  const wideLeft = await px(full, 20, 360);
+  check("a 16:9 photo just fills the frame", wideLeft[2] > 200, JSON.stringify(wideLeft));
+
+  const titled = await compose("photo-headline", { photo: wideShot }, { headline: { text: "hello" } });
+  const fadedLeft = await px(titled, 20, 360);
+  check("adding a headline darkens the side it sits on",
+    fadedLeft[2] < wideLeft[2] * 0.4, `${JSON.stringify(wideLeft)} -> ${JSON.stringify(fadedLeft)}`);
+  const farRight = await px(titled, 1260, 360);
+  check("and leaves the far side of the photo untouched", farRight[2] > 200, JSON.stringify(farRight));
+
   console.log(`\n${pass} passed, ${fail} failed\n`);
   process.exit(fail ? 1 : 0);
 })();

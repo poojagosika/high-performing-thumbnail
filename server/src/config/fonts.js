@@ -16,6 +16,10 @@ const FONTS = [
   { key: "unbounded", label: "Unbounded", family: "Unbounded", file: "Unbounded-var.ttf", weight: "900", stroke: 0.13 },
   { key: "archivo", label: "Archivo Black", family: "Archivo Black", file: "ArchivoBlack-Regular.ttf", weight: "normal", stroke: 0.14 },
   { key: "jakarta", label: "Plus Jakarta", family: "Plus Jakarta Sans", file: "PlusJakartaSans-var.ttf", weight: "800", stroke: 0.12 },
+  { key: "poppins", label: "Poppins ExtraBold", family: "Poppins", file: "Poppins-ExtraBold.ttf", weight: "800", stroke: 0.12 },
+  { key: "poppinsblack", label: "Poppins Black", family: "Poppins", file: "Poppins-Black.ttf", weight: "900", stroke: 0.12 },
+  { key: "barlowcondensed", label: "Barlow Condensed", family: "Barlow Condensed", file: "BarlowCondensed-SemiBold.ttf", weight: "600", stroke: 0.1 },
+  { key: "barlowsemi", label: "Barlow Semi Condensed", family: "Barlow Semi Condensed", file: "BarlowSemiCondensed-SemiBold.ttf", weight: "600", stroke: 0.1 },
   { key: "system", label: "Plain", family: "DejaVu Sans", file: null, weight: "bold", stroke: 0.14 },
 ];
 

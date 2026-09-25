@@ -299,6 +299,22 @@ const call = async (handler, req) => {
   check("a real edit is accepted", slotEditSchema.safeParse({ text: "GO", font: "anton", color: "#FF2A1A" }).success);
   check("only real templates can be chosen", !templateChoiceSchema.safeParse({ templateId: "nope" }).success);
   check("and the real ones are", templateChoiceSchema.safeParse({ templateId: "side-panel" }).success);
+  check("including the photo headline stack", templateChoiceSchema.safeParse({ templateId: "photo-headline" }).success);
+  check("a stack with a label, divider and quote is accepted",
+    slotEditSchema.safeParse({ lines: [
+      { text: "EXCLUSIVE", box: "#E4161B" }, { text: "ONE" }, { text: "TWO" }, { text: "THREE", color: "#FFE000" },
+      { rule: "#FFE000" }, { text: "QUOTE ONE" }, { text: "QUOTE TWO" }, { text: "QUOTE THREE" },
+    ] }).success);
+  check("but not an unlimited one", rejects({ lines: Array.from({ length: 9 }, () => ({ text: "X" })) }));
+  check("a divider must be a real colour", rejects({ lines: [{ text: "A" }, { rule: "yellow" }] }));
+  check("flag bands, flanks and highlights are accepted",
+    slotEditSchema.safeParse({ lines: [
+      { text: "INDIA", gradient: ["#FF9933", "#FFFFFF", "#138808"] },
+      { text: "IN THE FINAL", flank: "#FFFFFF" },
+      { text: "AS *TWO* MAKE IT", accent: "#F6C343" },
+    ] }).success);
+  check("a gradient needs at least two real colours",
+    rejects({ lines: [{ text: "A", gradient: ["#FF9933"] }] }) && rejects({ lines: [{ text: "A", gradient: ["red", "blue"] }] }));
 
   console.log("\nnothing was left lying in the uploads folder");
   const alive = new Set(

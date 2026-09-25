@@ -8,7 +8,7 @@ require(path.join(SRC, "config/fonts")).register();
 
 const { compose } = require(path.join(SRC, "config/compose"));
 const { TEMPLATES, byId, pixelRect, CANVAS_W, CANVAS_H } = require(path.join(SRC, "config/templates"));
-const { FONTS, familyFor, missingFiles } = require(path.join(SRC, "config/fonts"));
+const { FONTS, familyFor, weightFor, missingFiles } = require(path.join(SRC, "config/fonts"));
 const { cutout, hasAlpha, missingPieces, MIN_COVERAGE } = require(path.join(SRC, "config/cutout"));
 const { buildSvg } = require(path.join(SRC, "config/caption"));
 
@@ -142,7 +142,7 @@ const pixelAt = async (buf, x, y) => {
   console.log("\nfonts are real choices, not all the same fallback");
   const inks = {};
   for (const font of FONTS) {
-    const svg = buildSvg({ text: "NEPAL FLOOD", fontFamily: familyFor(font.key) }, 900, 200);
+    const svg = buildSvg({ text: "NEPAL FLOOD", fontFamily: familyFor(font.key), fontWeight: weightFor(font.key) }, 900, 200);
     const probe = await sharp({ create: { width: 900, height: 200, channels: 3, background: { r: 0, g: 0, b: 0 } } })
       .composite([{ input: svg }]).raw().toBuffer();
     let ink = 0;
