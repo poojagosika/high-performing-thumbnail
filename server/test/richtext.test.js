@@ -143,6 +143,45 @@ const inkOf = async (svg, w, h) => {
   const withoutRule = await inkOf(await buildRichHeadline({ lines: [{ text: "A", color: "#000000" }] }, 400, 300, 720), 400, 300);
   check("and the divider really paints pixels", withRule > withoutRule, `${withoutRule} -> ${withRule}`);
 
+  console.log("\nflag bands, flanking lines and highlighted words");
+  const fancy = (await buildRichHeadline({
+    caps: true,
+    align: "center",
+    lines: [
+      { text: "India", scale: 0.2, gradient: ["#FF9933", "#FFFFFF", "#138808"] },
+      { text: "in the final", scale: 0.05, flank: "#FFFFFF" },
+      { text: "as *two names* make it <through>", scale: 0.04, accent: "#F6C343" },
+    ],
+  }, 1000, 500, 720)).toString();
+  check("a gradient word is filled with its colour bands",
+    /<linearGradient id="band0"/.test(fancy) && fancy.includes('fill="url(#band0)"') &&
+      ["#FF9933", "#FFFFFF", "#138808"].every((c) => fancy.includes(`stop-color="${c}"`)));
+  check("a flanked line gets a bar on each side", (fancy.match(/<rect [^>]*fill="#FFFFFF"/g) || []).length === 2);
+  check("marked words take the accent colour", fancy.includes('<tspan fill="#F6C343">TWO NAMES</tspan>'));
+  check("and the markers themselves never show", !/\*/.test(fancy));
+  check("highlighted text is still escaped", fancy.includes("&lt;THROUGH&gt;") && !fancy.includes("<THROUGH>"));
+  const literal = (await buildRichHeadline({ lines: [{ text: "5 * 3 = 15" }] }, 600, 200, 720)).toString();
+  check("without an accent colour an asterisk is just an asterisk", literal.includes("5 * 3 = 15"));
+
+  console.log("\nthe three-panel template slants its photos and fades the bottom");
+  const panel = (rgb) => sharp({ create: { width: 800, height: 800, channels: 3, background: { r: rgb[0], g: rgb[1], b: rgb[2] } } }).png().toBuffer();
+  const tri = await compose("three-panel", {
+    panelLeft: await panel([220, 40, 40]), panelCenter: await panel([40, 200, 60]), panelRight: await panel([40, 60, 220]),
+  }, {});
+  const at = async (x, y) => {
+    const { data } = await sharp(tri).extract({ left: x, top: y, width: 1, height: 1 }).raw().toBuffer({ resolveWithObject: true });
+    return [...data];
+  };
+  const topSeam = await at(Math.round(0.34 * 1280), 20);
+  check("near the top, just left of the slant, is still the middle panel", topSeam[1] > 150 && topSeam[0] < 100, JSON.stringify(topSeam));
+  const upperLeft = await at(200, 60);
+  const upperRight = await at(1100, 60);
+  check("each panel shows its own photo", upperLeft[0] > 180 && upperRight[2] > 180, `${upperLeft} ${upperRight}`);
+  const divider = await at(Math.round(0.3265 * 1280), 10);
+  check("a white divider runs between the panels", divider.every((v) => v > 200), JSON.stringify(divider));
+  const bottom = await at(200, 710);
+  check("the bottom fades to navy for the headline", bottom[0] < 40 && bottom[2] > bottom[0], JSON.stringify(bottom));
+
   console.log("\nthe photo template keeps a narrow photo sharp and unstretched");
   const photoSlot = byId("photo-headline").slots.find((s) => s.key === "photo");
   const square = await sharp({ create: { width: 600, height: 600, channels: 3, background: { r: 30, g: 170, b: 220 } } }).png().toBuffer();

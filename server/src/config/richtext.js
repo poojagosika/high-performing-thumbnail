@@ -16,6 +16,10 @@ const RULE_GAP = 0.022;
 const RULE_SPAN = 0.9;
 const SHADOW_BLUR = 0.011;
 const SHADOW_OFFSET = 0.006;
+const MIN_GAP = 0.016;
+const FLANK_LEN = 1.6;
+const FLANK_GAP = 0.45;
+const FLANK_THICK = 0.06;
 
 const cache = new Map();
 
@@ -75,18 +79,45 @@ function normalise(options) {
   return source
     .map((line) => {
       if (line.rule) return { rule: colour(line.rule, "#FFD400") };
-      const text = String(line.text || "").trim().slice(0, MAX_CHARS);
+      const raw = String(line.text || "").trim().slice(0, MAX_CHARS);
+      const text = options.caps ? raw.toUpperCase() : raw;
+      const accent = line.accent ? colour(line.accent, "#F6C343") : null;
+      const gradient = Array.isArray(line.gradient) ? line.gradient.filter((c) => HEX.test(String(c))).slice(0, 4) : [];
       return {
-        text: options.caps ? text.toUpperCase() : text,
+        text,
+        plain: accent ? text.replace(/\*/g, "") : text,
         font: line.font || options.font || DEFAULT_FONT,
         scale: clamp(Number(line.scale ?? options.scale ?? 0.14), 0.04, 0.42),
         color: colour(line.color, colour(options.color, "#FFFFFF")),
         strokeColor: colour(line.strokeColor, colour(options.strokeColor, "#000000")),
         box: line.box ? colour(line.box, "#FF2A1A") : null,
+        accent,
+        gradient: gradient.length >= 2 ? gradient : null,
+        flank: line.flank ? colour(line.flank, "#FFFFFF") : null,
       };
     })
-    .filter((line) => line.rule || line.text)
+    .filter((line) => line.rule || line.plain)
     .slice(0, MAX_LINES);
+}
+
+function accented(text, accent) {
+  return text
+    .split(/\*([^*]+)\*/)
+    .map((part, i) => (i % 2 ? `<tspan fill="${accent}">${escapeXml(part)}</tspan>` : escapeXml(part.replace(/\*/g, ""))))
+    .join("");
+}
+
+function bandGradient(id, colours) {
+  const n = colours.length;
+  const blend = 0.05;
+  const stops = colours
+    .map((c, i) => {
+      const from = i === 0 ? 0 : i / n + blend;
+      const to = i === n - 1 ? 1 : (i + 1) / n - blend;
+      return `<stop offset="${from.toFixed(3)}" stop-color="${c}"/><stop offset="${to.toFixed(3)}" stop-color="${c}"/>`;
+    })
+    .join("");
+  return `<linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1">${stops}</linearGradient>`;
 }
 
 function shadowFilter(unit) {
@@ -126,13 +157,14 @@ async function buildRichHeadline(options, width, height, basis) {
     const family = familyFor(line.font);
     const weight = weightFor(line.font);
     let fontSize = Math.round(unit * line.scale);
-    let box = await measureText(line.text, family, weight, fontSize);
+    let box = await measureText(line.plain, family, weight, fontSize);
 
-    const room = width * (line.box ? 1 - BOX_PAD_X * 0.5 : 1);
+    const flankRoom = (size) => (line.flank ? 2 * size * (FLANK_LEN + FLANK_GAP) : 0);
+    const roomAt = (size) => width * (line.box ? 1 - BOX_PAD_X * 0.5 : 1) - flankRoom(size);
 
-    for (let guard = 0; guard < 60 && box.width > room && fontSize > 12; guard += 1) {
-      fontSize = Math.max(12, Math.round(fontSize * Math.min(0.96, room / box.width)));
-      box = await measureText(line.text, family, weight, fontSize);
+    for (let guard = 0; guard < 60 && box.width > roomAt(fontSize) && fontSize > 12; guard += 1) {
+      fontSize = Math.max(12, Math.round(fontSize * Math.min(0.96, roomAt(fontSize) / box.width)));
+      box = await measureText(line.plain, family, weight, fontSize);
     }
 
     measured.push({ ...line, family, weight, fontSize, metrics: box });
@@ -146,12 +178,13 @@ async function buildRichHeadline(options, width, height, basis) {
   const heightOf = (m) =>
     m.rule
       ? ruleSize + ruleGap * 2
-      : m.metrics.height + m.fontSize * gap + (m.box ? m.fontSize * BOX_PAD_Y * 2 : 0);
+      : m.metrics.height + Math.max(m.fontSize * gap, unit * MIN_GAP) + (m.box ? m.fontSize * BOX_PAD_Y * 2 : 0);
 
   const total = measured.reduce((sum, m) => sum + heightOf(m), 0);
   let cursor = Math.max(0, (height - total) / 2);
 
   const parts = [];
+  const defs = [];
 
   for (const line of measured) {
     if (line.rule) {
@@ -187,11 +220,30 @@ async function buildRichHeadline(options, width, height, basis) {
       const stroke = Math.max(2, Math.round(line.fontSize * strokeFor(line.font)));
       parts.push(
         `<text ${common} fill="none" stroke="${line.strokeColor}" stroke-width="${stroke}" ` +
-          `stroke-linejoin="round">${escapeXml(line.text)}</text>`,
+          `stroke-linejoin="round">${escapeXml(line.plain)}</text>`,
       );
     }
 
-    parts.push(`<text ${common} fill="${line.color}">${escapeXml(line.text)}</text>`);
+    let fill = line.color;
+    if (line.gradient) {
+      const id = `band${defs.length}`;
+      defs.push(bandGradient(id, line.gradient));
+      fill = `url(#${id})`;
+    }
+
+    const content = line.accent ? accented(line.text, line.accent) : escapeXml(line.plain);
+    parts.push(`<text ${common} fill="${fill}">${content}</text>`);
+
+    if (line.flank) {
+      const size = Math.max(2, Math.round(line.fontSize * FLANK_THICK));
+      const len = Math.round(line.fontSize * FLANK_LEN);
+      const space = Math.round(line.fontSize * FLANK_GAP);
+      const mid = Math.round(baseline - metrics.above / 2 - size / 2);
+      parts.push(
+        `<rect x="${left - space - len}" y="${mid}" width="${len}" height="${size}" fill="${line.flank}"/>` +
+          `<rect x="${Math.round(left + boxW + space)}" y="${mid}" width="${len}" height="${size}" fill="${line.flank}"/>`,
+      );
+    }
 
     cursor += heightOf(line);
   }
@@ -201,6 +253,7 @@ async function buildRichHeadline(options, width, height, basis) {
   return Buffer.from(
     `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">` +
       (options.shadow ? shadowFilter(unit) : "") +
+      (defs.length ? `<defs>${defs.join("")}</defs>` : "") +
       `<g transform="rotate(${rotate} ${width / 2} ${height / 2})"${filter}>${parts.join("")}</g>` +
       `</svg>`,
   );

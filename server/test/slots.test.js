@@ -307,6 +307,14 @@ const call = async (handler, req) => {
     ] }).success);
   check("but not an unlimited one", rejects({ lines: Array.from({ length: 9 }, () => ({ text: "X" })) }));
   check("a divider must be a real colour", rejects({ lines: [{ text: "A" }, { rule: "yellow" }] }));
+  check("flag bands, flanks and highlights are accepted",
+    slotEditSchema.safeParse({ lines: [
+      { text: "INDIA", gradient: ["#FF9933", "#FFFFFF", "#138808"] },
+      { text: "IN THE FINAL", flank: "#FFFFFF" },
+      { text: "AS *TWO* MAKE IT", accent: "#F6C343" },
+    ] }).success);
+  check("a gradient needs at least two real colours",
+    rejects({ lines: [{ text: "A", gradient: ["#FF9933"] }] }) && rejects({ lines: [{ text: "A", gradient: ["red", "blue"] }] }));
 
   console.log("\nnothing was left lying in the uploads folder");
   const alive = new Set(

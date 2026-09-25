@@ -125,6 +125,44 @@ function scrimLayer(slot, depth) {
   return { input: svg, left: rect.left, top: rect.top, z: slot.z - 0.75 };
 }
 
+function clipToPolygon(buffer, meta, points, left, top) {
+  const shape = points
+    .map(([x, y]) => `${Math.round(x * CANVAS_W - left)},${Math.round(y * CANVAS_H - top)}`)
+    .join(" ");
+  const mask = Buffer.from(
+    `<svg width="${meta.width}" height="${meta.height}" xmlns="http://www.w3.org/2000/svg">` +
+      `<polygon points="${shape}" fill="#fff"/></svg>`,
+  );
+  return sharp(buffer).ensureAlpha().composite([{ input: mask, blend: "dest-in" }]).png().toBuffer();
+}
+
+function decorLayer(decor) {
+  let body = "";
+
+  if (decor.type === "line") {
+    const [x1, y1] = decor.from;
+    const [x2, y2] = decor.to;
+    body =
+      `<line x1="${Math.round(x1 * CANVAS_W)}" y1="${Math.round(y1 * CANVAS_H)}" ` +
+      `x2="${Math.round(x2 * CANVAS_W)}" y2="${Math.round(y2 * CANVAS_H)}" ` +
+      `stroke="${decor.color}" stroke-width="${decor.width}"/>`;
+  } else if (decor.type === "fade") {
+    body =
+      `<defs><linearGradient id="d" x1="0" y1="0" x2="0" y2="1">` +
+      `<stop offset="${decor.from}" stop-color="${decor.color}" stop-opacity="0"/>` +
+      `<stop offset="${(decor.from + 1) / 2}" stop-color="${decor.color}" stop-opacity="${decor.opacity * 0.9}"/>` +
+      `<stop offset="1" stop-color="${decor.color}" stop-opacity="${decor.opacity}"/></linearGradient></defs>` +
+      `<rect width="100%" height="100%" fill="url(#d)"/>`;
+  }
+
+  return {
+    input: Buffer.from(`<svg width="${CANVAS_W}" height="${CANVAS_H}" xmlns="http://www.w3.org/2000/svg">${body}</svg>`),
+    left: 0,
+    top: 0,
+    z: decor.z,
+  };
+}
+
 function featherMask(width, height, anchor) {
   const edge = Math.round(EXTEND_FEATHER * 100);
   const stops =
@@ -229,6 +267,10 @@ async function imageLayer(slot, source, override, referenceStyle, depth) {
   const bottomAligned = slot.cutout
     ? rect.top + rect.height - meta.height
     : rect.top + Math.round((rect.height - meta.height) / 2);
+
+  if (slot.clip) {
+    fitted = await clipToPolygon(fitted, meta, slot.clip, anchored + dx, bottomAligned + dy);
+  }
 
   const layers = [];
 
@@ -462,6 +504,8 @@ async function compose(templateId, assets = {}, overrides = {}, context = {}) {
 
     layers.push(...(await imageLayer(slot, prepared, overrides[slot.key], subjectTarget, depth)));
   }
+
+  for (const decor of template.decor || []) layers.push(decorLayer(decor));
 
   layers.sort((a, b) => a.z - b.z);
 

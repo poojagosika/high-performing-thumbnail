@@ -77,6 +77,9 @@ const templateChoiceSchema = z.object({
 const headlineLineSchema = z.object({
   text: z.string().trim().max(60, "is too long").default(""),
   rule: hexColour.optional(),
+  accent: hexColour.optional(),
+  flank: hexColour.optional(),
+  gradient: z.array(hexColour).min(2).max(4).optional(),
   font: z.enum(FONTS.map((f) => f.key), { error: "is not one of the fonts" }).optional(),
   scale: z.coerce.number().min(0.04).max(0.42).optional(),
   color: hexColour.optional(),
