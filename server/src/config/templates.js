@@ -144,6 +144,45 @@ const TEMPLATES = [
       },
     ],
   },
+  {
+    id: "photo-headline",
+    name: "Your photo with a headline stack",
+    description: "One photo of you or your guests, with a bold stacked headline, a label and a quote over a dark fade on the left.",
+    slots: [
+      {
+        key: "photo",
+        label: "Your photo",
+        type: "image",
+        cutout: false,
+        fill: "extend",
+        anchor: "right",
+        z: 0,
+        rect: { x: 0, y: 0, w: 1, h: 1 },
+      },
+      {
+        key: "headline",
+        label: "Headline",
+        type: "text",
+        style: "stack",
+        scrim: "left",
+        z: 3,
+        rect: { x: 0.045, y: 0.06, w: 0.5, h: 0.88 },
+        defaults: {
+          text: "",
+          font: "anton",
+          color: "#FFFFFF",
+          strokeColor: "#000000",
+          scale: 0.15,
+          align: "left",
+          caps: true,
+          shadow: true,
+          stroke: false,
+          gap: 0.05,
+          boxRadius: 0.04,
+        },
+      },
+    ],
+  },
 ];
 
 const byId = (id) => TEMPLATES.find((t) => t.id === id) || null;

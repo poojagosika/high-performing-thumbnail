@@ -117,6 +117,59 @@ const inkOf = async (svg, w, h) => {
   console.log("\na headline with only lines still renders, even though the slot default text is empty");
   check("lines alone are enough", dark > 0);
 
+  console.log("\nthe headline stack: label, caps, divider, shadow");
+  const stack = {
+    caps: true,
+    shadow: true,
+    stroke: false,
+    gap: 0.05,
+    lines: [
+      { text: "Exclusive", box: "#E4161B", scale: 0.07 },
+      { text: "big news", scale: 0.15 },
+      { rule: "#FFE000" },
+      { text: "a quote", scale: 0.06 },
+    ],
+  };
+  const stackSvg = (await buildRichHeadline(stack, 640, 600, 720)).toString();
+  check("caps turns every line upper case",
+    stackSvg.includes(">EXCLUSIVE<") && stackSvg.includes(">BIG NEWS<") && !stackSvg.includes(">big news<"));
+  check("a divider line draws as a bar in its colour", /<rect [^>]*fill="#FFE000"/.test(stackSvg));
+  check("the shadow is applied to the whole stack", stackSvg.includes('filter="url(#drop)"'));
+  check("no outline is drawn when stroke is off", !stackSvg.includes("stroke-width"));
+  check("a divider alone is not a headline",
+    (await buildRichHeadline({ lines: [{ rule: "#FFE000" }] }, 640, 600, 720)) === null);
+
+  const withRule = await inkOf(await buildRichHeadline({ lines: [{ text: "A", color: "#000000" }, { rule: "#000000" }] }, 400, 300, 720), 400, 300);
+  const withoutRule = await inkOf(await buildRichHeadline({ lines: [{ text: "A", color: "#000000" }] }, 400, 300, 720), 400, 300);
+  check("and the divider really paints pixels", withRule > withoutRule, `${withoutRule} -> ${withRule}`);
+
+  console.log("\nthe photo template keeps a narrow photo sharp and unstretched");
+  const photoSlot = byId("photo-headline").slots.find((s) => s.key === "photo");
+  const square = await sharp({ create: { width: 600, height: 600, channels: 3, background: { r: 30, g: 170, b: 220 } } }).png().toBuffer();
+  const extended = await compose("photo-headline", { photo: square }, {});
+  const px = async (buf, x, y) => {
+    const { data } = await sharp(buf).extract({ left: x, top: y, width: 1, height: 1 }).raw().toBuffer({ resolveWithObject: true });
+    return [...data];
+  };
+  const right = await px(extended, 1200, 360);
+  const farLeft = await px(extended, 20, 360);
+  check("the photo itself sits on the right at full strength", right[2] > 200 && right[1] > 150, JSON.stringify(right));
+  check("the rest is filled with a darkened copy, not left empty",
+    farLeft[2] > 60 && farLeft[2] < right[2], JSON.stringify(farLeft));
+  check("and the template says so", photoSlot.fill === "extend" && photoSlot.anchor === "right");
+
+  const wideShot = await sharp({ create: { width: 1600, height: 900, channels: 3, background: { r: 30, g: 170, b: 220 } } }).png().toBuffer();
+  const full = await compose("photo-headline", { photo: wideShot }, {});
+  const wideLeft = await px(full, 20, 360);
+  check("a 16:9 photo just fills the frame", wideLeft[2] > 200, JSON.stringify(wideLeft));
+
+  const titled = await compose("photo-headline", { photo: wideShot }, { headline: { text: "hello" } });
+  const fadedLeft = await px(titled, 20, 360);
+  check("adding a headline darkens the side it sits on",
+    fadedLeft[2] < wideLeft[2] * 0.4, `${JSON.stringify(wideLeft)} -> ${JSON.stringify(fadedLeft)}`);
+  const farRight = await px(titled, 1260, 360);
+  check("and leaves the far side of the photo untouched", farRight[2] > 200, JSON.stringify(farRight));
+
   console.log(`\n${pass} passed, ${fail} failed\n`);
   process.exit(fail ? 1 : 0);
 })();

@@ -19,6 +19,11 @@ const LIGHT_AT = 60;
 const VIGNETTE_MAX = 0.72;
 const SCRIM_MAX = 0.42;
 const HALO_MAX = 0.82;
+const TEXT_SCRIM = 0.86;
+const TEXT_SCRIM_REACH = 0.14;
+const EXTEND_BELOW = 0.92;
+const EXTEND_FEATHER = 0.18;
+const EXTEND_BLUR = 28;
 
 const clamp01 = (v, lo, hi) => Math.max(lo, Math.min(hi, Number.isFinite(v) ? v : 1));
 
@@ -120,11 +125,73 @@ function scrimLayer(slot, depth) {
   return { input: svg, left: rect.left, top: rect.top, z: slot.z - 0.75 };
 }
 
+function featherMask(width, height, anchor) {
+  const edge = Math.round(EXTEND_FEATHER * 100);
+  const stops =
+    anchor === "right"
+      ? `<stop offset="0%" stop-color="#fff" stop-opacity="0"/><stop offset="${edge}%" stop-color="#fff" stop-opacity="1"/>`
+      : anchor === "left"
+        ? `<stop offset="${100 - edge}%" stop-color="#fff" stop-opacity="1"/><stop offset="100%" stop-color="#fff" stop-opacity="0"/>`
+        : `<stop offset="0%" stop-color="#fff" stop-opacity="0"/><stop offset="${edge}%" stop-color="#fff" stop-opacity="1"/>` +
+          `<stop offset="${100 - edge}%" stop-color="#fff" stop-opacity="1"/><stop offset="100%" stop-color="#fff" stop-opacity="0"/>`;
+
+  return Buffer.from(
+    `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">` +
+      `<defs><linearGradient id="f" x1="0%" y1="0%" x2="100%" y2="0%">${stops}</linearGradient></defs>` +
+      `<rect width="100%" height="100%" fill="url(#f)"/></svg>`,
+  );
+}
+
+async function extendLayers(slot, source, rect, zoom, anchor, override) {
+  const meta = await sharp(source).metadata();
+  if (!meta.width || !meta.height) return null;
+  if (meta.width / meta.height >= (rect.width / rect.height) * EXTEND_BELOW) return null;
+
+  const base = await sharp(source)
+    .resize(rect.width, rect.height, { fit: "cover" })
+    .blur(EXTEND_BLUR)
+    .modulate({ brightness: 0.55 })
+    .png()
+    .toBuffer();
+
+  const sharpPhoto = await sharp(source)
+    .resize({ height: Math.max(1, Math.round(rect.height * zoom)) })
+    .png()
+    .toBuffer();
+  const fitted = await sharp(sharpPhoto).metadata();
+
+  const feathered = await sharp(sharpPhoto)
+    .ensureAlpha()
+    .composite([{ input: featherMask(fitted.width, fitted.height, anchor), blend: "dest-in" }])
+    .png()
+    .toBuffer();
+
+  const dx = Math.round((override?.dx || 0) * rect.width);
+  const dy = Math.round((override?.dy || 0) * rect.height);
+  const left =
+    anchor === "left"
+      ? rect.left
+      : anchor === "right"
+        ? rect.left + rect.width - fitted.width
+        : rect.left + Math.round((rect.width - fitted.width) / 2);
+  const top = rect.top + Math.round((rect.height - fitted.height) / 2);
+
+  return [
+    { input: base, left: rect.left, top: rect.top, z: slot.z - 0.2 },
+    { input: feathered, left: left + dx, top: top + dy, z: slot.z },
+  ];
+}
+
 async function imageLayer(slot, source, override, referenceStyle, depth) {
   const rect = pixelRect(slot.rect);
   const requested = override?.zoom ?? slot.defaults?.zoom;
   const zoom = clamp01(requested, 0.5, 3);
   const anchor = override?.anchor || slot.anchor || "center";
+
+  if (slot.fill === "extend" && !slot.cutout) {
+    const extended = await extendLayers(slot, source, rect, zoom, anchor, override);
+    if (extended) return extended;
+  }
 
   let fitted = slot.cutout
     ? await sharp(source)
@@ -225,6 +292,22 @@ function placeholderLayer(slot) {
   return { input: svg, left: rect.left, top: rect.top, z: slot.z };
 }
 
+function textScrimLayer(slot) {
+  const reach = Math.min(CANVAS_W, Math.round((slot.rect.x + slot.rect.w + TEXT_SCRIM_REACH) * CANVAS_W));
+  const fromRight = slot.scrim === "right";
+
+  const svg = Buffer.from(
+    `<svg width="${reach}" height="${CANVAS_H}" xmlns="http://www.w3.org/2000/svg">` +
+      `<defs><linearGradient id="t" x1="${fromRight ? "100%" : "0%"}" y1="0%" x2="${fromRight ? "0%" : "100%"}" y2="0%">` +
+      `<stop offset="0%" stop-color="#000" stop-opacity="${TEXT_SCRIM}"/>` +
+      `<stop offset="55%" stop-color="#000" stop-opacity="${TEXT_SCRIM * 0.62}"/>` +
+      `<stop offset="100%" stop-color="#000" stop-opacity="0"/></linearGradient></defs>` +
+      `<rect width="100%" height="100%" fill="url(#t)"/></svg>`,
+  );
+
+  return { input: svg, left: fromRight ? CANVAS_W - reach : 0, top: 0, z: slot.z - 0.5 };
+}
+
 function backdropLayer(slot, referenceStyle) {
   const rect = pixelRect(slot.rect);
   const { backdrop, accent, mood } = paletteFrom(referenceStyle);
@@ -271,6 +354,12 @@ async function textLayer(slot, override) {
   const rich = Array.isArray(settings.lines) && settings.lines.some((l) => l && String(l.text || "").trim());
 
   if (!text && !rich) return null;
+
+  if (slot.style === "stack") {
+    const placed = pixelRect(slot.rect);
+    const svg = await buildRichHeadline(rich ? settings : { ...settings, lines: null }, placed.width, placed.height, CANVAS_H);
+    return svg ? { input: svg, left: placed.left, top: placed.top, z: slot.z } : null;
+  }
 
   if (rich) {
     const placed = bandRect(slot, settings.band);
@@ -343,7 +432,10 @@ async function compose(templateId, assets = {}, overrides = {}, context = {}) {
   for (const slot of [...backgrounds, ...rest]) {
     if (slot.type === "text") {
       const layer = await textLayer(slot, overrides[slot.key]);
-      if (layer) layers.push(layer);
+      if (layer) {
+        if (slot.scrim) layers.push(textScrimLayer(slot));
+        layers.push(layer);
+      }
       continue;
     }
 

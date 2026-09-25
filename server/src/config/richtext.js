@@ -3,7 +3,7 @@ const { escapeXml } = require("./caption");
 const { familyFor, strokeFor, weightFor, DEFAULT_FONT } = require("./fonts");
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
-const MAX_LINES = 4;
+const MAX_LINES = 8;
 const MAX_CHARS = 60;
 const PROBE = 2048;
 const PROBE_H = 420;
@@ -11,6 +11,11 @@ const GAP = 0.14;
 const BOX_PAD_X = 0.26;
 const BOX_PAD_Y = 0.12;
 const BOX_RADIUS = 0.14;
+const RULE = 0.007;
+const RULE_GAP = 0.022;
+const RULE_SPAN = 0.9;
+const SHADOW_BLUR = 0.011;
+const SHADOW_OFFSET = 0.006;
 
 const cache = new Map();
 
@@ -68,16 +73,33 @@ function normalise(options) {
         .map((text) => ({ text }));
 
   return source
-    .map((line) => ({
-      text: String(line.text || "").trim().slice(0, MAX_CHARS),
-      font: line.font || options.font || DEFAULT_FONT,
-      scale: clamp(Number(line.scale ?? options.scale ?? 0.14), 0.04, 0.42),
-      color: colour(line.color, colour(options.color, "#FFFFFF")),
-      strokeColor: colour(line.strokeColor, colour(options.strokeColor, "#000000")),
-      box: line.box ? colour(line.box, "#FF2A1A") : null,
-    }))
-    .filter((line) => line.text)
+    .map((line) => {
+      if (line.rule) return { rule: colour(line.rule, "#FFD400") };
+      const text = String(line.text || "").trim().slice(0, MAX_CHARS);
+      return {
+        text: options.caps ? text.toUpperCase() : text,
+        font: line.font || options.font || DEFAULT_FONT,
+        scale: clamp(Number(line.scale ?? options.scale ?? 0.14), 0.04, 0.42),
+        color: colour(line.color, colour(options.color, "#FFFFFF")),
+        strokeColor: colour(line.strokeColor, colour(options.strokeColor, "#000000")),
+        box: line.box ? colour(line.box, "#FF2A1A") : null,
+      };
+    })
+    .filter((line) => line.rule || line.text)
     .slice(0, MAX_LINES);
+}
+
+function shadowFilter(unit) {
+  const blur = Math.max(2, Math.round(unit * SHADOW_BLUR));
+  const offset = Math.max(1, Math.round(unit * SHADOW_OFFSET));
+  return (
+    `<defs><filter id="drop" x="-10%" y="-10%" width="125%" height="130%">` +
+    `<feGaussianBlur in="SourceAlpha" stdDeviation="${blur}"/>` +
+    `<feOffset dx="${offset}" dy="${offset}"/>` +
+    `<feComponentTransfer><feFuncA type="linear" slope="0.9"/></feComponentTransfer>` +
+    `<feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>` +
+    `</filter></defs>`
+  );
 }
 
 async function buildRichHeadline(options, width, height, basis) {
@@ -87,10 +109,20 @@ async function buildRichHeadline(options, width, height, basis) {
 
   const align = options.align === "center" ? "center" : "left";
   const rotate = clamp(Number(options.rotate ?? 0), -12, 12);
+  const gap = Number.isFinite(options.gap) ? clamp(options.gap, 0, 0.5) : GAP;
+  const radius = Number.isFinite(options.boxRadius) ? clamp(options.boxRadius, 0, 0.5) : BOX_RADIUS;
+  const stroked = options.stroke !== false;
+  const ruleSize = Math.max(3, Math.round(unit * RULE));
+  const ruleGap = Math.round(unit * RULE_GAP);
 
   const measured = [];
 
   for (const line of lines) {
+    if (line.rule) {
+      measured.push(line);
+      continue;
+    }
+
     const family = familyFor(line.font);
     const weight = weightFor(line.font);
     let fontSize = Math.round(unit * line.scale);
@@ -106,13 +138,32 @@ async function buildRichHeadline(options, width, height, basis) {
     measured.push({ ...line, family, weight, fontSize, metrics: box });
   }
 
-  const blocks = measured.map((m) => m.metrics.height + m.fontSize * GAP);
-  const total = blocks.reduce((a, b) => a + b, 0);
+  const texts = measured.filter((m) => !m.rule);
+  if (!texts.length) return null;
+
+  const widthOf = (m) => m.metrics.width + (m.box ? m.fontSize * BOX_PAD_X * 2 : 0);
+  const widest = Math.max(...texts.map(widthOf));
+  const heightOf = (m) =>
+    m.rule
+      ? ruleSize + ruleGap * 2
+      : m.metrics.height + m.fontSize * gap + (m.box ? m.fontSize * BOX_PAD_Y * 2 : 0);
+
+  const total = measured.reduce((sum, m) => sum + heightOf(m), 0);
   let cursor = Math.max(0, (height - total) / 2);
 
   const parts = [];
 
   for (const line of measured) {
+    if (line.rule) {
+      const ruleW = Math.round(widest * RULE_SPAN);
+      const ruleX = align === "center" ? Math.round((width - ruleW) / 2) : 0;
+      parts.push(
+        `<rect x="${ruleX}" y="${Math.round(cursor + ruleGap)}" width="${ruleW}" height="${ruleSize}" fill="${line.rule}"/>`,
+      );
+      cursor += heightOf(line);
+      continue;
+    }
+
     const { metrics } = line;
     const boxW = metrics.width + (line.box ? line.fontSize * BOX_PAD_X * 2 : 0);
     const left = align === "center" ? Math.round((width - boxW) / 2) : 0;
@@ -123,7 +174,7 @@ async function buildRichHeadline(options, width, height, basis) {
       const padY = line.fontSize * BOX_PAD_Y;
       parts.push(
         `<rect x="${left}" y="${Math.round(cursor)}" width="${Math.round(boxW)}" ` +
-          `height="${Math.round(metrics.height + padY * 2)}" rx="${Math.round(line.fontSize * BOX_RADIUS)}" ` +
+          `height="${Math.round(metrics.height + padY * 2)}" rx="${Math.round(line.fontSize * radius)}" ` +
           `fill="${line.box}"/>`,
       );
     }
@@ -132,7 +183,7 @@ async function buildRichHeadline(options, width, height, basis) {
       `x="${Math.round(textX)}" y="${baseline}" font-family="${escapeXml(line.family)}" ` +
       `font-size="${line.fontSize}" font-weight="${line.weight}"`;
 
-    if (!line.box) {
+    if (!line.box && stroked) {
       const stroke = Math.max(2, Math.round(line.fontSize * strokeFor(line.font)));
       parts.push(
         `<text ${common} fill="none" stroke="${line.strokeColor}" stroke-width="${stroke}" ` +
@@ -142,12 +193,15 @@ async function buildRichHeadline(options, width, height, basis) {
 
     parts.push(`<text ${common} fill="${line.color}">${escapeXml(line.text)}</text>`);
 
-    cursor += metrics.height + line.fontSize * GAP + (line.box ? line.fontSize * BOX_PAD_Y * 2 : 0);
+    cursor += heightOf(line);
   }
+
+  const filter = options.shadow ? ' filter="url(#drop)"' : "";
 
   return Buffer.from(
     `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">` +
-      `<g transform="rotate(${rotate} ${width / 2} ${height / 2})">${parts.join("")}</g>` +
+      (options.shadow ? shadowFilter(unit) : "") +
+      `<g transform="rotate(${rotate} ${width / 2} ${height / 2})"${filter}>${parts.join("")}</g>` +
       `</svg>`,
   );
 }
