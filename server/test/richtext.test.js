@@ -163,6 +163,24 @@ const inkOf = async (svg, w, h) => {
   const literal = (await buildRichHeadline({ lines: [{ text: "5 * 3 = 15" }] }, 600, 200, 720)).toString();
   check("without an accent colour an asterisk is just an asterisk", literal.includes("5 * 3 = 15"));
 
+  console.log("\na ring circles one word without being clipped");
+  const ringed = (await buildRichHeadline({ lines: [{ text: "SAME 3", scale: 0.2 }, { text: "BUGS", scale: 0.2, ring: "#E52521" }] }, 660, 600, 720)).toString();
+  const ellipse = ringed.match(/<ellipse cx="(\d+)" cy="(\d+)" rx="(\d+)" ry="(\d+)"[^>]*stroke="#E52521"/);
+  check("the ringed line gets a red ellipse", Boolean(ellipse));
+  if (ellipse) {
+    const [cx, cy, rx, ry] = ellipse.slice(1).map(Number);
+    check("the ring stays inside the headline area", cx - rx >= 0 && cx + rx <= 660 && cy - ry >= 0 && cy + ry <= 600,
+      JSON.stringify({ cx, cy, rx, ry }));
+  }
+  const unringed = await buildRichHeadline({ lines: [{ text: "SAME 3", scale: 0.2 }, { text: "BUGS", scale: 0.2 }] }, 660, 600, 720);
+  check("and only when asked for", !unringed.toString().includes("<ellipse"));
+  const ringPx = await inkOf(Buffer.from(ringed.replace(/fill="#FFFFFF"/g, 'fill="#000000"').replace(/#E52521/g, "#000000")), 660, 600);
+  const plainPx = await inkOf(Buffer.from(unringed.toString().replace(/fill="#FFFFFF"/g, 'fill="#000000"')), 660, 600);
+  check("the ring really paints", ringPx > plainPx, `${plainPx} -> ${ringPx}`);
+  check("the host template puts you on the right and the headline on the left",
+    byId("host-headline").slots.find((s) => s.key === "host").anchor === "right" &&
+      byId("host-headline").slots.find((s) => s.key === "headline").rect.x < 0.1);
+
   console.log("\nsmall lines switch to the support font, big ones keep the headline font");
   const paired = normalise({
     font: "poppinsblack",

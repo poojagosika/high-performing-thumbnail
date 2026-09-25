@@ -79,6 +79,7 @@ const headlineLineSchema = z.object({
   rule: hexColour.optional(),
   accent: hexColour.optional(),
   flank: hexColour.optional(),
+  ring: hexColour.optional(),
   gradient: z.array(hexColour).min(2).max(4).optional(),
   font: z.enum(FONTS.map((f) => f.key), { error: "is not one of the fonts" }).optional(),
   scale: z.coerce.number().min(0.04).max(0.42).optional(),

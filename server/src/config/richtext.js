@@ -21,6 +21,10 @@ const SUPPORT_BELOW = 0.065;
 const FLANK_LEN = 1.6;
 const FLANK_GAP = 0.45;
 const FLANK_THICK = 0.06;
+const RING_PAD_X = 0.28;
+const RING_PAD_Y = 0.3;
+const RING_THICK = 0.065;
+const RING_TILT = -4;
 
 const cache = new Map();
 
@@ -97,6 +101,7 @@ function normalise(options) {
         accent,
         gradient: gradient.length >= 2 ? gradient : null,
         flank: line.flank ? colour(line.flank, "#FFFFFF") : null,
+        ring: line.ring ? colour(line.ring, "#E52521") : null,
       };
     })
     .filter((line) => line.rule || line.plain)
@@ -163,7 +168,8 @@ async function buildRichHeadline(options, width, height, basis) {
     let box = await measureText(line.plain, family, weight, fontSize);
 
     const flankRoom = (size) => (line.flank ? 2 * size * (FLANK_LEN + FLANK_GAP) : 0);
-    const roomAt = (size) => width * (line.box ? 1 - BOX_PAD_X * 0.5 : 1) - flankRoom(size);
+    const ringRoom = (size) => (line.ring ? 2 * size * (RING_PAD_X + RING_THICK) : 0);
+    const roomAt = (size) => width * (line.box ? 1 - BOX_PAD_X * 0.5 : 1) - flankRoom(size) - ringRoom(size);
 
     for (let guard = 0; guard < 60 && box.width > roomAt(fontSize) && fontSize > 12; guard += 1) {
       fontSize = Math.max(12, Math.round(fontSize * Math.min(0.96, roomAt(fontSize) / box.width)));
@@ -181,7 +187,10 @@ async function buildRichHeadline(options, width, height, basis) {
   const heightOf = (m) =>
     m.rule
       ? ruleSize + ruleGap * 2
-      : m.metrics.height + Math.max(m.fontSize * gap, unit * MIN_GAP) + (m.box ? m.fontSize * BOX_PAD_Y * 2 : 0);
+      : m.metrics.height +
+        Math.max(m.fontSize * gap, unit * MIN_GAP) +
+        (m.box ? m.fontSize * BOX_PAD_Y * 2 : 0) +
+        (m.ring ? m.fontSize * RING_PAD_Y * 2 : 0);
 
   const total = measured.reduce((sum, m) => sum + heightOf(m), 0);
   let cursor = Math.max(0, (height - total) / 2);
@@ -202,8 +211,11 @@ async function buildRichHeadline(options, width, height, basis) {
 
     const { metrics } = line;
     const boxW = metrics.width + (line.box ? line.fontSize * BOX_PAD_X * 2 : 0);
-    const left = align === "center" ? Math.round((width - boxW) / 2) : 0;
-    const baseline = Math.round(cursor + metrics.above + (line.box ? line.fontSize * BOX_PAD_Y : 0));
+    const ringInset = line.ring ? Math.round(line.fontSize * (RING_PAD_X + RING_THICK)) : 0;
+    const left = align === "center" ? Math.round((width - boxW) / 2) : ringInset;
+    const baseline = Math.round(
+      cursor + metrics.above + (line.box ? line.fontSize * BOX_PAD_Y : 0) + (line.ring ? line.fontSize * RING_PAD_Y : 0),
+    );
     const textX = left + (line.box ? line.fontSize * BOX_PAD_X : 0) - (metrics.offset || 0);
 
     if (line.box) {
@@ -245,6 +257,17 @@ async function buildRichHeadline(options, width, height, basis) {
       parts.push(
         `<rect x="${left - space - len}" y="${mid}" width="${len}" height="${size}" fill="${line.flank}"/>` +
           `<rect x="${Math.round(left + boxW + space)}" y="${mid}" width="${len}" height="${size}" fill="${line.flank}"/>`,
+      );
+    }
+
+    if (line.ring) {
+      const cx = Math.round(left + boxW / 2);
+      const cy = Math.round(baseline + (metrics.below - metrics.above) / 2);
+      const rx = Math.round(boxW / 2 + line.fontSize * RING_PAD_X);
+      const ry = Math.round(metrics.height / 2 + line.fontSize * RING_PAD_Y * 0.8);
+      parts.push(
+        `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="none" stroke="${line.ring}" ` +
+          `stroke-width="${Math.max(3, Math.round(line.fontSize * RING_THICK))}" transform="rotate(${RING_TILT} ${cx} ${cy})"/>`,
       );
     }
 
