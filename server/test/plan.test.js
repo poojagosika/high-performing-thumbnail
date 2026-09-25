@@ -201,6 +201,64 @@ const flat = (w, h, rgb) =>
   const after = await compose("two-subject", {}, { headline: { ...planned, lines: retexted } }, { referenceStyle: lightStyle });
   check("and the render actually changes", !before.equals(after));
 
+  console.log("\nthe planner fills the new layouts itself");
+  const { balance, pairingFor, PAIRINGS } = require(path.join(SRC, "config/plan"));
+  const hostPlan = planThumbnail({
+    reference: { style: darkStyle, layout: { template: "host-headline" } },
+    content: { headline: "I read 50 codebases and found the same bugs", seed: "abc" },
+  });
+  const hostLines = hostPlan.headline.lines;
+  check("the host layout opens with a small setup line in the support font",
+    hostLines[0].scale < 0.065 && hostLines[0].font === hostPlan.fonts.support, JSON.stringify(hostLines[0]));
+  check("and circles the last word on its own line",
+    hostLines[hostLines.length - 1].text === "bugs" && Boolean(hostLines[hostLines.length - 1].ring));
+  check("the ring is never too dark to see",
+    hostLines[hostLines.length - 1].ring === "#E52521", hostLines[hostLines.length - 1].ring);
+  check("a long last word gets a colour instead of a ring",
+    planThumbnail({ reference: { style: darkStyle, layout: { template: "host-headline" } }, content: { headline: "stop overthinking absolutely everything" } })
+      .headline.lines.every((l) => !l.ring));
+
+  const photoPlan = planThumbnail({
+    reference: { style: darkStyle, layout: { template: "photo-headline" } },
+    content: { headline: "First woman to pilot the space shuttle" },
+  });
+  check("the photo layout breaks lines like a designer would",
+    JSON.stringify(photoPlan.headline.lines.map((l) => l.text)) === JSON.stringify(["First woman", "to pilot", "the space shuttle"]),
+    JSON.stringify(photoPlan.headline.lines.map((l) => l.text)));
+  check("and highlights the last line", photoPlan.headline.lines[2].color !== "#FFFFFF");
+  check("stack layouts keep their own alignment", photoPlan.headline.align === "left");
+
+  const panelPlan = planThumbnail({
+    reference: { style: darkStyle, layout: { template: "three-panel" } },
+    content: { headline: "Pioneers who changed computing" },
+  });
+  check("the three-panel layout makes the first word the hero",
+    panelPlan.headline.lines[0].text === "Pioneers" && panelPlan.headline.lines[0].scale > panelPlan.headline.lines[1].scale);
+  check("and centres the stack", panelPlan.headline.align === "center");
+
+  console.log("\nfonts are chosen, not fixed");
+  const condensed = PAIRINGS.condensed.map(([hero]) => hero);
+  const geometric = PAIRINGS.geometric.map(([hero]) => hero);
+  check("host and photo layouts use condensed faces", condensed.includes(hostPlan.fonts.hero) && condensed.includes(photoPlan.fonts.hero));
+  check("the three-panel layout uses a geometric face", geometric.includes(panelPlan.fonts.hero));
+  const heroes = new Set(["a", "b", "c", "d", "e", "f"].map((seed) => pairingFor("host-headline", { seed }).hero));
+  check("different references get different pairings", heroes.size > 1, JSON.stringify([...heroes]));
+  check("the same reference always gets the same pairing",
+    pairingFor("three-panel", { seed: "xyz" }).hero === pairingFor("three-panel", { seed: "xyz" }).hero);
+  check("a font the user picked wins", pairingFor("host-headline", { font: "poppins", seed: "a" }).hero === "poppins");
+  check("the old layouts no longer default to one font",
+    planThumbnail({ reference: { style: darkStyle, layout: { template: "two-subject" } }, content: { headline: "two words here" } })
+      .headline.lines.every((l) => geometric.includes(l.font)));
+  check("the project's own template wins over the layout guess",
+    planThumbnail({ reference: { style: darkStyle, layout: { template: "two-subject" } }, content: { headline: "x y", template: "host-headline" } }).template === "host-headline");
+
+  console.log("\nline breaking avoids dangling small words");
+  check("never ends a line on 'to' or 'the'",
+    balance("First woman to pilot the space shuttle".split(" "), 3).slice(0, -1).every((l) => !/\b(to|the)$/i.test(l)));
+  check("keeps every word, in order",
+    balance("I tried every AI coding tool for a month".split(" "), 3).join(" ") === "I tried every AI coding tool for a month");
+  check("one line when one is asked for", balance(["a", "b"], 1).length === 1);
+
   console.log(`\n${pass} passed, ${fail} failed\n`);
   process.exit(fail ? 1 : 0);
 })();

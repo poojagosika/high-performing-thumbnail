@@ -347,11 +347,14 @@ const chooseReference = async (req, res) => {
       );
     }
 
+    const uploaded = Object.values(project.slots || {}).some((s) => s && s.url);
+    if (changed && !uploaded) project.templateId = null;
+
     adoptLayout(project, project.referenceLayout);
 
     const plan = planThumbnail({
       reference: { style: project.referenceStyle, layout: project.referenceLayout },
-      content: { headline: project.title },
+      content: { headline: project.title, template: project.templateId, seed: project.chosenVideoId },
     });
 
     const planned = overridesFrom(plan);
@@ -396,7 +399,7 @@ const replan = async (req, res) => {
 
     const plan = planThumbnail({
       reference: { style: project.referenceStyle, layout: project.referenceLayout },
-      content: { headline: project.title },
+      content: { headline: project.title, template: project.templateId, seed: project.chosenVideoId },
     });
 
     const planned = overridesFrom(plan);

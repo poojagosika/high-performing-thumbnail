@@ -43,6 +43,12 @@ def band_for(y):
     return "middle" if y < 0.67 else "bottom"
 
 
+def side_for(x):
+    if x < 0.42:
+        return "left"
+    return "center" if x <= 0.58 else "right"
+
+
 def detect_faces(image):
     height, width = image.shape[:2]
     _, found = face_model(width, height).detect(image)
@@ -71,7 +77,7 @@ def detect_text(image):
     boxes, _ = text_model().detect(image)
 
     if boxes is None or len(boxes) == 0:
-        return {"hasText": False, "band": None, "y": None, "coverage": 0.0, "regions": 0}
+        return {"hasText": False, "band": None, "y": None, "side": None, "x": None, "coverage": 0.0, "regions": 0}
 
     areas = [abs(cv2.contourArea(np.array(b, dtype=np.float32))) for b in boxes]
     biggest = max(areas)
@@ -83,6 +89,8 @@ def detect_text(image):
             "hasText": False,
             "band": None,
             "y": None,
+            "side": None,
+            "x": None,
             "coverage": round(coverage * 100, 2),
             "regions": len(boxes),
             "reason": "only incidental text, too small for a headline",
@@ -90,13 +98,17 @@ def detect_text(image):
 
     kept = [(b, a) for b, a in zip(boxes, areas) if a >= biggest * BIG_REGION_RATIO]
     ys = [sum(float(p[1]) for p in b) / 4 / height for b, _ in kept]
+    xs = [sum(float(p[0]) for p in b) / 4 / width for b, _ in kept]
     weights = [a for _, a in kept]
     centre = sum(y * w for y, w in zip(ys, weights)) / sum(weights)
+    across = sum(x * w for x, w in zip(xs, weights)) / sum(weights)
 
     return {
         "hasText": True,
         "band": band_for(centre),
         "y": round(centre, 4),
+        "side": side_for(across),
+        "x": round(across, 4),
         "coverage": round(coverage * 100, 2),
         "regions": len(kept),
     }

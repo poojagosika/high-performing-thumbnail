@@ -12,7 +12,7 @@ const TIMEOUT_MS = 30000;
 const EMPTY = {
   faces: [],
   faceCount: 0,
-  text: { hasText: false, band: null, y: null, coverage: 0, regions: 0 },
+  text: { hasText: false, band: null, y: null, side: null, x: null, coverage: 0, regions: 0 },
   suggested: { template: null, headlineBand: null, subjectSides: { left: 0, right: 0 } },
   available: false,
 };
@@ -49,19 +49,30 @@ function analyze(imagePath) {
   });
 }
 
+function templateFor(big, left, right, textSide) {
+  if (big.length >= 3) return "three-panel";
+  if (left.length && right.length) return textSide === "center" ? "three-panel" : "two-subject";
+  if (!big.length) return textSide ? "photo-headline" : "side-panel";
+
+  const faceSide = left.length ? "left" : "right";
+  const textBeside = textSide && textSide !== "center" && textSide !== faceSide;
+
+  if (big.length === 1) return textBeside ? "host-headline" : "host-right";
+  return "photo-headline";
+}
+
 function layoutFrom(detection) {
   if (!detection || !detection.available) return null;
 
   const big = detection.faces.filter((f) => f.area >= 0.01);
   const left = big.filter((f) => f.cx < 0.5);
   const right = big.filter((f) => f.cx >= 0.5);
-
-  const template =
-    left.length && right.length ? "two-subject" : big.length === 1 ? "host-right" : "side-panel";
+  const textSide = detection.text.hasText ? detection.text.side || null : null;
 
   return {
-    template,
+    template: templateFor(big, left, right, textSide),
     headlineBand: detection.text.hasText ? detection.text.band : null,
+    headlineSide: textSide,
     headlineCoverage: detection.text.coverage,
     subjects: { left: left.length, right: right.length },
     confidence: detection.text.hasText || big.length > 0 ? "measured" : "nothing found",

@@ -6,7 +6,7 @@ const { cutout, CutoutError } = require("../config/cutout");
 const { removeUpload, writeUpload, uploadPath } = require("../config/upload");
 const { shape } = require("./projectController");
 const { FONTS } = require("../config/fonts");
-const { restyleLines } = require("../config/plan");
+const { restyleLines, planThumbnail, overridesFrom, STACKS } = require("../config/plan");
 
 const IMAGE_FIELDS = ["zoom", "dx", "dy", "anchor"];
 const TEXT_FIELDS = [
@@ -186,7 +186,14 @@ const editSlot = async (req, res) => {
     const current = (project.slotOverrides || {})[req.params.key] || {};
     const merged = { ...current, ...changes };
 
-    if (slot.type === "text" && changes.lines === undefined && Array.isArray(current.lines) && current.lines.length) {
+    if (slot.type === "text" && changes.lines === undefined && changes.text !== undefined && STACKS.has(project.templateId)) {
+      const fresh = overridesFrom(planThumbnail({
+        reference: { style: project.referenceStyle, layout: project.referenceLayout },
+        content: { headline: changes.text, template: project.templateId, seed: project.chosenVideoId },
+      }))[req.params.key];
+      const { text, ...styling } = changes;
+      merged.lines = restyleLines(fresh ? fresh.lines : [], styling);
+    } else if (slot.type === "text" && changes.lines === undefined && Array.isArray(current.lines) && current.lines.length) {
       merged.lines = restyleLines(current.lines, changes);
     }
 
