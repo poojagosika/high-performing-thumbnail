@@ -229,7 +229,8 @@ const TEMPLATES = [
         rect: { x: 0.1, y: 0.36, w: 0.8, h: 0.62 },
         defaults: {
           text: "",
-          font: "anton",
+          font: "poppinsblack",
+          supportFont: "barlowcondensed",
           color: "#FFFFFF",
           strokeColor: "#000000",
           scale: 0.12,

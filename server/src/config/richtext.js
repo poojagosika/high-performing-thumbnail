@@ -17,6 +17,7 @@ const RULE_SPAN = 0.9;
 const SHADOW_BLUR = 0.011;
 const SHADOW_OFFSET = 0.006;
 const MIN_GAP = 0.016;
+const SUPPORT_BELOW = 0.065;
 const FLANK_LEN = 1.6;
 const FLANK_GAP = 0.45;
 const FLANK_THICK = 0.06;
@@ -83,11 +84,13 @@ function normalise(options) {
       const text = options.caps ? raw.toUpperCase() : raw;
       const accent = line.accent ? colour(line.accent, "#F6C343") : null;
       const gradient = Array.isArray(line.gradient) ? line.gradient.filter((c) => HEX.test(String(c))).slice(0, 4) : [];
+      const scale = clamp(Number(line.scale ?? options.scale ?? 0.14), 0.04, 0.42);
+      const support = options.supportFont && scale < SUPPORT_BELOW ? options.supportFont : null;
       return {
         text,
         plain: accent ? text.replace(/\*/g, "") : text,
-        font: line.font || options.font || DEFAULT_FONT,
-        scale: clamp(Number(line.scale ?? options.scale ?? 0.14), 0.04, 0.42),
+        font: line.font || support || options.font || DEFAULT_FONT,
+        scale,
         color: colour(line.color, colour(options.color, "#FFFFFF")),
         strokeColor: colour(line.strokeColor, colour(options.strokeColor, "#000000")),
         box: line.box ? colour(line.box, "#FF2A1A") : null,

@@ -163,6 +163,27 @@ const inkOf = async (svg, w, h) => {
   const literal = (await buildRichHeadline({ lines: [{ text: "5 * 3 = 15" }] }, 600, 200, 720)).toString();
   check("without an accent colour an asterisk is just an asterisk", literal.includes("5 * 3 = 15"));
 
+  console.log("\nsmall lines switch to the support font, big ones keep the headline font");
+  const paired = normalise({
+    font: "poppinsblack",
+    supportFont: "barlowcondensed",
+    lines: [{ text: "BIG", scale: 0.2 }, { text: "small", scale: 0.05 }, { text: "chosen", scale: 0.04, font: "barlowsemi" }],
+  });
+  check("the big line keeps the headline font", paired[0].font === "poppinsblack", paired[0].font);
+  check("the small line takes the support font", paired[1].font === "barlowcondensed", paired[1].font);
+  check("a font picked for a line always wins", paired[2].font === "barlowsemi", paired[2].font);
+  check("with no support font nothing changes",
+    normalise({ font: "anton", lines: [{ text: "small", scale: 0.05 }] })[0].font === "anton");
+  const poppinsW = await measureText("GOLD", familyFor("poppinsblack"), weightFor("poppinsblack"), 80);
+  const barlowW = await measureText("GOLD", familyFor("barlowcondensed"), weightFor("barlowcondensed"), 80);
+  check("the new fonts really load: Poppins is much wider than Barlow Condensed",
+    poppinsW.width > barlowW.width * 1.4, `${poppinsW.width} vs ${barlowW.width}`);
+  const heavy = await measureText("GOLD", familyFor("poppinsblack"), weightFor("poppinsblack"), 80);
+  const extra = await measureText("GOLD", familyFor("poppins"), weightFor("poppins"), 80);
+  check("and Poppins Black and ExtraBold are different cuts", heavy.width !== extra.width, `${heavy.width} vs ${extra.width}`);
+  check("the three-panel template pairs Poppins with Barlow",
+    byId("three-panel").slots.find((s) => s.key === "headline").defaults.supportFont === "barlowcondensed");
+
   console.log("\nthe three-panel template slants its photos and fades the bottom");
   const panel = (rgb) => sharp({ create: { width: 800, height: 800, channels: 3, background: { r: rgb[0], g: rgb[1], b: rgb[2] } } }).png().toBuffer();
   const tri = await compose("three-panel", {
