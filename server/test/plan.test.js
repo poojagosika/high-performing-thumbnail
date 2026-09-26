@@ -252,6 +252,46 @@ const flat = (w, h, rgb) =>
   check("the project's own template wins over the layout guess",
     planThumbnail({ reference: { style: darkStyle, layout: { template: "two-subject" } }, content: { headline: "x y", template: "host-headline" } }).template === "host-headline");
 
+  console.log("\nthe font read from the reference drives the pairing");
+  const confident = { key: "oswald", confidence: 0.8, family: "condensed", familyConfidence: 0.95 };
+  const readPlan = planThumbnail({
+    reference: { style: darkStyle, layout: { template: "three-panel", font: confident } },
+    content: { headline: "one two three", seed: "s" },
+  });
+  check("a confident reading sets the headline font, even on a geometric layout",
+    readPlan.fonts.hero === "oswald" && readPlan.fonts.source === "read", JSON.stringify(readPlan.fonts));
+  check("and every hero line uses it", readPlan.headline.lines.every((l) => l.font === "oswald"));
+  check("with a narrow support font that suits it", readPlan.fonts.support === "barlowcondensed");
+
+  const unsure = { key: "jakarta", confidence: 0.2, family: "neutral", familyConfidence: 0.75 };
+  const familyFonts = pairingFor("three-panel", { seed: "s" }, unsure);
+  check("an unsure font but a clear style family picks from that family",
+    familyFonts.source === "family" && PAIRINGS.neutral.some(([hero]) => hero === familyFonts.hero), JSON.stringify(familyFonts));
+
+  const noise = { key: "bebas", confidence: 0.15, family: "condensed", familyConfidence: 0.4 };
+  check("a reading that is unsure of everything is ignored",
+    pairingFor("three-panel", { seed: "s" }, noise).source === "layout");
+  check("a font the user picked beats the reading",
+    pairingFor("three-panel", { seed: "s", font: "lexend" }, confident).hero === "lexend");
+  check("a reading of a font we do not have is ignored",
+    pairingFor("host-headline", { seed: "s" }, { ...confident, key: "comicsans" }).hero !== "comicsans");
+
+  console.log("\nthe bottom-headline layout plans the group-photo style");
+  const bottomPlan = planThumbnail({
+    reference: { style: darkStyle, layout: { template: "photo-bottom" } },
+    content: { headline: "Medal winning shooters return!" },
+  });
+  const bottomLines = bottomPlan.headline.lines;
+  check("two balanced hero lines", JSON.stringify(bottomLines.filter((l) => l.text).map((l) => l.text)) === JSON.stringify(["Medal winning", "shooters return!"]),
+    JSON.stringify(bottomLines.map((l) => l.text)));
+  check("the second line gets the gold gradient", Array.isArray(bottomLines[1].gradient) && bottomLines[1].gradient.length === 2);
+  check("and a swoosh underneath in the reference accent", Array.isArray(bottomLines[2].swoosh) && bottomLines[2].swoosh[0] === darkStyle.accent.hex);
+  check("the stack is centred", bottomPlan.headline.align === "center");
+  check("editing the font leaves the swoosh alone",
+    restyleLines(bottomLines, { font: "anton", scale: 0.2, color: "#FF0000" })[2].swoosh && !("font" in restyleLines(bottomLines, { font: "anton" })[2]));
+  check("the editor's text box shows only the words",
+    overridesFrom(bottomPlan).headline.text === "Medal winning shooters return!", overridesFrom(bottomPlan).headline.text);
+
   console.log("\nline breaking avoids dangling small words");
   check("never ends a line on 'to' or 'the'",
     balance("First woman to pilot the space shuttle".split(" "), 3).slice(0, -1).every((l) => !/\b(to|the)$/i.test(l)));

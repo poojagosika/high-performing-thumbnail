@@ -83,17 +83,23 @@ function headlineFrom(text, palette, font, boxed) {
   });
 }
 
-const STACKS = new Set(["host-headline", "photo-headline", "three-panel"]);
+const STACKS = new Set(["host-headline", "photo-headline", "three-panel", "photo-bottom"]);
 const CONDENSED = new Set(["host-headline", "photo-headline"]);
 
 const PAIRINGS = {
   condensed: [["anton", "barlowcondensed"], ["bebas", "barlowsemi"], ["oswald", "barlowcondensed"]],
   geometric: [["poppinsblack", "barlowcondensed"], ["montserrat", "barlowsemi"], ["archivo", "barlowcondensed"]],
+  neutral: [["intertight", "barlowsemi"], ["jakarta", "barlowsemi"], ["spacegrotesk", "barlowcondensed"]],
 };
+
+const SUPPORT_FOR = { condensed: "barlowcondensed", geometric: "barlowcondensed", neutral: "barlowsemi" };
+const FONT_TRUST = 0.45;
+const FAMILY_TRUST = 0.6;
 
 const RING_MAX_CHARS = 9;
 const HIGHLIGHT_MIN = 110;
 const FALLBACK_HIGHLIGHT = "#FFD400";
+const GOLD_TOP = "#FFF1A8";
 const RING_MIN = 90;
 const FALLBACK_RING = "#E52521";
 const DANGLING_COST = 10;
@@ -102,11 +108,27 @@ const SMALL_WORDS = new Set(["a", "an", "the", "to", "of", "in", "on", "and", "o
 
 const seedOf = (text) => [...String(text || "")].reduce((sum, c) => sum + c.charCodeAt(0), 0);
 
-function pairingFor(template, content) {
-  const chosen = FONTS.some((f) => f.key === content.font) ? content.font : null;
-  const family = PAIRINGS[CONDENSED.has(template) ? "condensed" : "geometric"];
-  const [hero, support] = family[seedOf(content.seed) % family.length];
-  return { hero: chosen || hero, support };
+const known = (key) => FONTS.some((f) => f.key === key);
+
+function pairingFor(template, content, read = null) {
+  const pick = (family) => {
+    const options = PAIRINGS[family];
+    const [hero, support] = options[seedOf(content.seed) % options.length];
+    return { hero, support };
+  };
+
+  const guessed = pick(CONDENSED.has(template) ? "condensed" : "geometric");
+  if (known(content.font)) return { hero: content.font, support: guessed.support, source: "chosen" };
+
+  if (read && known(read.key) && read.confidence >= FONT_TRUST) {
+    return { hero: read.key, support: SUPPORT_FOR[read.family] || guessed.support, source: "read" };
+  }
+
+  if (read && PAIRINGS[read.family] && read.familyConfidence >= FAMILY_TRUST) {
+    return { ...pick(read.family), source: "family" };
+  }
+
+  return { ...guessed, source: "layout" };
 }
 
 function lumaOf(hexColour) {
@@ -155,6 +177,15 @@ function stackFrom(text, template, palette, fonts) {
   const hero = (t, scale, extra = {}) => ({ text: t, font: fonts.hero, scale, color: "#FFFFFF", ...extra });
   const support = (t, scale) => ({ text: t, font: fonts.support, scale, color: "#FFFFFF" });
 
+  if (template === "photo-bottom") {
+    const lines = balance(words, words.length <= 2 ? 1 : 2);
+    const last = lines.length - 1;
+    return [
+      ...lines.map((t, i) => hero(t, 0.15, i === last && lines.length > 1 ? { gradient: [GOLD_TOP, highlight] } : {})),
+      { swoosh: [palette.accent, "#FFFFFF"] },
+    ];
+  }
+
   if (template === "three-panel") {
     const [lead, ...rest] = words;
     return [hero(lead, 0.19, { color: highlight }), ...balance(rest, 2).map((t) => hero(t, 0.085))];
@@ -188,7 +219,7 @@ function planThumbnail(input = {}) {
   const palette = paletteFrom(style);
   const template = byId(content.template) ? content.template : templateFrom(layout, assets);
   const definition = byId(template);
-  const fonts = pairingFor(template, content);
+  const fonts = pairingFor(template, content, layout && layout.font);
   const stacked = STACKS.has(template);
 
   const textSlot = definition.slots.find((s) => s.type === "text");
@@ -253,7 +284,7 @@ function restyleLines(lines, changes = {}) {
       const scales = HIERARCHY[parts.length] || HIERARCHY[1];
       const factor = (peakOf(next) || scales[0]) / Math.max(...scales);
       const boxed = next.find((l) => l.box);
-      const plain = next.find((l) => !l.box && !l.rule) || {};
+      const plain = next.find((l) => !l.box && !l.rule && !l.swoosh) || {};
 
       next = parts.map((text, i) => {
         const useBox = boxed && i === parts.length - 1 && parts.length > 1;
@@ -263,18 +294,18 @@ function restyleLines(lines, changes = {}) {
   }
 
   if (changes.font !== undefined) {
-    next = next.map((l) => (l.rule ? l : { ...l, font: changes.font }));
+    next = next.map((l) => (l.rule || l.swoosh ? l : { ...l, font: changes.font }));
   }
 
   if (changes.color !== undefined) {
-    next = next.map((l) => (l.box || l.rule ? l : { ...l, color: changes.color }));
+    next = next.map((l) => (l.box || l.rule || l.swoosh ? l : { ...l, color: changes.color }));
   }
 
   if (changes.scale !== undefined) {
     const peak = peakOf(next);
     if (peak > 0) {
       const factor = Number(changes.scale) / peak;
-      next = next.map((l) => (l.rule ? l : { ...l, scale: round3(clamp(l.scale * factor, 0.04, 0.42)) }));
+      next = next.map((l) => (l.rule || l.swoosh ? l : { ...l, scale: round3(clamp(l.scale * factor, 0.04, 0.42)) }));
     }
   }
 
@@ -285,7 +316,7 @@ function overridesFrom(spec) {
   if (!spec || !spec.headline) return {};
 
   const { lines } = spec.headline;
-  const lead = lines.find((l) => !l.box) || lines[0];
+  const lead = lines.find((l) => l.text && !l.box) || lines[0];
 
   return {
     [spec.headline.slot]: {
