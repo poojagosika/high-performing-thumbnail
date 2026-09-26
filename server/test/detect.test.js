@@ -8,6 +8,7 @@ require(path.join(SRC, "config/fonts")).register();
 
 const { analyze, layoutFrom, missingPieces, EMPTY } = require(path.join(SRC, "config/detect"));
 const { renderCaption } = require(path.join(SRC, "config/caption"));
+const { compose } = require(path.join(SRC, "config/compose"));
 
 let pass = 0, fail = 0;
 const check = (name, cond, detail = "") => {
@@ -84,7 +85,6 @@ const scene = (w, h) => {
   check("reporting honestly that nothing was found", layout.confidence === "nothing found", layout.confidence);
 
   console.log("\nROUND TRIP: the band we ask for is the band that comes out");
-  const { compose } = require(path.join(SRC, "config/compose"));
   const person = await sharp(await scene(600, 800)).jpeg().toBuffer();
   const roundTrip = {};
   for (const band of ["top", "middle", "bottom"]) {
@@ -126,6 +126,23 @@ const scene = (w, h) => {
   const sideRead = await analyze(tmp("side_left.jpg"));
   check("text on the left is reported as left", sideRead.text.side === "left", JSON.stringify(sideRead.text));
   check("a centred caption is reported as centre", bands.middle.side === "center", JSON.stringify(bands.middle));
+
+  console.log("\nthe trained font reader reads the headline's type style");
+  const fontread = require("fs").existsSync(path.join(__dirname, "..", "assets", "models", "font_reader.npz"));
+  check("the font reader model ships with the app", fontread);
+  const styled = async (font) => {
+    const built = await compose("photo-headline", { photo: plate }, {
+      headline: { lines: [{ text: "Stop doing this", font, scale: 0.16 }, { text: "right now", font, scale: 0.16 }] },
+    });
+    fs.writeFileSync(tmp(`font_${font}.jpg`), built);
+    return (await analyze(tmp(`font_${font}.jpg`))).text.font;
+  };
+  const condensedRead = await styled("anton");
+  check("a condensed headline is read as condensed", condensedRead && condensedRead.family === "condensed", JSON.stringify(condensedRead));
+  const wideRead = await styled("unbounded");
+  check("a wide geometric headline is read as geometric", wideRead && wideRead.family === "geometric", JSON.stringify(wideRead));
+  check("the reading says how sure it is",
+    condensedRead && condensedRead.confidence > 0 && condensedRead.confidence <= 1 && condensedRead.ranking.length === 3);
 
   console.log("\nthe layout picker chooses among every template");
   const face = (cx, area = 0.03) => ({ cx, cy: 0.4, area });

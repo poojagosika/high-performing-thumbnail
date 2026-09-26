@@ -89,7 +89,12 @@ const CONDENSED = new Set(["host-headline", "photo-headline"]);
 const PAIRINGS = {
   condensed: [["anton", "barlowcondensed"], ["bebas", "barlowsemi"], ["oswald", "barlowcondensed"]],
   geometric: [["poppinsblack", "barlowcondensed"], ["montserrat", "barlowsemi"], ["archivo", "barlowcondensed"]],
+  neutral: [["intertight", "barlowsemi"], ["jakarta", "barlowsemi"], ["spacegrotesk", "barlowcondensed"]],
 };
+
+const SUPPORT_FOR = { condensed: "barlowcondensed", geometric: "barlowcondensed", neutral: "barlowsemi" };
+const FONT_TRUST = 0.45;
+const FAMILY_TRUST = 0.6;
 
 const RING_MAX_CHARS = 9;
 const HIGHLIGHT_MIN = 110;
@@ -102,11 +107,27 @@ const SMALL_WORDS = new Set(["a", "an", "the", "to", "of", "in", "on", "and", "o
 
 const seedOf = (text) => [...String(text || "")].reduce((sum, c) => sum + c.charCodeAt(0), 0);
 
-function pairingFor(template, content) {
-  const chosen = FONTS.some((f) => f.key === content.font) ? content.font : null;
-  const family = PAIRINGS[CONDENSED.has(template) ? "condensed" : "geometric"];
-  const [hero, support] = family[seedOf(content.seed) % family.length];
-  return { hero: chosen || hero, support };
+const known = (key) => FONTS.some((f) => f.key === key);
+
+function pairingFor(template, content, read = null) {
+  const pick = (family) => {
+    const options = PAIRINGS[family];
+    const [hero, support] = options[seedOf(content.seed) % options.length];
+    return { hero, support };
+  };
+
+  const guessed = pick(CONDENSED.has(template) ? "condensed" : "geometric");
+  if (known(content.font)) return { hero: content.font, support: guessed.support, source: "chosen" };
+
+  if (read && known(read.key) && read.confidence >= FONT_TRUST) {
+    return { hero: read.key, support: SUPPORT_FOR[read.family] || guessed.support, source: "read" };
+  }
+
+  if (read && PAIRINGS[read.family] && read.familyConfidence >= FAMILY_TRUST) {
+    return { ...pick(read.family), source: "family" };
+  }
+
+  return { ...guessed, source: "layout" };
 }
 
 function lumaOf(hexColour) {
@@ -188,7 +209,7 @@ function planThumbnail(input = {}) {
   const palette = paletteFrom(style);
   const template = byId(content.template) ? content.template : templateFrom(layout, assets);
   const definition = byId(template);
-  const fonts = pairingFor(template, content);
+  const fonts = pairingFor(template, content, layout && layout.font);
   const stacked = STACKS.has(template);
 
   const textSlot = definition.slots.find((s) => s.type === "text");

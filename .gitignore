@@ -26,3 +26,5 @@ Thumbs.db
 # Uploads
 server/uploads/*
 !server/uploads/.gitkeep
+
+__pycache__/

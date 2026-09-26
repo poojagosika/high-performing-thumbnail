@@ -4,6 +4,8 @@ import sys
 import cv2
 import numpy as np
 
+import fontread
+
 FACE_MODEL = "assets/models/yunet_face.onnx"
 TEXT_MODEL = "assets/models/ppocr_text.onnx"
 
@@ -49,6 +51,33 @@ def side_for(x):
     return "center" if x <= 0.58 else "right"
 
 
+def straighten(image, box):
+    pts = np.array(box, dtype=np.float32)
+    s = pts.sum(axis=1)
+    d = np.diff(pts, axis=1).ravel()
+    tl, br = pts[np.argmin(s)], pts[np.argmax(s)]
+    tr, bl = pts[np.argmin(d)], pts[np.argmax(d)]
+
+    width = int(max(np.linalg.norm(tr - tl), np.linalg.norm(br - bl)))
+    height = int(max(np.linalg.norm(bl - tl), np.linalg.norm(br - tr)))
+    if width < 8 or height < 8 or height > width * 1.5:
+        return None
+
+    target = np.array([[0, 0], [width - 1, 0], [width - 1, height - 1], [0, height - 1]], dtype=np.float32)
+    matrix = cv2.getPerspectiveTransform(np.array([tl, tr, br, bl], dtype=np.float32), target)
+    return cv2.warpPerspective(image, matrix, (width, height))
+
+
+def read_font(image, kept):
+    crops, weights = [], []
+    for box, area in kept:
+        crop = straighten(image, box)
+        if crop is not None:
+            crops.append(crop)
+            weights.append(area)
+    return fontread.read(crops, weights) if crops else None
+
+
 def detect_faces(image):
     height, width = image.shape[:2]
     _, found = face_model(width, height).detect(image)
@@ -77,7 +106,7 @@ def detect_text(image):
     boxes, _ = text_model().detect(image)
 
     if boxes is None or len(boxes) == 0:
-        return {"hasText": False, "band": None, "y": None, "side": None, "x": None, "coverage": 0.0, "regions": 0}
+        return {"hasText": False, "band": None, "y": None, "side": None, "x": None, "font": None, "coverage": 0.0, "regions": 0}
 
     areas = [abs(cv2.contourArea(np.array(b, dtype=np.float32))) for b in boxes]
     biggest = max(areas)
@@ -91,6 +120,7 @@ def detect_text(image):
             "y": None,
             "side": None,
             "x": None,
+            "font": None,
             "coverage": round(coverage * 100, 2),
             "regions": len(boxes),
             "reason": "only incidental text, too small for a headline",
@@ -109,6 +139,7 @@ def detect_text(image):
         "y": round(centre, 4),
         "side": side_for(across),
         "x": round(across, 4),
+        "font": read_font(image, kept),
         "coverage": round(coverage * 100, 2),
         "regions": len(kept),
     }
