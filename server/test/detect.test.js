@@ -144,18 +144,36 @@ const scene = (w, h) => {
   check("the reading says how sure it is",
     condensedRead && condensedRead.confidence > 0 && condensedRead.confidence <= 1 && condensedRead.ranking.length === 3);
 
+  console.log("\npanel dividers are found, and group photos are not mistaken for panels");
+  const panelPhoto = await sharp({ create: { width: 900, height: 900, channels: 3, background: { r: 200, g: 120, b: 80 } } }).png().toBuffer();
+  const paneled = await compose("three-panel", { panelLeft: panelPhoto, panelCenter: plate, panelRight: panelPhoto }, {
+    headline: { lines: [{ text: "Final day", scale: 0.15 }] },
+  });
+  fs.writeFileSync(tmp("panels.jpg"), paneled);
+  const paneledRead = await analyze(tmp("panels.jpg"));
+  check("a three-panel image shows its dividers", paneledRead.panels >= 1, String(paneledRead.panels));
+  const single = await compose("photo-bottom", { photo: plate }, { headline: { lines: [{ text: "Final day", scale: 0.15 }] } });
+  fs.writeFileSync(tmp("single.jpg"), single);
+  const singleRead = await analyze(tmp("single.jpg"));
+  check("a single photo shows none", singleRead.panels === 0, String(singleRead.panels));
+  check("the count reaches the layout", layoutFrom(paneledRead).panels === paneledRead.panels);
+
   console.log("\nthe layout picker chooses among every template");
   const face = (cx, area = 0.03) => ({ cx, cy: 0.4, area });
-  const seen = (faces, side) => layoutFrom({
+  const seen = (faces, side, panels = 0) => layoutFrom({
     available: true,
     faces,
+    panels,
     text: side ? { hasText: true, band: "middle", side, coverage: 5 } : { hasText: false, band: null, side: null, coverage: 0 },
   }).template;
   check("one face with the headline beside it is the host layout", seen([face(0.75)], "left") === "host-headline");
   check("one face with the headline on the same side keeps the old host layout", seen([face(0.75)], "right") === "host-right");
   check("a group on one side with text beside it is the photo layout", seen([face(0.7), face(0.85)], "left") === "photo-headline");
-  check("three or more faces is the three-panel layout", seen([face(0.2), face(0.5), face(0.8)], "center") === "three-panel");
-  check("faces on both sides with a centred headline is three-panel", seen([face(0.2), face(0.8)], "center") === "three-panel");
+  check("a group photo with a centred headline is the bottom-headline layout", seen([face(0.2), face(0.5), face(0.8)], "center") === "photo-bottom");
+  check("the same group split by panel dividers is three-panel", seen([face(0.2), face(0.5), face(0.8)], "center", 2) === "three-panel");
+  check("two people either side of a centred headline, no dividers, is one photo", seen([face(0.2), face(0.8)], "center") === "photo-bottom");
+  check("and with dividers it is three-panel", seen([face(0.2), face(0.8)], "center", 1) === "three-panel");
+  check("a group with the headline beside it is the photo layout", seen([face(0.6), face(0.75), face(0.9)], "left") === "photo-headline");
   check("faces on both sides with the headline up top stays two-subject", seen([face(0.2), face(0.8)], "left") === "two-subject");
   check("no faces but a headline is the photo layout", seen([], "left") === "photo-headline");
   check("the side is passed on to the plan", layoutFrom({ available: true, faces: [face(0.8)], text: { hasText: true, band: "top", side: "left", coverage: 4 } }).headlineSide === "left");

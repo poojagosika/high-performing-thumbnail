@@ -276,6 +276,22 @@ const flat = (w, h, rgb) =>
   check("a reading of a font we do not have is ignored",
     pairingFor("host-headline", { seed: "s" }, { ...confident, key: "comicsans" }).hero !== "comicsans");
 
+  console.log("\nthe bottom-headline layout plans the group-photo style");
+  const bottomPlan = planThumbnail({
+    reference: { style: darkStyle, layout: { template: "photo-bottom" } },
+    content: { headline: "Medal winning shooters return!" },
+  });
+  const bottomLines = bottomPlan.headline.lines;
+  check("two balanced hero lines", JSON.stringify(bottomLines.filter((l) => l.text).map((l) => l.text)) === JSON.stringify(["Medal winning", "shooters return!"]),
+    JSON.stringify(bottomLines.map((l) => l.text)));
+  check("the second line gets the gold gradient", Array.isArray(bottomLines[1].gradient) && bottomLines[1].gradient.length === 2);
+  check("and a swoosh underneath in the reference accent", Array.isArray(bottomLines[2].swoosh) && bottomLines[2].swoosh[0] === darkStyle.accent.hex);
+  check("the stack is centred", bottomPlan.headline.align === "center");
+  check("editing the font leaves the swoosh alone",
+    restyleLines(bottomLines, { font: "anton", scale: 0.2, color: "#FF0000" })[2].swoosh && !("font" in restyleLines(bottomLines, { font: "anton" })[2]));
+  check("the editor's text box shows only the words",
+    overridesFrom(bottomPlan).headline.text === "Medal winning shooters return!", overridesFrom(bottomPlan).headline.text);
+
   console.log("\nline breaking avoids dangling small words");
   check("never ends a line on 'to' or 'the'",
     balance("First woman to pilot the space shuttle".split(" "), 3).slice(0, -1).every((l) => !/\b(to|the)$/i.test(l)));

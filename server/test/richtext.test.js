@@ -16,10 +16,10 @@ const check = (name, cond, detail = "") => {
 };
 
 const inkOf = async (svg, w, h) => {
-  const { data } = await sharp({ create: { width: w, height: h, channels: 3, background: { r: 255, g: 255, b: 255 } } })
+  const { data, info } = await sharp({ create: { width: w, height: h, channels: 3, background: { r: 255, g: 255, b: 255 } } })
     .composite([{ input: svg }]).raw().toBuffer({ resolveWithObject: true });
   let ink = 0;
-  for (let i = 0; i < data.length; i += 3) if (data[i] < 200) ink += 1;
+  for (let i = 0; i < data.length; i += info.channels) if (data[i] < 200) ink += 1;
   return ink;
 };
 
@@ -180,6 +180,36 @@ const inkOf = async (svg, w, h) => {
   check("the host template puts you on the right and the headline on the left",
     byId("host-headline").slots.find((s) => s.key === "host").anchor === "right" &&
       byId("host-headline").slots.find((s) => s.key === "headline").rect.x < 0.1);
+
+  console.log("\nitalic lines, swooshes and smooth gold");
+  const italicStack = (await buildRichHeadline({
+    caps: true, italic: true, align: "center",
+    lines: [
+      { text: "Medal winners", scale: 0.15 },
+      { text: "come home", scale: 0.15, gradient: ["#FFF1A8", "#FFC21A"] },
+      { swoosh: ["#FF9933", "#FFFFFF", "#138808"] },
+    ],
+  }, 1100, 300, 720)).toString();
+  check("italic lines are slanted", (italicStack.match(/skewX\(-12\)/g) || []).length === 2);
+  check("a swoosh draws one tapered stripe per colour",
+    ["#FF9933", "#FFFFFF", "#138808"].every((c) => new RegExp(`<path d="M[^"]+Z" fill="${c}"`).test(italicStack)));
+  check("a two-colour gradient blends smoothly instead of banding",
+    /<linearGradient id="band0"[^>]*><stop offset="0.1" stop-color="#FFF1A8"\/><stop offset="0.9" stop-color="#FFC21A"\/><\/linearGradient>/.test(italicStack));
+  check("a flag gradient keeps its bands", (await buildRichHeadline({ lines: [{ text: "INDIA", gradient: ["#FF9933", "#FFFFFF", "#138808"] }] }, 600, 200, 720))
+    .toString().split("stop-color").length - 1 === 6);
+  check("upright text is not slanted", !(await buildRichHeadline({ lines: [{ text: "UPRIGHT" }] }, 600, 200, 720)).toString().includes("skewX"));
+  check("a swoosh with no valid colours is dropped", normalise({ lines: [{ text: "A" }, { swoosh: ["orange"] }] }).length === 1);
+  const spill = async (options) => {
+    const svg = (await buildRichHeadline({ ...options, stroke: false, lines: [{ text: "WWWWWWWWWWWWWWWWWWWW", scale: 0.2, color: "#000000" }] }, 600, 200, 720))
+      .toString().replace('<svg width="600"', '<svg width="800"');
+    const { data, info } = await sharp({ create: { width: 800, height: 200, channels: 3, background: { r: 255, g: 255, b: 255 } } })
+      .composite([{ input: Buffer.from(svg) }]).raw().toBuffer({ resolveWithObject: true });
+    let rightmost = 0;
+    for (let i = 0; i < data.length; i += info.channels) if (data[i] < 128) rightmost = Math.max(rightmost, (i / info.channels) % 800);
+    return rightmost;
+  };
+  const italicEdge = await spill({ italic: true });
+  check("italic text is sized so its slanted tops stay inside the headline area", italicEdge > 400 && italicEdge <= 600, String(italicEdge));
 
   console.log("\nsmall lines switch to the support font, big ones keep the headline font");
   const paired = normalise({

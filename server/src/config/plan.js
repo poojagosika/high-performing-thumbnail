@@ -83,7 +83,7 @@ function headlineFrom(text, palette, font, boxed) {
   });
 }
 
-const STACKS = new Set(["host-headline", "photo-headline", "three-panel"]);
+const STACKS = new Set(["host-headline", "photo-headline", "three-panel", "photo-bottom"]);
 const CONDENSED = new Set(["host-headline", "photo-headline"]);
 
 const PAIRINGS = {
@@ -99,6 +99,7 @@ const FAMILY_TRUST = 0.6;
 const RING_MAX_CHARS = 9;
 const HIGHLIGHT_MIN = 110;
 const FALLBACK_HIGHLIGHT = "#FFD400";
+const GOLD_TOP = "#FFF1A8";
 const RING_MIN = 90;
 const FALLBACK_RING = "#E52521";
 const DANGLING_COST = 10;
@@ -175,6 +176,15 @@ function stackFrom(text, template, palette, fonts) {
   const highlight = highlightFrom(palette);
   const hero = (t, scale, extra = {}) => ({ text: t, font: fonts.hero, scale, color: "#FFFFFF", ...extra });
   const support = (t, scale) => ({ text: t, font: fonts.support, scale, color: "#FFFFFF" });
+
+  if (template === "photo-bottom") {
+    const lines = balance(words, words.length <= 2 ? 1 : 2);
+    const last = lines.length - 1;
+    return [
+      ...lines.map((t, i) => hero(t, 0.15, i === last && lines.length > 1 ? { gradient: [GOLD_TOP, highlight] } : {})),
+      { swoosh: [palette.accent, "#FFFFFF"] },
+    ];
+  }
 
   if (template === "three-panel") {
     const [lead, ...rest] = words;
@@ -274,7 +284,7 @@ function restyleLines(lines, changes = {}) {
       const scales = HIERARCHY[parts.length] || HIERARCHY[1];
       const factor = (peakOf(next) || scales[0]) / Math.max(...scales);
       const boxed = next.find((l) => l.box);
-      const plain = next.find((l) => !l.box && !l.rule) || {};
+      const plain = next.find((l) => !l.box && !l.rule && !l.swoosh) || {};
 
       next = parts.map((text, i) => {
         const useBox = boxed && i === parts.length - 1 && parts.length > 1;
@@ -284,18 +294,18 @@ function restyleLines(lines, changes = {}) {
   }
 
   if (changes.font !== undefined) {
-    next = next.map((l) => (l.rule ? l : { ...l, font: changes.font }));
+    next = next.map((l) => (l.rule || l.swoosh ? l : { ...l, font: changes.font }));
   }
 
   if (changes.color !== undefined) {
-    next = next.map((l) => (l.box || l.rule ? l : { ...l, color: changes.color }));
+    next = next.map((l) => (l.box || l.rule || l.swoosh ? l : { ...l, color: changes.color }));
   }
 
   if (changes.scale !== undefined) {
     const peak = peakOf(next);
     if (peak > 0) {
       const factor = Number(changes.scale) / peak;
-      next = next.map((l) => (l.rule ? l : { ...l, scale: round3(clamp(l.scale * factor, 0.04, 0.42)) }));
+      next = next.map((l) => (l.rule || l.swoosh ? l : { ...l, scale: round3(clamp(l.scale * factor, 0.04, 0.42)) }));
     }
   }
 
@@ -306,7 +316,7 @@ function overridesFrom(spec) {
   if (!spec || !spec.headline) return {};
 
   const { lines } = spec.headline;
-  const lead = lines.find((l) => !l.box) || lines[0];
+  const lead = lines.find((l) => l.text && !l.box) || lines[0];
 
   return {
     [spec.headline.slot]: {

@@ -15,6 +15,12 @@ TEXT_INPUT = (736, 736)
 TEXT_MEAN = (122.67891434, 116.66876762, 104.00698793)
 BIG_REGION_RATIO = 0.35
 MIN_HEADLINE_FRACTION = 0.02
+DIVIDER_LENGTH = 0.3
+DIVIDER_LEAN = 0.3
+DIVIDER_TOP = 0.04
+DIVIDER_MARGIN = 0.15
+DIVIDER_MERGE = 0.03
+DIVIDER_VOTES = 0.15
 
 _face = None
 _text = None
@@ -76,6 +82,35 @@ def read_font(image, kept):
             crops.append(crop)
             weights.append(area)
     return fontread.read(crops, weights) if crops else None
+
+
+def count_dividers(image):
+    height, width = image.shape[:2]
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    edges = cv2.Canny(gray, 60, 180)
+    found = cv2.HoughLinesP(
+        edges, 1, np.pi / 360, threshold=int(height * DIVIDER_VOTES),
+        minLineLength=int(height * DIVIDER_LENGTH), maxLineGap=int(height * 0.02),
+    )
+    if found is None:
+        return 0
+
+    xs = []
+    for x1, y1, x2, y2 in found.reshape(-1, 4):
+        dx, dy = abs(int(x2) - int(x1)), abs(int(y2) - int(y1))
+        if dy == 0 or dx / dy > DIVIDER_LEAN or min(y1, y2) > height * DIVIDER_TOP:
+            continue
+        centre = (x1 + x2) / 2 / width
+        if DIVIDER_MARGIN < centre < 1 - DIVIDER_MARGIN:
+            xs.append(centre)
+
+    groups = []
+    for x in sorted(xs):
+        if groups and x - groups[-1][-1] <= DIVIDER_MERGE:
+            groups[-1].append(x)
+        else:
+            groups.append([x])
+    return len(groups)
 
 
 def detect_faces(image):
@@ -173,6 +208,7 @@ def run(path):
         "height": image.shape[0],
         "faces": faces,
         "faceCount": len(faces),
+        "panels": count_dividers(image),
         "text": text,
         "suggested": suggest(faces, text),
     }

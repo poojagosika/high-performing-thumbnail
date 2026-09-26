@@ -25,6 +25,10 @@ const RING_PAD_X = 0.28;
 const RING_PAD_Y = 0.3;
 const RING_THICK = 0.065;
 const RING_TILT = -4;
+const ITALIC_SKEW = 12;
+const SLANT_ROOM = 0.16;
+const SWOOSH = 0.02;
+const SWOOSH_SPAN = 0.8;
 
 const cache = new Map();
 
@@ -84,6 +88,10 @@ function normalise(options) {
   return source
     .map((line) => {
       if (line.rule) return { rule: colour(line.rule, "#FFD400") };
+      if (line.swoosh) {
+        const bands = (Array.isArray(line.swoosh) ? line.swoosh : [line.swoosh]).filter((c) => HEX.test(String(c))).slice(0, 4);
+        return bands.length ? { swoosh: bands } : { text: "", plain: "" };
+      }
       const raw = String(line.text || "").trim().slice(0, MAX_CHARS);
       const text = options.caps ? raw.toUpperCase() : raw;
       const accent = line.accent ? colour(line.accent, "#F6C343") : null;
@@ -102,9 +110,10 @@ function normalise(options) {
         gradient: gradient.length >= 2 ? gradient : null,
         flank: line.flank ? colour(line.flank, "#FFFFFF") : null,
         ring: line.ring ? colour(line.ring, "#E52521") : null,
+        italic: Boolean(line.italic ?? options.italic),
       };
     })
-    .filter((line) => line.rule || line.plain)
+    .filter((line) => line.rule || line.swoosh || line.plain)
     .slice(0, MAX_LINES);
 }
 
@@ -117,6 +126,9 @@ function accented(text, accent) {
 
 function bandGradient(id, colours) {
   const n = colours.length;
+  if (n === 2) {
+    return `<linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0.1" stop-color="${colours[0]}"/><stop offset="0.9" stop-color="${colours[1]}"/></linearGradient>`;
+  }
   const blend = 0.05;
   const stops = colours
     .map((c, i) => {
@@ -153,11 +165,12 @@ async function buildRichHeadline(options, width, height, basis) {
   const stroked = options.stroke !== false;
   const ruleSize = Math.max(3, Math.round(unit * RULE));
   const ruleGap = Math.round(unit * RULE_GAP);
+  const swooshSize = Math.max(6, Math.round(unit * SWOOSH));
 
   const measured = [];
 
   for (const line of lines) {
-    if (line.rule) {
+    if (line.rule || line.swoosh) {
       measured.push(line);
       continue;
     }
@@ -169,7 +182,8 @@ async function buildRichHeadline(options, width, height, basis) {
 
     const flankRoom = (size) => (line.flank ? 2 * size * (FLANK_LEN + FLANK_GAP) : 0);
     const ringRoom = (size) => (line.ring ? 2 * size * (RING_PAD_X + RING_THICK) : 0);
-    const roomAt = (size) => width * (line.box ? 1 - BOX_PAD_X * 0.5 : 1) - flankRoom(size) - ringRoom(size);
+    const slantRoom = (size) => (line.italic ? size * SLANT_ROOM : 0);
+    const roomAt = (size) => width * (line.box ? 1 - BOX_PAD_X * 0.5 : 1) - flankRoom(size) - ringRoom(size) - slantRoom(size);
 
     for (let guard = 0; guard < 60 && box.width > roomAt(fontSize) && fontSize > 12; guard += 1) {
       fontSize = Math.max(12, Math.round(fontSize * Math.min(0.96, roomAt(fontSize) / box.width)));
@@ -179,7 +193,7 @@ async function buildRichHeadline(options, width, height, basis) {
     measured.push({ ...line, family, weight, fontSize, metrics: box });
   }
 
-  const texts = measured.filter((m) => !m.rule);
+  const texts = measured.filter((m) => !m.rule && !m.swoosh);
   if (!texts.length) return null;
 
   const widthOf = (m) => m.metrics.width + (m.box ? m.fontSize * BOX_PAD_X * 2 : 0);
@@ -187,6 +201,8 @@ async function buildRichHeadline(options, width, height, basis) {
   const heightOf = (m) =>
     m.rule
       ? ruleSize + ruleGap * 2
+      : m.swoosh
+      ? swooshSize + ruleGap * 2
       : m.metrics.height +
         Math.max(m.fontSize * gap, unit * MIN_GAP) +
         (m.box ? m.fontSize * BOX_PAD_Y * 2 : 0) +
@@ -209,6 +225,22 @@ async function buildRichHeadline(options, width, height, basis) {
       continue;
     }
 
+    if (line.swoosh) {
+      const sweep = Math.round(widest * SWOOSH_SPAN);
+      const x0 = align === "center" ? Math.round((width - sweep) / 2) : 0;
+      const stripe = swooshSize / line.swoosh.length;
+      line.swoosh.forEach((c, i) => {
+        const top = cursor + ruleGap + i * stripe;
+        const mid = Math.round(top + stripe / 2);
+        parts.push(
+          `<path d="M${x0},${mid} Q${x0 + sweep / 2},${Math.round(top - stripe * 0.6)} ${x0 + sweep},${mid} ` +
+            `Q${x0 + sweep / 2},${Math.round(top + stripe * 1.6)} ${x0},${mid}Z" fill="${c}"/>`,
+        );
+      });
+      cursor += heightOf(line);
+      continue;
+    }
+
     const { metrics } = line;
     const boxW = metrics.width + (line.box ? line.fontSize * BOX_PAD_X * 2 : 0);
     const ringInset = line.ring ? Math.round(line.fontSize * (RING_PAD_X + RING_THICK)) : 0;
@@ -216,7 +248,11 @@ async function buildRichHeadline(options, width, height, basis) {
     const baseline = Math.round(
       cursor + metrics.above + (line.box ? line.fontSize * BOX_PAD_Y : 0) + (line.ring ? line.fontSize * RING_PAD_Y : 0),
     );
-    const textX = left + (line.box ? line.fontSize * BOX_PAD_X : 0) - (metrics.offset || 0);
+    const lean = line.italic ? Math.round(line.fontSize * SLANT_ROOM) : 0;
+    const textX = left + (line.box ? line.fontSize * BOX_PAD_X : 0) - (metrics.offset || 0) - (align === "center" ? lean / 2 : 0);
+    const slanted = line.italic
+      ? `<g transform="translate(${Math.round(textX)} ${baseline}) skewX(${-ITALIC_SKEW}) translate(${-Math.round(textX)} ${-baseline})">`
+      : "";
 
     if (line.box) {
       const padY = line.fontSize * BOX_PAD_Y;
@@ -230,6 +266,8 @@ async function buildRichHeadline(options, width, height, basis) {
     const common =
       `x="${Math.round(textX)}" y="${baseline}" font-family="${escapeXml(line.family)}" ` +
       `font-size="${line.fontSize}" font-weight="${line.weight}"`;
+
+    if (slanted) parts.push(slanted);
 
     if (!line.box && stroked) {
       const stroke = Math.max(2, Math.round(line.fontSize * strokeFor(line.font)));
@@ -248,6 +286,7 @@ async function buildRichHeadline(options, width, height, basis) {
 
     const content = line.accent ? accented(line.text, line.accent) : escapeXml(line.plain);
     parts.push(`<text ${common} fill="${fill}">${content}</text>`);
+    if (slanted) parts.push("</g>");
 
     if (line.flank) {
       const size = Math.max(2, Math.round(line.fontSize * FLANK_THICK));
