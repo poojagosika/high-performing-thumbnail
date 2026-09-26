@@ -118,6 +118,31 @@ const scene = (w, h) => {
   check("it has the same keys callers expect",
     ["faces", "faceCount", "text", "suggested", "available"].every((k) => k in EMPTY));
 
+  console.log("\nthe text side is read, so the layout can follow it");
+  const leftCaption = await renderCaption(plate, { text: "NEPAL", position: "middle", scale: 0.3 });
+  const leftShifted = await sharp({ create: { width: 1280, height: 720, channels: 3, background: { r: 40, g: 40, b: 60 } } })
+    .composite([{ input: await sharp(leftCaption).resize(560, 315).toBuffer(), left: 0, top: 200 }]).jpeg().toBuffer();
+  fs.writeFileSync(tmp("side_left.jpg"), leftShifted);
+  const sideRead = await analyze(tmp("side_left.jpg"));
+  check("text on the left is reported as left", sideRead.text.side === "left", JSON.stringify(sideRead.text));
+  check("a centred caption is reported as centre", bands.middle.side === "center", JSON.stringify(bands.middle));
+
+  console.log("\nthe layout picker chooses among every template");
+  const face = (cx, area = 0.03) => ({ cx, cy: 0.4, area });
+  const seen = (faces, side) => layoutFrom({
+    available: true,
+    faces,
+    text: side ? { hasText: true, band: "middle", side, coverage: 5 } : { hasText: false, band: null, side: null, coverage: 0 },
+  }).template;
+  check("one face with the headline beside it is the host layout", seen([face(0.75)], "left") === "host-headline");
+  check("one face with the headline on the same side keeps the old host layout", seen([face(0.75)], "right") === "host-right");
+  check("a group on one side with text beside it is the photo layout", seen([face(0.7), face(0.85)], "left") === "photo-headline");
+  check("three or more faces is the three-panel layout", seen([face(0.2), face(0.5), face(0.8)], "center") === "three-panel");
+  check("faces on both sides with a centred headline is three-panel", seen([face(0.2), face(0.8)], "center") === "three-panel");
+  check("faces on both sides with the headline up top stays two-subject", seen([face(0.2), face(0.8)], "left") === "two-subject");
+  check("no faces but a headline is the photo layout", seen([], "left") === "photo-headline");
+  check("the side is passed on to the plan", layoutFrom({ available: true, faces: [face(0.8)], text: { hasText: true, band: "top", side: "left", coverage: 4 } }).headlineSide === "left");
+
   fs.rmSync(DIR, { recursive: true, force: true });
   console.log(`\n${pass} passed, ${fail} failed\n`);
   process.exit(fail ? 1 : 0);

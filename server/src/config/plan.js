@@ -1,5 +1,5 @@
 const { CANVAS_W, CANVAS_H, byId, DEFAULT_TEMPLATE } = require("./templates");
-const { DEFAULT_FONT, byKey } = require("./fonts");
+const { FONTS } = require("./fonts");
 
 const MAX_HEADLINE_LINES = 3;
 const LIGHT_AT = 60;
@@ -83,15 +83,113 @@ function headlineFrom(text, palette, font, boxed) {
   });
 }
 
+const STACKS = new Set(["host-headline", "photo-headline", "three-panel"]);
+const CONDENSED = new Set(["host-headline", "photo-headline"]);
+
+const PAIRINGS = {
+  condensed: [["anton", "barlowcondensed"], ["bebas", "barlowsemi"], ["oswald", "barlowcondensed"]],
+  geometric: [["poppinsblack", "barlowcondensed"], ["montserrat", "barlowsemi"], ["archivo", "barlowcondensed"]],
+};
+
+const RING_MAX_CHARS = 9;
+const HIGHLIGHT_MIN = 110;
+const FALLBACK_HIGHLIGHT = "#FFD400";
+const RING_MIN = 90;
+const FALLBACK_RING = "#E52521";
+const DANGLING_COST = 10;
+const SPREAD_COST = 0.35;
+const SMALL_WORDS = new Set(["a", "an", "the", "to", "of", "in", "on", "and", "or", "for", "with", "at", "by", "is", "my", "your", "i", "vs"]);
+
+const seedOf = (text) => [...String(text || "")].reduce((sum, c) => sum + c.charCodeAt(0), 0);
+
+function pairingFor(template, content) {
+  const chosen = FONTS.some((f) => f.key === content.font) ? content.font : null;
+  const family = PAIRINGS[CONDENSED.has(template) ? "condensed" : "geometric"];
+  const [hero, support] = family[seedOf(content.seed) % family.length];
+  return { hero: chosen || hero, support };
+}
+
+function lumaOf(hexColour) {
+  const n = parseInt(hexColour.slice(1), 16);
+  return 0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255);
+}
+
+const highlightFrom = (palette) => (lumaOf(palette.accent) >= HIGHLIGHT_MIN ? palette.accent : FALLBACK_HIGHLIGHT);
+
+const ringFrom = (palette) => (lumaOf(palette.accent) >= RING_MIN ? palette.accent : FALLBACK_RING);
+
+const bare = (word) => word.toLowerCase().replace(/[^a-z']/g, "");
+
+function balance(words, wanted) {
+  const n = Math.max(1, Math.min(wanted, words.length));
+  if (n === 1) return words.length ? [words.join(" ")] : [];
+
+  let best = null;
+  const walk = (start, left, acc) => {
+    if (left === 1) {
+      const lines = [...acc, words.slice(start)];
+      const lengths = lines.map((l) => l.join(" ").length);
+      const widest = Math.max(...lengths);
+      const spread = widest - Math.min(...lengths);
+      const dangling = lines.slice(0, -1).filter((l) => SMALL_WORDS.has(bare(l[l.length - 1]))).length;
+      const cost = widest + spread * SPREAD_COST + dangling * DANGLING_COST;
+      if (!best || cost < best.cost) best = { cost, lines };
+      return;
+    }
+    for (let end = start + 1; end <= words.length - (left - 1); end += 1) {
+      walk(end, left - 1, [...acc, words.slice(start, end)]);
+    }
+  };
+
+  walk(0, n, []);
+  return best.lines.map((l) => l.join(" "));
+}
+
+const linesFor = (count) => (count <= 2 ? 1 : count <= 4 ? 2 : 3);
+
+function stackFrom(text, template, palette, fonts) {
+  const words = String(text || "").trim().split(/\s+/).filter(Boolean);
+  if (!words.length) return null;
+
+  const highlight = highlightFrom(palette);
+  const hero = (t, scale, extra = {}) => ({ text: t, font: fonts.hero, scale, color: "#FFFFFF", ...extra });
+  const support = (t, scale) => ({ text: t, font: fonts.support, scale, color: "#FFFFFF" });
+
+  if (template === "three-panel") {
+    const [lead, ...rest] = words;
+    return [hero(lead, 0.19, { color: highlight }), ...balance(rest, 2).map((t) => hero(t, 0.085))];
+  }
+
+  if (template === "host-headline") {
+    const setupCount = words.length >= 5 ? Math.ceil(words.length * 0.35) : 0;
+    const setup = setupCount ? [support(words.slice(0, setupCount).join(" "), 0.06)] : [];
+    const body = words.slice(setupCount);
+    const emphasis = body[body.length - 1];
+    const ringed = body.length >= 2 && emphasis.length <= RING_MAX_CHARS;
+    const lines = balance(ringed ? body.slice(0, -1) : body, 2);
+    const scale = 0.17;
+
+    if (ringed) return [...setup, ...lines.map((t) => hero(t, scale)), hero(emphasis, scale, { ring: ringFrom(palette) })];
+
+    const last = lines.length - 1;
+    return [...setup, ...lines.map((t, i) => hero(t, scale, i === last && lines.length > 1 ? { color: highlight } : {}))];
+  }
+
+  const lines = balance(words, linesFor(words.length));
+  const last = lines.length - 1;
+  return lines.map((t, i) => hero(t, 0.15, i === last && lines.length > 1 ? { color: highlight } : {}));
+}
+
 function planThumbnail(input = {}) {
   const { reference = {}, content = {}, assets = {} } = input;
   const style = reference.style || null;
   const layout = reference.layout || null;
 
   const palette = paletteFrom(style);
-  const template = templateFrom(layout, assets);
+  const template = byId(content.template) ? content.template : templateFrom(layout, assets);
   const definition = byId(template);
-  const font = byKey(content.font).key || DEFAULT_FONT;
+  const fonts = pairingFor(template, content);
+  const stacked = STACKS.has(template);
 
   const textSlot = definition.slots.find((s) => s.type === "text");
   const subjects = definition.slots
@@ -104,18 +202,22 @@ function planThumbnail(input = {}) {
     }));
 
   const band = layout && layout.headlineBand ? layout.headlineBand : "top";
-  const lines = headlineFrom(content.headline, palette, font, palette.mood === "light");
+  const lines = stacked
+    ? stackFrom(content.headline, template, palette, fonts)
+    : headlineFrom(content.headline, palette, fonts.hero, palette.mood === "light");
+  const slotAlign = textSlot && textSlot.defaults && textSlot.defaults.align;
 
   return {
     canvas: { width: CANVAS_W, height: CANVAS_H },
     template,
     mood: palette.mood,
     palette,
+    fonts,
     subjects,
     headline: lines
       ? {
           slot: textSlot ? textSlot.key : "headline",
-          align: palette.mood === "light" ? "left" : "center",
+          align: stacked && slotAlign ? slotAlign : palette.mood === "light" ? "left" : "center",
           band,
           lines,
         }
@@ -190,7 +292,7 @@ function overridesFrom(spec) {
       align: spec.headline.align,
       band: spec.headline.band,
       lines,
-      text: lines.map((l) => l.text).join(" "),
+      text: lines.filter((l) => l.text).map((l) => l.text).join(" "),
       font: lead.font,
       color: lead.color,
       scale: peakOf(lines),
@@ -206,6 +308,11 @@ module.exports = {
   paletteFrom,
   templateFrom,
   headlineFrom,
+  stackFrom,
+  balance,
+  pairingFor,
+  STACKS,
+  PAIRINGS,
   MAX_HEADLINE_LINES,
   clamp,
 };
