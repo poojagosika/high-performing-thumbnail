@@ -144,6 +144,18 @@ const scene = (w, h) => {
   check("the reading says how sure it is",
     condensedRead && condensedRead.confidence > 0 && condensedRead.confidence <= 1 && condensedRead.ranking.length === 3);
 
+  const italicStyled = async (font) => {
+    const built = await compose("photo-bottom", { photo: plate }, {
+      headline: { lines: [{ text: "Medal winners", font, scale: 0.15, italic: true }, { text: "come home", font, scale: 0.15, italic: true }] },
+    });
+    fs.writeFileSync(tmp(`italic_${font}.jpg`), built);
+    return (await analyze(tmp(`italic_${font}.jpg`))).text.font;
+  };
+  const italicCondensed = await italicStyled("anton");
+  check("an italic condensed headline is still read as condensed", italicCondensed && italicCondensed.family === "condensed", JSON.stringify(italicCondensed));
+  const italicWide = await italicStyled("unbounded");
+  check("an italic wide headline is still read as geometric", italicWide && italicWide.family === "geometric", JSON.stringify(italicWide));
+
   console.log("\npanel dividers are found, and group photos are not mistaken for panels");
   const panelPhoto = await sharp({ create: { width: 900, height: 900, channels: 3, background: { r: 200, g: 120, b: 80 } } }).png().toBuffer();
   const paneled = await compose("three-panel", { panelLeft: panelPhoto, panelCenter: plate, panelRight: panelPhoto }, {

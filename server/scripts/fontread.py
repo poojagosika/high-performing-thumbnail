@@ -12,6 +12,8 @@ CELL = 8
 BINS = 9
 MIN_COMPONENT = 0.25
 MAX_WINDOWS = 8
+SLANT_HEIGHT = 64
+SLANT_MIN = 4.0
 
 _model = None
 
@@ -86,10 +88,46 @@ def gradients(window):
     return np.concatenate(blocks)
 
 
+def slant(bw):
+    height = SLANT_HEIGHT
+    img = cv2.resize(bw, (max(1, int(bw.shape[1] * height / bw.shape[0])), height), interpolation=cv2.INTER_AREA)
+    img = img.astype(np.float32) / 255.0
+    gx = cv2.Sobel(img, cv2.CV_32F, 1, 0, ksize=3)
+    gy = cv2.Sobel(img, cv2.CV_32F, 0, 1, ksize=3)
+    magnitude = np.hypot(gx, gy)
+    stems = (np.abs(gx) > 2.5 * np.abs(gy)) & (magnitude > 0.5)
+    if stems.sum() < 20:
+        return 0.0
+
+    angle = np.degrees(np.arctan(gy[stems] / gx[stems]))
+    counts, edges = np.histogram(angle, bins=np.arange(-25, 26, 2), weights=magnitude[stems])
+    counts = np.convolve(counts, [1, 2, 1], mode="same")
+    peak = int(np.argmax(counts))
+    return float((edges[peak] + edges[peak + 1]) / 2)
+
+
+def deslant(bw):
+    angle = slant(bw)
+    if abs(angle) < SLANT_MIN:
+        return bw
+
+    lean = np.tan(np.radians(angle))
+    height, width = bw.shape
+    spread = int(np.ceil(abs(lean) * height)) + 2
+    matrix = np.float32([[1, lean, max(0.0, -lean * height)], [0, 1, 0]])
+    upright = cv2.warpAffine(bw, matrix, (width + spread, height), flags=cv2.INTER_LINEAR, borderValue=0)
+
+    ys, xs = np.nonzero(upright > 127)
+    if len(ys) == 0:
+        return bw
+    return upright[ys.min(): ys.max() + 1, xs.min(): xs.max() + 1]
+
+
 def features(crop):
     bw = binarise(crop)
     if bw is None:
         return None
+    bw = deslant(bw)
     hog = np.mean([gradients(w) for w in windows(bw)], axis=0)
     return np.concatenate([hog, np.array(stats(bw), dtype=np.float32)]).astype(np.float32)
 
