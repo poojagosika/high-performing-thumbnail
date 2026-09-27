@@ -1,5 +1,6 @@
 import io
 import json
+import math
 import os
 import random
 import sys
@@ -54,7 +55,9 @@ PALETTE = [
     (255, 110, 0), (150, 255, 90), (180, 180, 190),
 ]
 
-PER_CLASS = int(os.environ.get("PER_CLASS", "1500"))
+PER_CLASS = int(os.environ.get("PER_CLASS", "2500"))
+ITALIC_SHARE = 0.35
+ITALIC_DEGREES = (8, 16)
 SEED = 7
 RENDER_SIZE = 96
 
@@ -155,6 +158,11 @@ def sample(args):
 
     draw.text(origin, text, font=font, fill=fill + (255,), stroke_width=stroke, stroke_fill=stroke_fill + (255,))
 
+    if rng.random() < ITALIC_SHARE:
+        lean = math.tan(math.radians(rng.uniform(*ITALIC_DEGREES)))
+        baseline = margin + th
+        layer = layer.transform(layer.size, Image.AFFINE, (1, lean, -lean * baseline, 0, 1, 0), resample=Image.BICUBIC)
+
     if rng.random() < 0.3:
         layer = layer.rotate(rng.uniform(-4, 4), resample=Image.BICUBIC)
 
@@ -195,7 +203,7 @@ def build(start, per_class):
     return np.stack(X).astype(np.float32), np.array(y)
 
 
-def train(X, y, Xv, yv, classes, hidden=384, epochs=60, batch=256, lr=1e-3, decay=1e-4, dropout=0.2):
+def train(X, y, Xv, yv, classes, hidden=512, epochs=60, batch=256, lr=1e-3, decay=1e-4, dropout=0.2):
     rng = np.random.default_rng(SEED)
     d = X.shape[1]
     w1 = rng.normal(0, np.sqrt(2 / d), (d, hidden)).astype(np.float32)

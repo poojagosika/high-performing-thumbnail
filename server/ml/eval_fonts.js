@@ -30,6 +30,7 @@ const TITLES = [
 
 const COLOURS = ["#FFFFFF", "#FFD400", "#FFFFFF", "#F6C343", "#FFFFFF"];
 const PER_FONT = Number(process.env.PER_FONT || 6);
+const ITALIC = process.env.ITALIC === "1";
 const photos = (process.env.PHOTOS || "").split(",").filter((p) => p && fs.existsSync(p));
 
 async function backdrop(i) {
@@ -48,8 +49,8 @@ async function backdrop(i) {
       const template = i % 2 ? "photo-headline" : "host-headline";
       const slot = template === "photo-headline" ? "photo" : "background";
       const lines = [
-        { text: a, font, scale: 0.16, color: "#FFFFFF" },
-        { text: b, font, scale: 0.16, color: COLOURS[i % COLOURS.length] },
+        { text: a, font, scale: 0.16, color: "#FFFFFF", italic: ITALIC },
+        { text: b, font, scale: 0.16, color: COLOURS[i % COLOURS.length], italic: ITALIC },
       ];
       const buffer = await compose(template, { [slot]: await backdrop(i) }, { headline: { lines } }, {});
       const file = path.join(dir, `${font}-${i}.jpg`);
@@ -73,6 +74,7 @@ async function backdrop(i) {
   }
 
   console.log(JSON.stringify({
+    italic: ITALIC,
     images: results.length,
     exactAccuracy: +(exact / results.length).toFixed(3),
     familyAccuracy: +(family / results.length).toFixed(3),
