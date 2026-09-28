@@ -169,6 +169,55 @@ function balance(words, wanted) {
 
 const linesFor = (count) => (count <= 2 ? 1 : count <= 4 ? 2 : 3);
 
+const HEX6 = /^#[0-9a-fA-F]{6}$/;
+const EMPHASIS_TRUST = 0.7;
+const DARK_TEXT = "#111111";
+const LIGHT_BOX = 170;
+
+function plainLine(line) {
+  const { ring, box, gradient, ...rest } = line;
+  return { ...rest, color: "#FFFFFF" };
+}
+
+function applyEmphasis(lines, read) {
+  if (!lines || !read || !read.style || !(read.confidence >= EMPHASIS_TRUST)) return lines;
+
+  const texts = lines.map((l, i) => (l.text ? i : -1)).filter((i) => i >= 0);
+  if (!texts.length) return lines;
+
+  const next = lines.map((l) => (l.text ? plainLine(l) : l));
+  if (read.style === "none") return next;
+
+  const at = read.line === "first" ? texts[0] : texts[texts.length - 1];
+  const line = next[at];
+  const colour = HEX6.test(String(read.colour || "")) ? read.colour : null;
+
+  if (read.style === "colour" && colour) next[at] = { ...line, color: lumaOf(colour) >= RING_MIN ? colour : FALLBACK_HIGHLIGHT };
+  if (read.style === "ring") {
+    const ring = colour && lumaOf(colour) >= RING_MIN ? colour : FALLBACK_RING;
+    const heroes = texts.filter((i) => next[i].scale === line.scale && next[i].font === line.font);
+    const words = heroes.flatMap((i) => next[i].text.trim().split(/\s+/));
+    const first = read.line === "first";
+    const word = first ? words[0] : words[words.length - 1];
+
+    if (words.length > 1 && word.length > 2) {
+      const remaining = first ? words.slice(1) : words.slice(0, -1);
+      const rebuilt = balance(remaining, Math.max(1, heroes.length)).map((text) => ({ ...line, text }));
+      const circled = { ...line, text: word, ring };
+      const span = heroes[heroes.length - 1] - heroes[0] + 1;
+      next.splice(heroes[0], span, ...(first ? [circled, ...rebuilt] : [...rebuilt, circled]));
+    } else {
+      next[at] = { ...line, ring };
+    }
+  }
+  if (read.style === "box" && colour) next[at] = { ...line, box: colour, color: lumaOf(colour) >= LIGHT_BOX ? DARK_TEXT : "#FFFFFF" };
+  if (read.style === "gradient") {
+    const bands = (read.colours || []).filter((c) => HEX6.test(String(c)));
+    next[at] = { ...line, gradient: bands.length >= 2 ? bands : [GOLD_TOP, FALLBACK_HIGHLIGHT] };
+  }
+  return next;
+}
+
 function stackFrom(text, template, palette, fonts) {
   const words = String(text || "").trim().split(/\s+/).filter(Boolean);
   if (!words.length) return null;
@@ -234,8 +283,8 @@ function planThumbnail(input = {}) {
 
   const band = layout && layout.headlineBand ? layout.headlineBand : "top";
   const lines = stacked
-    ? stackFrom(content.headline, template, palette, fonts)
-    : headlineFrom(content.headline, palette, fonts.hero, palette.mood === "light");
+    ? applyEmphasis(stackFrom(content.headline, template, palette, fonts), layout && layout.emphasis)
+    : applyEmphasis(headlineFrom(content.headline, palette, fonts.hero, palette.mood === "light"), layout && layout.emphasis);
   const slotAlign = textSlot && textSlot.defaults && textSlot.defaults.align;
 
   return {
@@ -340,6 +389,7 @@ module.exports = {
   templateFrom,
   headlineFrom,
   stackFrom,
+  applyEmphasis,
   balance,
   pairingFor,
   STACKS,

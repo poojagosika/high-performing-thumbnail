@@ -4,6 +4,7 @@ import sys
 import cv2
 import numpy as np
 
+import emphasis
 import fontread
 
 FACE_MODEL = "assets/models/yunet_face.onnx"
@@ -141,7 +142,7 @@ def detect_text(image):
     boxes, _ = text_model().detect(image)
 
     if boxes is None or len(boxes) == 0:
-        return {"hasText": False, "band": None, "y": None, "side": None, "x": None, "font": None, "coverage": 0.0, "regions": 0}
+        return {"hasText": False, "band": None, "y": None, "side": None, "x": None, "font": None, "emphasis": None, "coverage": 0.0, "regions": 0}
 
     areas = [abs(cv2.contourArea(np.array(b, dtype=np.float32))) for b in boxes]
     biggest = max(areas)
@@ -156,6 +157,7 @@ def detect_text(image):
             "side": None,
             "x": None,
             "font": None,
+            "emphasis": None,
             "coverage": round(coverage * 100, 2),
             "regions": len(boxes),
             "reason": "only incidental text, too small for a headline",
@@ -175,6 +177,7 @@ def detect_text(image):
         "side": side_for(across),
         "x": round(across, 4),
         "font": read_font(image, kept),
+        "emphasis": emphasis.read(image, list(boxes), areas),
         "coverage": round(coverage * 100, 2),
         "regions": len(kept),
     }
