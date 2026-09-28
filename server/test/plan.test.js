@@ -292,6 +292,32 @@ const flat = (w, h, rgb) =>
   check("the editor's text box shows only the words",
     overridesFrom(bottomPlan).headline.text === "Medal winning shooters return!", overridesFrom(bottomPlan).headline.text);
 
+  console.log("\nthe reference's emphasis style replaces the layout's default");
+  const { applyEmphasis } = require(path.join(SRC, "config/plan"));
+  const stack = [{ text: "setup", color: "#FFFFFF", scale: 0.06 }, { text: "hero", color: "#FFFFFF" }, { text: "word", color: "#FFFFFF", ring: "#E52521" }];
+  const boxed = applyEmphasis(stack, { style: "box", line: "first", colour: "#E4161B", confidence: 0.9 });
+  check("a box reading boxes the line the reference boxed, in its colour", boxed[0].box === "#E4161B" && boxed[0].color === "#FFFFFF");
+  check("and removes the layout's own ring", boxed.every((l) => !l.ring));
+  check("a light box gets dark text so it stays readable",
+    applyEmphasis(stack, { style: "box", line: "first", colour: "#FFD400", confidence: 0.9 })[0].color === "#111111");
+  check("a colour reading recolours the last line",
+    applyEmphasis(stack, { style: "colour", line: "last", colour: "#22C55E", confidence: 0.9 })[2].color === "#22C55E");
+  check("a colour too dark to read falls back to a bright highlight",
+    applyEmphasis(stack, { style: "colour", line: "last", colour: "#101010", confidence: 0.9 })[2].color !== "#101010");
+  const graded = applyEmphasis(stack, { style: "gradient", line: "last", colours: ["#FFF1A8", "#FFC21A"], confidence: 0.9 });
+  check("a gradient reading uses the reference's own colours", JSON.stringify(graded[2].gradient) === JSON.stringify(["#FFF1A8", "#FFC21A"]));
+  check("a 'none' reading leaves every line plain",
+    applyEmphasis(stack, { style: "none", confidence: 0.9 }).every((l) => !l.ring && !l.box && !l.gradient && l.color === "#FFFFFF"));
+  check("an unsure reading changes nothing", applyEmphasis(stack, { style: "box", line: "first", colour: "#E4161B", confidence: 0.4 }) === stack);
+  const swooshed = applyEmphasis([{ text: "a" }, { text: "b" }, { swoosh: ["#FF9933", "#FFFFFF"] }], { style: "colour", line: "last", colour: "#22C55E", confidence: 0.9 });
+  check("decoration lines like the swoosh are left alone and never emphasised", swooshed[1].color === "#22C55E" && Array.isArray(swooshed[2].swoosh));
+  const emphasised = planThumbnail({
+    reference: { style: darkStyle, layout: { template: "host-headline", emphasis: { style: "box", line: "last", colour: "#1E6BFF", confidence: 0.85 } } },
+    content: { headline: "I read 50 codebases and found the same bugs" },
+  });
+  check("the planner applies the reading end to end",
+    emphasised.headline.lines[emphasised.headline.lines.length - 1].box === "#1E6BFF" && emphasised.headline.lines.every((l) => !l.ring));
+
   console.log("\nline breaking avoids dangling small words");
   check("never ends a line on 'to' or 'the'",
     balance("First woman to pilot the space shuttle".split(" "), 3).slice(0, -1).every((l) => !/\b(to|the)$/i.test(l)));
