@@ -8,8 +8,8 @@ const LIGHT_BACKDROP = "#F4EEE1";
 const DARK_BACKDROP = "#141418";
 
 const HIERARCHY = {
-  3: [0.085, 0.155, 0.062],
-  2: [0.155, 0.075],
+  3: [0.13, 0.13, 0.13],
+  2: [0.15, 0.15],
   1: [0.17],
 };
 
@@ -19,19 +19,7 @@ const hex = (c) => (/^#[0-9a-fA-F]{6}$/.test(String(c || "")) ? c : null);
 function splitHeadline(text) {
   const words = String(text || "").trim().split(/\s+/).filter(Boolean);
   if (!words.length) return [];
-  if (words.length <= 2) return [words.join(" ")];
-
-  if (words.length <= 4) {
-    const cut = Math.ceil(words.length / 2);
-    return [words.slice(0, cut).join(" "), words.slice(cut).join(" ")];
-  }
-
-  const lead = words.slice(0, 1).join(" ");
-  const tailCount = Math.min(3, Math.max(2, Math.round((words.length - 1) / 2)));
-  const middle = words.slice(1, 1 + tailCount).join(" ");
-  const tail = words.slice(1 + tailCount).join(" ");
-
-  return [lead, middle, tail].filter(Boolean).slice(0, MAX_HEADLINE_LINES);
+  return balance(words, Math.min(MAX_HEADLINE_LINES, linesFor(words.length)));
 }
 
 function paletteFrom(style) {

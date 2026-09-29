@@ -71,12 +71,12 @@ const flat = (w, h, rgb) =>
   check("ink flips for a dark reference",
     light.palette.ink !== dark.palette.ink, `${light.palette.ink} vs ${dark.palette.ink}`);
 
-  console.log("\nthe headline gets a hierarchy instead of one flat size");
+  console.log("\nthe headline breaks into balanced lines");
   const scales = light.headline.lines.map((l) => l.scale);
-  check("three lines at three different sizes",
-    light.headline.lines.length === 3 && new Set(scales).size === 3, JSON.stringify(scales));
-  check("the biggest line is the middle one, not the first",
-    scales[1] === Math.max(...scales), JSON.stringify(scales));
+  check("three balanced lines share one size",
+    light.headline.lines.length === 3 && new Set(scales).size === 1, JSON.stringify(scales));
+  check("no line is a lone small word",
+    light.headline.lines.every((l) => !/^(a|an|the|to|of|in|on|and|or|for|with|at|by|is|my|your|i|vs)$/i.test(l.text)), light.headline.lines.map((l) => l.text).join(" | "));
   check("the last line is boxed in the accent colour",
     light.headline.lines[2].box === light.palette.accent, JSON.stringify(light.headline.lines[2]));
   check("the words survive the split intact",
