@@ -110,6 +110,7 @@ function normalise(options) {
         gradient: gradient.length >= 2 ? gradient : null,
         flank: line.flank ? colour(line.flank, "#FFFFFF") : null,
         ring: line.ring ? colour(line.ring, "#E52521") : null,
+        ringThick: Number.isFinite(line.ringThick) ? Math.max(0.02, Math.min(0.12, line.ringThick)) : RING_THICK,
         italic: Boolean(line.italic ?? options.italic),
       };
     })
@@ -306,7 +307,7 @@ async function buildRichHeadline(options, width, height, basis) {
       const ry = Math.round(metrics.height / 2 + line.fontSize * RING_PAD_Y * 0.8);
       parts.push(
         `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="none" stroke="${line.ring}" ` +
-          `stroke-width="${Math.max(3, Math.round(line.fontSize * RING_THICK))}" transform="rotate(${RING_TILT} ${cx} ${cy})"/>`,
+          `stroke-width="${Math.max(2, Math.round(line.fontSize * line.ringThick))}" transform="rotate(${RING_TILT} ${cx} ${cy})"/>`,
       );
     }
 
