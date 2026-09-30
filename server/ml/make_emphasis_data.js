@@ -25,7 +25,7 @@ const WORDS = (
 
 const COLOURS = ["#FFD400", "#FF3B30", "#22C55E", "#F6C343", "#00B4FF", "#FF8A00"];
 const BOXES = ["#E4161B", "#FFD400", "#1E6BFF", "#111111", "#22C55E"];
-const RINGS = ["#E52521", "#FFD400", "#FFFFFF"];
+const RINGS = ["#E52521", "#FFD400", "#FFE600", "#F6C343", "#FFFFFF", "#22C55E", "#00B4FF"];
 const GRADIENTS = [["#FFF1A8", "#FFC21A"], ["#FFFFFF", "#AAB3C0"], ["#FFE259", "#FF7A00"], ["#FF9933", "#FFFFFF", "#138808"]];
 
 function random(seed) {
@@ -72,7 +72,10 @@ function random(seed) {
           line.box = pick(BOXES);
           if (line.box === "#FFD400") line.color = "#111111";
         }
-        if (style === "ring") line.ring = pick(RINGS);
+        if (style === "ring") {
+          line.ring = pick(RINGS);
+          line.ringThick = 0.025 + rand() * 0.07;
+        }
         if (style === "gradient") line.gradient = pick(GRADIENTS);
       }
       lines.push(line);
