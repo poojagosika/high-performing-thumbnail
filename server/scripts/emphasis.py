@@ -10,6 +10,8 @@ MAX_REGIONS = 5
 MIN_REGION = 0.12
 BAND = 0.35
 OUTER = 0.9
+BORDER = 2
+BORDER_SURE = 0.35
 RING_REACH = 0.6
 SECTORS = 24
 RING_COLOURS = 6
@@ -29,6 +31,7 @@ LOOP_MIN_ASPECT = 1.2
 LOOP_ROUND = (0.85, 1.15)
 LOOP_THIN = 0.6
 LOOP_OVERLAP = 0.3
+LOOP_HOLE = 0.2
 RING_NEAR_BEST = 0.8
 RING_VIVID_SHARE = 70
 
@@ -162,7 +165,9 @@ def region(image, box):
     gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
     _, mask = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     text = mask > 127
-    if text.mean() > 0.5:
+    rim = np.concatenate([text[:BORDER].ravel(), text[-BORDER:].ravel(), text[:, :BORDER].ravel(), text[:, -BORDER:].ravel()])
+    on_rim = rim.mean()
+    if on_rim > 1 - BORDER_SURE or (on_rim >= BORDER_SURE and text.mean() > 0.5):
         text = ~text
     if text.sum() < 10 or (~text).sum() < 10:
         return None
@@ -239,11 +244,13 @@ def loops(mask, line):
         ellipse = np.pi * a * b / 4
         if outer <= 0 or not LOOP_ROUND[0] <= outer / ellipse <= LOOP_ROUND[1]:
             continue
-        holes, k = 0.0, child
+        holes, largest, k = 0.0, 0.0, child
         while k != -1:
-            holes += cv2.contourArea(contours[k])
+            hole = cv2.contourArea(contours[k])
+            holes += hole
+            largest = max(largest, hole)
             k = tree[0][k][0]
-        if (outer - holes) / outer > LOOP_THIN:
+        if (outer - holes) / outer > LOOP_THIN or largest < outer * LOOP_HOLE:
             continue
         found.append((x, y, x + w, y + h))
     return found
