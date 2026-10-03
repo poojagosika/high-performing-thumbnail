@@ -167,33 +167,42 @@ function plainLine(line) {
   return { ...rest, color: "#FFFFFF" };
 }
 
-function applyEmphasis(lines, read) {
-  if (!lines || !read || !read.style || !(read.confidence >= EMPHASIS_TRUST)) return lines;
+function lineFor(name, texts, used) {
+  const wanted = name === "first" ? texts[0] : name === "middle" && texts.length >= 3 ? texts[Math.floor(texts.length / 2)] : texts[texts.length - 1];
+  return used.has(wanted) ? texts.find((i) => !used.has(i)) : wanted;
+}
 
-  const texts = lines.map((l, i) => (l.text ? i : -1)).filter((i) => i >= 0);
-  if (!texts.length) return lines;
+function heroBlock(next, at, used) {
+  const same = (i) => next[i] && next[i].text && !used.has(i) && next[i].scale === next[at].scale && next[i].font === next[at].font;
+  let start = at;
+  let end = at;
+  while (same(start - 1)) start -= 1;
+  while (same(end + 1)) end += 1;
+  return Array.from({ length: end - start + 1 }, (_, k) => start + k);
+}
 
-  const next = lines.map((l) => (l.text ? plainLine(l) : l));
-  if (read.style === "none") return next;
+function emphasise(next, read, used) {
+  const texts = next.map((l, i) => (l.text ? i : -1)).filter((i) => i >= 0);
+  const at = lineFor(read.line, texts, used);
+  if (at === undefined) return next;
+  used.add(at);
 
-  const at = read.line === "first" ? texts[0] : texts[texts.length - 1];
   const line = next[at];
   const colour = HEX6.test(String(read.colour || "")) ? read.colour : null;
 
   if (read.style === "colour" && colour) next[at] = { ...line, color: lumaOf(colour) >= RING_MIN ? colour : FALLBACK_HIGHLIGHT };
   if (read.style === "ring") {
     const ring = colour && lumaOf(colour) >= RING_MIN ? colour : FALLBACK_RING;
-    const heroes = texts.filter((i) => next[i].scale === line.scale && next[i].font === line.font);
+    const heroes = heroBlock(next, at, used);
     const words = heroes.flatMap((i) => next[i].text.trim().split(/\s+/));
-    const first = read.line === "first";
+    const first = at === texts[0];
     const word = first ? words[0] : words[words.length - 1];
 
     if (words.length > 1 && word.length > 2) {
       const remaining = first ? words.slice(1) : words.slice(0, -1);
       const rebuilt = balance(remaining, Math.max(1, heroes.length)).map((text) => ({ ...line, text }));
       const circled = { ...line, text: word, ring };
-      const span = heroes[heroes.length - 1] - heroes[0] + 1;
-      next.splice(heroes[0], span, ...(first ? [circled, ...rebuilt] : [...rebuilt, circled]));
+      next.splice(heroes[0], heroes.length, ...(first ? [circled, ...rebuilt] : [...rebuilt, circled]));
     } else {
       next[at] = { ...line, ring };
     }
@@ -204,6 +213,19 @@ function applyEmphasis(lines, read) {
     next[at] = { ...line, gradient: bands.length >= 2 ? bands : [GOLD_TOP, FALLBACK_HIGHLIGHT] };
   }
   return next;
+}
+
+function applyEmphasis(lines, read) {
+  if (!lines || !read || !read.style || !(read.confidence >= EMPHASIS_TRUST)) return lines;
+  if (!lines.some((l) => l.text)) return lines;
+
+  const next = lines.map((l) => (l.text ? plainLine(l) : l));
+  const reads = [read, read.also]
+    .filter((r) => r && r.style && r.style !== "none" && r.confidence >= EMPHASIS_TRUST)
+    .sort((a, b) => (a.style === "ring") - (b.style === "ring"));
+
+  const used = new Set();
+  return reads.reduce((acc, r) => emphasise(acc, r, used), next);
 }
 
 function stackFrom(text, template, palette, fonts) {

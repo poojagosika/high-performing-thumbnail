@@ -34,6 +34,9 @@ LOOP_OVERLAP = 0.3
 LOOP_HOLE = 0.2
 RING_NEAR_BEST = 0.8
 RING_VIVID_SHARE = 70
+ROW_SHARE = 0.5
+PICK = 0.5
+MAX_EMPHASES = 2
 
 _model = None
 
@@ -312,42 +315,55 @@ def measure(image, boxes, areas):
     return regions or None
 
 
-def odd_one_out(regions):
-    if len(regions) < 2:
-        return 0.0, 0
-    scores = []
-    for i, r in enumerate(regions):
-        others = np.median([o["fill"] for j, o in enumerate(regions) if j != i], axis=0)
-        scores.append(delta(r["fill"], others))
-    top = max(scores)
-    tied = [i for i, v in enumerate(scores) if v >= top * 0.9]
-    best = max(tied, key=lambda i: regions[i]["fill_chroma"])
-    return scores[best], best
+def rows_of(regions):
+    order = sorted(range(len(regions)), key=lambda i: regions[i]["cy"])
+    rows = []
+    for i in order:
+        height = regions[i]["rect"][3] - regions[i]["rect"][1]
+        last = rows[-1] if rows else None
+        if last and abs(regions[i]["cy"] - np.mean([regions[j]["cy"] for j in last])) < height * ROW_SHARE:
+            last.append(i)
+        else:
+            rows.append([i])
+    return rows
 
 
-def vector(regions):
-    colour, colour_at = odd_one_out(regions)
-    grad_at = int(np.argmax([r["gradient"] for r in regions]))
-    box_at = int(np.argmax([r["box_contrast"] - r["background_spread"] for r in regions]))
-    ring_at = int(np.argmax([r["ring"] + r["loop"] for r in regions]))
-
-    g, b, k = regions[grad_at], regions[box_at], regions[ring_at]
-    row = [
+def vector(regions, i):
+    r = regions[i]
+    others = [o for j, o in enumerate(regions) if j != i] or [r]
+    tallest = max(o["rect"][3] - o["rect"][1] for o in regions)
+    return np.array([
         len(regions),
-        colour,
-        regions[colour_at]["fill_chroma"],
-        g["gradient"],
-        g["gradient_light"],
-        b["box_contrast"],
-        b["background_spread"],
-        b["background_chroma"],
-        k["ring"],
-        k["ring_chroma"],
-        float(np.median([r["fill_chroma"] for r in regions])),
-        float(np.mean([r["background_spread"] for r in regions])),
-        max(r["loop"] for r in regions),
-    ]
-    return np.array(row, dtype=np.float32), {"colour": colour_at, "gradient": grad_at, "box": box_at, "ring": ring_at}
+        delta(r["fill"], np.median([o["fill"] for o in others], axis=0)),
+        r["fill_chroma"],
+        r["fill"][0],
+        float(np.median([o["fill_chroma"] for o in others])),
+        r["gradient"],
+        r["gradient_light"],
+        r["gradient"] - float(np.median([o["gradient"] for o in others])),
+        r["box_contrast"],
+        r["box_contrast"] - float(np.median([o["box_contrast"] for o in others])),
+        r["background_spread"],
+        r["background_chroma"],
+        r["ring"],
+        r["ring_chroma"],
+        r["loop"],
+        (r["rect"][3] - r["rect"][1]) / tallest,
+    ], dtype=np.float32)
+
+
+def vectors(regions):
+    return np.stack([vector(regions, i) for i in range(len(regions))])
+
+
+def decide(probs, rows):
+    picks = []
+    for at, row in enumerate(rows):
+        best = max(((probs[i][c], c, i) for i in row for c in range(1, len(CLASSES))), key=lambda item: item[0])
+        if best[0] >= PICK:
+            picks.append((float(best[0]), CLASSES[best[1]], best[2], at))
+    picks.sort(key=lambda item: -item[0])
+    return picks[:MAX_EMPHASES]
 
 
 def load():
@@ -367,31 +383,38 @@ def forward(model, rows):
     return exp / exp.sum(axis=1, keepdims=True)
 
 
+def describe(regions, pick, rows):
+    confidence, style, index, at = pick
+    target = regions[index]
+    found = {
+        "style": style,
+        "confidence": round(confidence, 3),
+        "line": "first" if at == 0 else "last" if at == len(rows) - 1 else "middle",
+    }
+    if style == "colour":
+        found["colour"] = hex_of(target["fill_bgr"])
+    elif style == "box":
+        found["colour"] = hex_of(target["box_bgr"])
+    elif style == "ring":
+        found["colour"] = hex_of(target["ring_bgr"])
+    elif style == "gradient":
+        found["colours"] = [hex_of(target["top_bgr"]), hex_of(target["bottom_bgr"])]
+    return found
+
+
 def read(image, boxes, areas):
     model = load()
     regions = measure(image, boxes, areas)
     if model is None or regions is None:
         return None
 
-    row, at = vector(regions)
-    probs = forward(model, row[None, :])[0]
-    style = CLASSES[int(np.argmax(probs))]
+    probs = forward(model, vectors(regions))
+    rows = rows_of(regions)
+    picks = decide(probs, rows)
+    if not picks:
+        return {"style": "none", "confidence": round(float(probs[:, 0].min()), 3)}
 
-    result = {"style": style, "confidence": round(float(probs.max()), 3)}
-    if style == "none":
-        return result
-
-    target = regions[at[style]]
-    ordered = sorted(regions, key=lambda r: r["cy"])
-    index = ordered.index(target)
-    result["line"] = "first" if index == 0 else "last" if index == len(ordered) - 1 else "middle"
-
-    if style == "colour":
-        result["colour"] = hex_of(target["fill_bgr"])
-    elif style == "box":
-        result["colour"] = hex_of(target["box_bgr"])
-    elif style == "ring":
-        result["colour"] = hex_of(target["ring_bgr"])
-    elif style == "gradient":
-        result["colours"] = [hex_of(target["top_bgr"]), hex_of(target["bottom_bgr"])]
+    result = describe(regions, picks[0], rows)
+    if len(picks) > 1:
+        result["also"] = describe(regions, picks[1], rows)
     return result

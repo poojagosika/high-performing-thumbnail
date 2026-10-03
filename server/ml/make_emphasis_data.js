@@ -60,24 +60,30 @@ function random(seed) {
     const font = pick(HEROES);
     const italic = rand() < 0.3;
     const target = style === "none" ? -1 : rand() < 0.7 ? count - 1 : 0;
+    const styles = Array(count).fill("none");
+    if (target >= 0) styles[target] = style;
+    if (target >= 0 && rand() < 0.4) {
+      const others = styles.map((s, l) => (s === "none" ? l : -1)).filter((l) => l >= 0);
+      const second = pick(STYLES.filter((s) => s !== "none" && s !== style));
+      styles[pick(others)] = second;
+    }
 
     const lines = [];
     for (let l = 0; l < count; l += 1) {
-      const words = l === target && style === "ring" ? [pick(WORDS)] : [pick(WORDS), ...(rand() < 0.6 ? [pick(WORDS)] : [])];
+      const own = styles[l];
+      const words = own === "ring" ? [pick(WORDS)] : [pick(WORDS), ...(rand() < 0.6 ? [pick(WORDS)] : [])];
       const line = { text: words.join(" "), font, scale: 0.14, color: "#FFFFFF", italic };
 
-      if (l === target) {
-        if (style === "colour") line.color = pick(COLOURS);
-        if (style === "box") {
-          line.box = pick(BOXES);
-          if (line.box === "#FFD400") line.color = "#111111";
-        }
-        if (style === "ring") {
-          line.ring = pick(RINGS);
-          line.ringThick = 0.025 + rand() * 0.07;
-        }
-        if (style === "gradient") line.gradient = pick(GRADIENTS);
+      if (own === "colour") line.color = pick(COLOURS);
+      if (own === "box") {
+        line.box = pick(BOXES);
+        if (line.box === "#FFD400") line.color = "#111111";
       }
+      if (own === "ring") {
+        line.ring = pick(RINGS);
+        line.ringThick = 0.025 + rand() * 0.07;
+      }
+      if (own === "gradient") line.gradient = pick(GRADIENTS);
       lines.push(line);
     }
 
@@ -95,7 +101,7 @@ function random(seed) {
 
     const file = `${String(i).padStart(5, "0")}.jpg`;
     fs.writeFileSync(path.join(OUT, file), await compose(template, assets, { headline: { lines } }, {}));
-    labels.push({ file, style, line: target < 0 ? null : target === 0 ? "first" : "last", template });
+    labels.push({ file, style, line: target < 0 ? null : target === 0 ? "first" : "last", lines: styles, template });
   }
 
   fs.writeFileSync(path.join(OUT, "labels.json"), JSON.stringify(labels));
