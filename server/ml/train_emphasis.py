@@ -21,9 +21,18 @@ def rows_for(folder):
     labels = json.load(open(os.path.join(folder, "labels.json")))
     with Pool(os.cpu_count()) as pool:
         measured = pool.map(measure, [(folder, item) for item in labels], chunksize=8)
-    kept = [(row, item, at) for row, item, at in measured if row is not None]
+    kept = [m for m in measured if m is not None]
     print(f"{folder}: {len(kept)} of {len(labels)} thumbnails had readable headlines", flush=True)
     return kept
+
+
+def line_styles(item, count):
+    if "lines" in item:
+        return item["lines"] if len(item["lines"]) == count else None
+    styles = ["none"] * count
+    if item["style"] != "none":
+        styles[0 if item["line"] == "first" else count - 1] = item["style"]
+    return styles
 
 
 def measure(args):
@@ -31,15 +40,20 @@ def measure(args):
     image = cv2.imread(os.path.join(folder, item["file"]))
     boxes, _ = detect.text_model().detect(image)
     if boxes is None or len(boxes) == 0:
-        return None, item, None
+        return None
     areas = [abs(cv2.contourArea(np.array(b, dtype=np.float32))) for b in boxes]
     regions = emphasis.measure(image, list(boxes), areas)
     if regions is None:
-        return None, item, None
-    row, at = emphasis.vector(regions)
-    ordered = sorted(range(len(regions)), key=lambda i: regions[i]["cy"])
-    lines = {k: ("first" if ordered.index(v) == 0 else "last" if ordered.index(v) == len(ordered) - 1 else "middle") for k, v in at.items()}
-    return row, item, lines
+        return None
+    rows = emphasis.rows_of(regions)
+    styles = line_styles(item, len(rows))
+    if styles is None:
+        return None
+    y = np.zeros(len(regions), dtype=np.int64)
+    for at, row in enumerate(rows):
+        for i in row:
+            y[i] = emphasis.CLASSES.index(styles[at])
+    return emphasis.vectors(regions), y, rows, styles
 
 
 def train(X, y, classes, hidden=48, epochs=600, lr=3e-3, decay=1e-4):
@@ -75,23 +89,34 @@ def train(X, y, classes, hidden=48, epochs=600, lr=3e-3, decay=1e-4):
 
 
 def report(model, data, name):
-    X = np.stack([row for row, _, _ in data])
-    truth = [item["style"] for _, item, _ in data]
-    predicted = [emphasis.CLASSES[i] for i in emphasis.forward(model, X).argmax(axis=1)]
-    accuracy = float(np.mean([a == b for a, b in zip(predicted, truth)]))
+    X = np.concatenate([x for x, _, _, _ in data])
+    y = np.concatenate([t for _, t, _, _ in data])
+    predicted = emphasis.forward(model, X).argmax(axis=1)
 
     confusion = {t: {p: 0 for p in emphasis.CLASSES} for t in emphasis.CLASSES}
-    for t, p in zip(truth, predicted):
-        confusion[t][p] += 1
+    for t, p in zip(y, predicted):
+        confusion[emphasis.CLASSES[t]][emphasis.CLASSES[p]] += 1
 
-    placed = [(item["line"], lines[p]) for (_, item, lines), p in zip(data, predicted) if p == item["style"] and p != "none"]
-    line_accuracy = float(np.mean([a == b for a, b in placed])) if placed else 0.0
+    exact, primary, doubles, doubles_found = 0, 0, 0, 0
+    for x, _, rows, styles in data:
+        picks = emphasis.decide(emphasis.forward(model, x), rows)
+        found = {(at, style) for _, style, _, at in picks}
+        truth = {(at, style) for at, style in enumerate(styles) if style != "none"}
+        exact += found == truth
+        primary += (not truth and not picks) or (bool(picks) and (picks[0][3], picks[0][1]) in truth)
+        if len(truth) == 2:
+            doubles += 1
+            doubles_found += found == truth
 
     print(json.dumps({
         "set": name,
         "thumbnails": len(data),
-        "styleAccuracy": round(accuracy, 3),
-        "lineAccuracyWhenStyleRight": round(line_accuracy, 3),
+        "lines": int(len(y)),
+        "lineAccuracy": round(float((predicted == y).mean()), 3),
+        "mainEmphasisRight": round(primary / len(data), 3),
+        "allEmphasesRight": round(exact / len(data), 3),
+        "twoEmphasisThumbnails": doubles,
+        "bothFound": round(doubles_found / max(1, doubles), 3),
         "confusion (truth -> predicted)": confusion,
     }, indent=1), flush=True)
 
@@ -103,8 +128,8 @@ def main():
     data = [row for folder in train_dirs for row in rows_for(folder)]
     test = rows_for(test_dir)
 
-    X = np.stack([row for row, _, _ in data])
-    y = np.array([emphasis.CLASSES.index(item["style"]) for _, item, _ in data])
+    X = np.concatenate([x for x, _, _, _ in data])
+    y = np.concatenate([t for _, t, _, _ in data])
     feat_mean = X.mean(axis=0)
     feat_std = X.std(axis=0) + 1e-6
 
