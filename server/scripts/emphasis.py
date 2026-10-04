@@ -35,10 +35,16 @@ LOOP_HOLE = 0.2
 RING_NEAR_BEST = 0.8
 RING_VIVID_SHARE = 70
 ROW_SHARE = 0.5
+EDGE_SHARE = 0.035
+EDGE_MIN = 1.5
+BEYOND_FROM = 3
+BEYOND_TO = 5
+INK_MODEL = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "assets", "models", "ink_reader.npz")
 PICK = 0.5
 MAX_EMPHASES = 2
 
 _model = None
+_ink_model = None
 
 
 def rect_of(box, width, height):
@@ -190,6 +196,14 @@ def region(image, box):
 
     top_lab, bottom_lab = lab_of(top), lab_of(bottom)
 
+    reach = max(EDGE_MIN, (y1 - y0) * EDGE_SHARE)
+    away = cv2.distanceTransform((~text).astype(np.uint8), cv2.DIST_L2, 3)
+    edge_px = crop[(away > 0) & (away <= reach)]
+    beyond_px = crop[(away > reach * BEYOND_FROM) & (away <= reach * BEYOND_TO)]
+    if len(beyond_px) < 10:
+        beyond_px = outside
+    edge, beyond = lab_of(edge_px), lab_of(beyond_px)
+
     return {
         "rect": (x0, y0, x1, y1),
         "area": (x1 - x0) * (y1 - y0),
@@ -208,6 +222,11 @@ def region(image, box):
         "ring": ring,
         "ring_chroma": ring_colour,
         "fill_chroma": chroma(fill),
+        "edge": edge,
+        "edge_bgr": np.median(edge_px, axis=0) if len(edge_px) else np.zeros(3),
+        "edge_spread": float(np.std(cv2.cvtColor(edge_px.reshape(-1, 1, 3), cv2.COLOR_BGR2GRAY))) if len(edge_px) else 0.0,
+        "beyond": beyond,
+        "beyond_spread": float(np.std(cv2.cvtColor(beyond_px.reshape(-1, 1, 3), cv2.COLOR_BGR2GRAY))),
     }
 
 
@@ -402,19 +421,64 @@ def describe(regions, pick, rows):
     return found
 
 
+def ink_vector(r):
+    return np.array([
+        delta(r["edge"], r["fill"]),
+        delta(r["edge"], r["beyond"]),
+        r["edge"][0],
+        chroma(r["edge"]),
+        r["edge_spread"],
+        r["beyond_spread"],
+        delta(r["fill"], r["beyond"]),
+        r["fill"][0],
+        r["fill_chroma"],
+    ], dtype=np.float32)
+
+
+def load_ink():
+    global _ink_model
+    if _ink_model is None and os.path.exists(INK_MODEL):
+        data = np.load(INK_MODEL, allow_pickle=False)
+        _ink_model = {key: data[key] for key in data.files}
+    return _ink_model
+
+
+def plain_regions(regions, rows, picks):
+    taken = {i for _, _, index, _ in picks for row in rows if index in row for i in row}
+    return [r for i, r in enumerate(regions) if i not in taken]
+
+
+def ink(regions):
+    model = load_ink()
+    if model is None or not regions:
+        return None
+
+    weights = np.array([r["area"] for r in regions], dtype=np.float32)
+    weights /= weights.sum()
+    probs = forward(model, np.stack([ink_vector(r) for r in regions]))
+    outlined = float((probs[:, 1] * weights).sum())
+    colour = np.median(np.stack([r["fill_bgr"] for r in regions]), axis=0)
+
+    found = {"colour": hex_of(colour), "outline": None, "confidence": round(max(outlined, 1 - outlined), 3)}
+    if outlined >= 0.5:
+        found["outline"] = hex_of(np.median(np.stack([r["edge_bgr"] for r in regions]), axis=0))
+    return found
+
+
 def read(image, boxes, areas):
     model = load()
     regions = measure(image, boxes, areas)
     if model is None or regions is None:
-        return None
+        return None, None
 
     probs = forward(model, vectors(regions))
     rows = rows_of(regions)
     picks = decide(probs, rows)
+    base = ink(plain_regions(regions, rows, picks))
     if not picks:
-        return {"style": "none", "confidence": round(float(probs[:, 0].min()), 3)}
+        return {"style": "none", "confidence": round(float(probs[:, 0].min()), 3)}, base
 
     result = describe(regions, picks[0], rows)
     if len(picks) > 1:
         result["also"] = describe(regions, picks[1], rows)
-    return result
+    return result, base

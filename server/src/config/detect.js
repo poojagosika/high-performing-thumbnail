@@ -13,7 +13,7 @@ const EMPTY = {
   faces: [],
   faceCount: 0,
   panels: 0,
-  text: { hasText: false, band: null, y: null, side: null, x: null, font: null, emphasis: null, coverage: 0, regions: 0 },
+  text: { hasText: false, band: null, y: null, side: null, x: null, font: null, emphasis: null, ink: null, coverage: 0, regions: 0 },
   suggested: { template: null, headlineBand: null, subjectSides: { left: 0, right: 0 } },
   available: false,
 };
@@ -81,6 +81,7 @@ function layoutFrom(detection) {
     headlineSide: textSide,
     font: detection.text.hasText ? detection.text.font || null : null,
     emphasis: detection.text.hasText ? detection.text.emphasis || null : null,
+    ink: detection.text.hasText ? detection.text.ink || null : null,
     headlineCoverage: detection.text.coverage,
     subjects: { left: left.length, right: right.length },
     confidence: detection.text.hasText || big.length > 0 ? "measured" : "nothing found",
