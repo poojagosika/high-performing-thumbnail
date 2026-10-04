@@ -26,6 +26,9 @@ const WORDS = (
 const COLOURS = ["#FFD400", "#FF3B30", "#22C55E", "#F6C343", "#00B4FF", "#FF8A00"];
 const BOXES = ["#E4161B", "#FFD400", "#1E6BFF", "#111111", "#22C55E"];
 const RINGS = ["#E52521", "#FFD400", "#FFE600", "#F6C343", "#FFFFFF", "#22C55E", "#00B4FF"];
+const YELLOWS = new Set(["#FFD400", "#F6C343"]);
+const INKS = ["#FFFFFF", "#FFFFFF", "#FFFFFF", "#FFD400", "#F2F2F2", "#111111"];
+const OUTLINES = [null, null, "#000000", "#000000", "#FFFFFF", "#1E3A8A", "#E4161B"];
 const GRADIENTS = [["#FFF1A8", "#FFC21A"], ["#FFFFFF", "#AAB3C0"], ["#FFE259", "#FF7A00"], ["#FF9933", "#FFFFFF", "#138808"]];
 
 function random(seed) {
@@ -68,16 +71,20 @@ function random(seed) {
       styles[pick(others)] = second;
     }
 
+    const ink = pick(INKS);
+    const outline = ink === "#111111" ? pick(["#FFFFFF", "#FFD400"]) : pick(OUTLINES.filter((o) => o !== ink));
+    const shadow = rand() < 0.3;
+
     const lines = [];
     for (let l = 0; l < count; l += 1) {
       const own = styles[l];
       const words = own === "ring" ? [pick(WORDS)] : [pick(WORDS), ...(rand() < 0.6 ? [pick(WORDS)] : [])];
-      const line = { text: words.join(" "), font, scale: 0.14, color: "#FFFFFF", italic };
+      const line = { text: words.join(" "), font, scale: 0.14, color: ink, italic, ...(outline ? { stroke: true, strokeColor: outline } : { stroke: false }) };
 
-      if (own === "colour") line.color = pick(COLOURS);
+      if (own === "colour") line.color = pick(COLOURS.filter((c) => !(ink === "#FFD400" && YELLOWS.has(c))));
       if (own === "box") {
         line.box = pick(BOXES);
-        if (line.box === "#FFD400") line.color = "#111111";
+        line.color = line.box === "#FFD400" ? "#111111" : "#FFFFFF";
       }
       if (own === "ring") {
         line.ring = pick(RINGS);
@@ -100,8 +107,8 @@ function random(seed) {
     }
 
     const file = `${String(i).padStart(5, "0")}.jpg`;
-    fs.writeFileSync(path.join(OUT, file), await compose(template, assets, { headline: { lines } }, {}));
-    labels.push({ file, style, line: target < 0 ? null : target === 0 ? "first" : "last", lines: styles, template });
+    fs.writeFileSync(path.join(OUT, file), await compose(template, assets, { headline: { lines, shadow } }, {}));
+    labels.push({ file, style, line: target < 0 ? null : target === 0 ? "first" : "last", lines: styles, ink, outline, shadow, template });
   }
 
   fs.writeFileSync(path.join(OUT, "labels.json"), JSON.stringify(labels));

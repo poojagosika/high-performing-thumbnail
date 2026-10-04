@@ -159,6 +159,8 @@ const linesFor = (count) => (count <= 2 ? 1 : count <= 4 ? 2 : 3);
 
 const HEX6 = /^#[0-9a-fA-F]{6}$/;
 const EMPHASIS_TRUST = 0.7;
+const INK_TRUST = 0.7;
+const DARK_INK = 90;
 const DARK_TEXT = "#111111";
 const LIGHT_BOX = 170;
 
@@ -215,11 +217,25 @@ function emphasise(next, read, used) {
   return next;
 }
 
-function applyEmphasis(lines, read) {
-  if (!lines || !read || !read.style || !(read.confidence >= EMPHASIS_TRUST)) return lines;
+function inkFrom(read) {
+  if (!read || !(read.confidence >= INK_TRUST) || !HEX6.test(String(read.colour || ""))) return null;
+  const outline = HEX6.test(String(read.outline || "")) ? read.outline : null;
+  if (!outline && lumaOf(read.colour) < DARK_INK) return null;
+  return { color: read.colour, outline: outline ? { stroke: true, strokeColor: outline } : { stroke: false } };
+}
+
+function withInk(line, ink) {
+  if (!ink || !line.text || line.box) return line;
+  return { ...line, ...(line.color === "#FFFFFF" ? { color: ink.color } : {}), ...ink.outline };
+}
+
+function applyEmphasis(lines, read, inkRead) {
+  const ink = inkFrom(inkRead);
+  if (!lines) return lines;
+  if (!read || !read.style || !(read.confidence >= EMPHASIS_TRUST)) return ink ? lines.map((l) => withInk(l, ink)) : lines;
   if (!lines.some((l) => l.text)) return lines;
 
-  const next = lines.map((l) => (l.text ? plainLine(l) : l));
+  const next = lines.map((l) => (l.text ? withInk(plainLine(l), ink) : l));
   const reads = [read, read.also]
     .filter((r) => r && r.style && r.style !== "none" && r.confidence >= EMPHASIS_TRUST)
     .sort((a, b) => (a.style === "ring") - (b.style === "ring"));
@@ -293,8 +309,8 @@ function planThumbnail(input = {}) {
 
   const band = layout && layout.headlineBand ? layout.headlineBand : "top";
   const lines = stacked
-    ? applyEmphasis(stackFrom(content.headline, template, palette, fonts), layout && layout.emphasis)
-    : applyEmphasis(headlineFrom(content.headline, palette, fonts.hero, palette.mood === "light"), layout && layout.emphasis);
+    ? applyEmphasis(stackFrom(content.headline, template, palette, fonts), layout && layout.emphasis, layout && layout.ink)
+    : applyEmphasis(headlineFrom(content.headline, palette, fonts.hero, palette.mood === "light"), layout && layout.emphasis, layout && layout.ink);
   const slotAlign = textSlot && textSlot.defaults && textSlot.defaults.align;
 
   return {

@@ -105,6 +105,7 @@ function normalise(options) {
         scale,
         color: colour(line.color, colour(options.color, "#FFFFFF")),
         strokeColor: colour(line.strokeColor, colour(options.strokeColor, "#000000")),
+        stroke: typeof line.stroke === "boolean" ? line.stroke : null,
         box: line.box ? colour(line.box, "#FF2A1A") : null,
         accent,
         gradient: gradient.length >= 2 ? gradient : null,
@@ -270,7 +271,7 @@ async function buildRichHeadline(options, width, height, basis) {
 
     if (slanted) parts.push(slanted);
 
-    if (!line.box && stroked) {
+    if (!line.box && (line.stroke === null ? stroked : line.stroke)) {
       const stroke = Math.max(2, Math.round(line.fontSize * strokeFor(line.font)));
       parts.push(
         `<text ${common} fill="none" stroke="${line.strokeColor}" stroke-width="${stroke}" ` +

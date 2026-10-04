@@ -142,7 +142,7 @@ def detect_text(image):
     boxes, _ = text_model().detect(image)
 
     if boxes is None or len(boxes) == 0:
-        return {"hasText": False, "band": None, "y": None, "side": None, "x": None, "font": None, "emphasis": None, "coverage": 0.0, "regions": 0}
+        return {"hasText": False, "band": None, "y": None, "side": None, "x": None, "font": None, "emphasis": None, "ink": None, "coverage": 0.0, "regions": 0}
 
     areas = [abs(cv2.contourArea(np.array(b, dtype=np.float32))) for b in boxes]
     biggest = max(areas)
@@ -158,6 +158,7 @@ def detect_text(image):
             "x": None,
             "font": None,
             "emphasis": None,
+            "ink": None,
             "coverage": round(coverage * 100, 2),
             "regions": len(boxes),
             "reason": "only incidental text, too small for a headline",
@@ -170,6 +171,8 @@ def detect_text(image):
     centre = sum(y * w for y, w in zip(ys, weights)) / sum(weights)
     across = sum(x * w for x, w in zip(xs, weights)) / sum(weights)
 
+    found, base = emphasis.read(image, list(boxes), areas)
+
     return {
         "hasText": True,
         "band": band_for(centre),
@@ -177,7 +180,8 @@ def detect_text(image):
         "side": side_for(across),
         "x": round(across, 4),
         "font": read_font(image, kept),
-        "emphasis": emphasis.read(image, list(boxes), areas),
+        "emphasis": found,
+        "ink": base,
         "coverage": round(coverage * 100, 2),
         "regions": len(kept),
     }
