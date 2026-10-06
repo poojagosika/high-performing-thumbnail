@@ -1,6 +1,7 @@
 const { z } = require("zod");
 const { TEMPLATES } = require("../config/templates");
 const { FONTS } = require("../config/fonts");
+const { COPY_ITEMS } = require("../config/plan");
 
 const objectId = z.string().regex(/^[a-f0-9]{24}$/i, "must be a valid id");
 
@@ -69,6 +70,11 @@ const captionSchema = z.object({
 });
 
 const hexColour = z.string().regex(/^#[0-9a-fA-F]{6}$/, "must be a hex colour");
+
+const copyToggleSchema = z.object({
+  item: z.enum(COPY_ITEMS, { error: "is not something we copy" }),
+  on: z.boolean({ error: "must be true or false" }),
+});
 
 const templateChoiceSchema = z.object({
   templateId: z.enum(TEMPLATES.map((t) => t.id), { error: "is not one of the templates" }),
@@ -186,6 +192,7 @@ module.exports = {
   chooseReferenceSchema,
   captionSchema,
   templateChoiceSchema,
+  copyToggleSchema,
   slotEditSchema,
   bulkIdsSchema,
   bulkTagSchema,

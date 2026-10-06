@@ -16,7 +16,7 @@ const { renderCaption } = require("../config/caption");
 const { detectText } = require("../config/textLayout");
 const { analyze, layoutFrom } = require("../config/detect");
 const { byId, DEFAULT_TEMPLATE } = require("../config/templates");
-const { planThumbnail, overridesFrom } = require("../config/plan");
+const { planThumbnail, overridesFrom, withoutOff, readingFrom } = require("../config/plan");
 const { compose } = require("../config/compose");
 const { removeUpload, writeUpload, uploadPath } = require("../config/upload");
 
@@ -177,6 +177,8 @@ const shape = (project) => ({
   chosenVideoId: project.chosenVideoId,
   referenceStyle: project.referenceStyle,
   referenceLayout: project.referenceLayout || null,
+  reading: readingFrom(project.referenceLayout),
+  copyOff: project.copyOff || [],
   templateId: project.templateId || null,
   slots: project.slots || {},
   slotOverrides: project.slotOverrides || {},
@@ -341,6 +343,8 @@ const chooseReference = async (req, res) => {
         : null;
     }
 
+    if (changed) project.copyOff = [];
+
     if (changed || !project.referenceLayout) {
       project.referenceLayout = await detectLayout(
         project.candidates.find((c) => c.videoId === videoId),
@@ -353,7 +357,7 @@ const chooseReference = async (req, res) => {
     adoptLayout(project, project.referenceLayout);
 
     const plan = planThumbnail({
-      reference: { style: project.referenceStyle, layout: project.referenceLayout },
+      reference: { style: project.referenceStyle, layout: withoutOff(project.referenceLayout, project.copyOff || []) },
       content: { headline: project.title, template: project.templateId, seed: project.chosenVideoId },
     });
 
@@ -384,6 +388,30 @@ const chooseReference = async (req, res) => {
   }
 };
 
+async function rebuild(project) {
+  const plan = planThumbnail({
+    reference: { style: project.referenceStyle, layout: withoutOff(project.referenceLayout, project.copyOff || []) },
+    content: { headline: project.title, template: project.templateId, seed: project.chosenVideoId },
+  });
+
+  project.slotOverrides = { ...(project.slotOverrides || {}), ...overridesFrom(plan) };
+
+  removeUpload(project.composedUrl);
+  project.composedUrl = null;
+
+  const assets = {};
+  for (const [key, slot] of Object.entries(project.slots || {})) {
+    if (slot && slot.url) assets[key] = uploadPath(slot.url);
+  }
+  const buffer = await compose(
+    project.templateId,
+    assets,
+    project.slotOverrides || {},
+    { referenceStyle: project.referenceStyle || null },
+  );
+  project.composedUrl = writeUpload(buffer, "jpg");
+}
+
 const replan = async (req, res) => {
   try {
     const project = await Project.findOne({ _id: req.params.id, user: req.user._id });
@@ -397,29 +425,30 @@ const replan = async (req, res) => {
       return res.status(400).json({ message: "Choose a template first" });
     }
 
-    const plan = planThumbnail({
-      reference: { style: project.referenceStyle, layout: project.referenceLayout },
-      content: { headline: project.title, template: project.templateId, seed: project.chosenVideoId },
-    });
+    await rebuild(project);
+    await project.save();
+    res.json(shape(project));
+  } catch (error) {
+    res.status(500).json({ message: "Server error" });
+  }
+};
 
-    const planned = overridesFrom(plan);
-    project.slotOverrides = { ...(project.slotOverrides || {}), ...planned };
+const toggleCopy = async (req, res) => {
+  try {
+    const { item, on } = req.body;
+    const project = await Project.findOne({ _id: req.params.id, user: req.user._id });
+    if (!project) return res.status(404).json({ message: "Project not found" });
 
-    removeUpload(project.composedUrl);
-    project.composedUrl = null;
-
-    const assets = {};
-    for (const [key, slot] of Object.entries(project.slots || {})) {
-      if (slot && slot.url) assets[key] = uploadPath(slot.url);
+    if (!project.chosenVideoId) {
+      return res.status(400).json({ message: "Pick a reference first" });
     }
-    const buffer = await compose(
-      project.templateId,
-      assets,
-      project.slotOverrides || {},
-      { referenceStyle: project.referenceStyle || null },
-    );
-    project.composedUrl = writeUpload(buffer, "jpg");
 
+    const off = new Set(project.copyOff || []);
+    if (on) off.delete(item);
+    else off.add(item);
+    project.copyOff = [...off];
+
+    if (byId(project.templateId)) await rebuild(project);
     await project.save();
     res.json(shape(project));
   } catch (error) {
@@ -682,6 +711,7 @@ module.exports = {
   getProject,
   chooseReference,
   replan,
+  toggleCopy,
   uploadThumbnail,
   recomposeThumbnail,
   gradeThumbnail,
