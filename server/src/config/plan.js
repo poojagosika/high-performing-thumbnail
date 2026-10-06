@@ -286,6 +286,52 @@ function stackFrom(text, template, palette, fonts) {
   return lines.map((t, i) => hero(t, 0.15, i === last && lines.length > 1 ? { color: highlight } : {}));
 }
 
+const COPY_ITEMS = ["font", "ink", "emphasis", "also"];
+const FAMILY_LABELS = { condensed: "Condensed", geometric: "Geometric", neutral: "Clean sans" };
+
+function withoutOff(layout, off = []) {
+  if (!layout || !off.length) return layout;
+  const next = { ...layout };
+  if (off.includes("font")) next.font = null;
+  if (off.includes("ink")) next.ink = null;
+
+  const read = layout.emphasis;
+  if (read) {
+    const { also, ...main } = read;
+    const second = off.includes("also") ? null : also || null;
+    next.emphasis = off.includes("emphasis") ? second : { ...main, ...(second ? { also: second } : {}) };
+  }
+  return next;
+}
+
+function readingFrom(layout) {
+  if (!layout) return null;
+
+  const read = layout.font;
+  const fontEntry = read && read.confidence >= FONT_TRUST ? FONTS.find((f) => f.key === read.key) : null;
+  const font = fontEntry
+    ? { key: fontEntry.key, label: fontEntry.label }
+    : read && PAIRINGS[read.family] && read.familyConfidence >= FAMILY_TRUST
+      ? { family: read.family, label: FAMILY_LABELS[read.family] }
+      : null;
+
+  const trusted = (e) =>
+    e && e.style && e.style !== "none" && e.confidence >= EMPHASIS_TRUST
+      ? { style: e.style, line: e.line || null, colour: e.colour || null, colours: e.colours || null }
+      : null;
+  const emphasis = trusted(layout.emphasis);
+  const ink = inkFrom(layout.ink) ? { colour: layout.ink.colour, outline: layout.ink.outline || null } : null;
+  const template = byId(layout.template);
+
+  return {
+    template: template ? { id: template.id, name: template.name } : null,
+    font,
+    ink,
+    emphasis,
+    also: emphasis ? trusted(layout.emphasis.also) : null,
+  };
+}
+
 function planThumbnail(input = {}) {
   const { reference = {}, content = {}, assets = {} } = input;
   const style = reference.style || null;
@@ -407,6 +453,9 @@ function overridesFrom(spec) {
 }
 
 module.exports = {
+  COPY_ITEMS,
+  withoutOff,
+  readingFrom,
   planThumbnail,
   overridesFrom,
   restyleLines,

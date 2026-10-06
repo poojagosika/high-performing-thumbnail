@@ -9,6 +9,7 @@ const {
   chooseReferenceSchema,
   captionSchema,
   templateChoiceSchema,
+  copyToggleSchema,
   slotEditSchema,
 } = require("../schemas");
 const {
@@ -24,6 +25,7 @@ const {
   getProject,
   chooseReference,
   replan,
+  toggleCopy,
   uploadThumbnail,
   recomposeThumbnail,
   gradeThumbnail,
@@ -47,6 +49,7 @@ router.patch("/:id/slots/:key", validateObjectId(), validate(slotEditSchema), ed
 router.delete("/:id/slots/:key", validateObjectId(), clearSlot);
 router.patch("/:id/reference", validateObjectId(), validate(chooseReferenceSchema), chooseReference);
 router.post("/:id/replan", validateObjectId(), replan);
+router.patch("/:id/copy", validateObjectId(), validate(copyToggleSchema), toggleCopy);
 router.post("/:id/upload", validateObjectId(), uploadLimiter, upload.single("image"), uploadErrorHandler, persistImage, uploadThumbnail);
 router.post("/:id/recompose", validateObjectId(), uploadLimiter, recomposeThumbnail);
 router.post("/:id/grade", validateObjectId(), uploadLimiter, gradeThumbnail);

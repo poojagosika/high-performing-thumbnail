@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import DashboardNav from "../components/DashboardNav";
+import ReferenceStrip from "../components/ReferenceStrip";
 import { useToast } from "../context/ToastContext";
 import api, { uploadFile } from "../lib/api";
 import { assetUrl } from "../lib/assetUrl";
@@ -87,6 +88,7 @@ function Research() {
   const [slotEditing, setSlotEditing] = useState({});
   const [clearing, setClearing] = useState(false);
   const [replanning, setReplanning] = useState(false);
+  const [copying, setCopying] = useState(null);
   const [textDrafts, setTextDrafts] = useState({});
   const slotFileRefs = useRef({});
   const editTimers = useRef({});
@@ -293,6 +295,20 @@ function Research() {
       toast.error(err.message);
     } finally {
       setReplanning(false);
+    }
+  };
+
+  const handleCopyToggle = async (item, on) => {
+    setCopying(item);
+    try {
+      const updated = await api(`/projects/${project.id}/copy`, { method: "PATCH", body: { item, on } });
+      applyProject(updated);
+      setTextDrafts({});
+      refreshHistory();
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setCopying(null);
     }
   };
 
@@ -721,6 +737,13 @@ function Research() {
                           </div>
                         </div>
                       </div>
+
+                      <ReferenceStrip
+                        reading={project.reading}
+                        off={project.copyOff}
+                        busy={copying}
+                        onToggle={handleCopyToggle}
+                      />
                     </div>
 
                     <div className="rounded-xl border border-white/6 bg-[#111118] p-5">

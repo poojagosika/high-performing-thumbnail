@@ -19,6 +19,7 @@ const projectSchema = new mongoose.Schema(
     candidateStyles: { type: mongoose.Schema.Types.Mixed, default: () => ({}) },
     matchReports: { type: mongoose.Schema.Types.Mixed, default: null },
     referenceLayout: { type: mongoose.Schema.Types.Mixed, default: null },
+    copyOff: { type: [String], default: [] },
     templateId: { type: String, default: null },
     slots: { type: mongoose.Schema.Types.Mixed, default: () => ({}) },
     slotOverrides: { type: mongoose.Schema.Types.Mixed, default: () => ({}) },
