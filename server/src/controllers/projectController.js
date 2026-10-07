@@ -388,10 +388,17 @@ const chooseReference = async (req, res) => {
   }
 };
 
-async function rebuild(project) {
+function currentWords(project) {
+  const slot = byId(project.templateId).slots.find((s) => s.type === "text");
+  const current = slot ? (project.slotOverrides || {})[slot.key] : null;
+  return current ? String(current.text || "").trim() : "";
+}
+
+async function rebuild(project, { keepWords = false } = {}) {
+  const words = keepWords ? currentWords(project) : "";
   const plan = planThumbnail({
     reference: { style: project.referenceStyle, layout: withoutOff(project.referenceLayout, project.copyOff || []) },
-    content: { headline: project.title, template: project.templateId, seed: project.chosenVideoId },
+    content: { headline: words || project.title, template: project.templateId, seed: project.chosenVideoId },
   });
 
   project.slotOverrides = { ...(project.slotOverrides || {}), ...overridesFrom(plan) };
@@ -448,7 +455,7 @@ const toggleCopy = async (req, res) => {
     else off.add(item);
     project.copyOff = [...off];
 
-    if (byId(project.templateId)) await rebuild(project);
+    if (byId(project.templateId)) await rebuild(project, { keepWords: true });
     await project.save();
     res.json(shape(project));
   } catch (error) {
