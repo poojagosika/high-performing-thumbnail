@@ -6,7 +6,7 @@ const { cutout, CutoutError } = require("../config/cutout");
 const { removeUpload, writeUpload, uploadPath } = require("../config/upload");
 const { shape } = require("./projectController");
 const { FONTS } = require("../config/fonts");
-const { restyleLines, planThumbnail, overridesFrom, STACKS } = require("../config/plan");
+const { restyleLines, planThumbnail, overridesFrom, withoutOff, STACKS } = require("../config/plan");
 
 const IMAGE_FIELDS = ["zoom", "dx", "dy", "anchor"];
 const TEXT_FIELDS = [
@@ -188,7 +188,7 @@ const editSlot = async (req, res) => {
 
     if (slot.type === "text" && changes.lines === undefined && changes.text !== undefined && STACKS.has(project.templateId)) {
       const fresh = overridesFrom(planThumbnail({
-        reference: { style: project.referenceStyle, layout: project.referenceLayout },
+        reference: { style: project.referenceStyle, layout: withoutOff(project.referenceLayout, project.copyOff || []) },
         content: { headline: changes.text, template: project.templateId, seed: project.chosenVideoId },
       }))[req.params.key];
       const { text, ...styling } = changes;
