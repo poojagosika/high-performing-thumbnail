@@ -160,7 +160,7 @@ async function buildRichHeadline(options, width, height, basis) {
   const lines = normalise(options);
   if (!lines.length) return null;
 
-  const align = options.align === "center" ? "center" : "left";
+  const align = options.align === "center" || options.align === "right" ? options.align : "left";
   const rotate = clamp(Number(options.rotate ?? 0), -12, 12);
   const gap = Number.isFinite(options.gap) ? clamp(options.gap, 0, 0.5) : GAP;
   const radius = Number.isFinite(options.boxRadius) ? clamp(options.boxRadius, 0, 0.5) : BOX_RADIUS;
@@ -219,7 +219,7 @@ async function buildRichHeadline(options, width, height, basis) {
   for (const line of measured) {
     if (line.rule) {
       const ruleW = Math.round(widest * RULE_SPAN);
-      const ruleX = align === "center" ? Math.round((width - ruleW) / 2) : 0;
+      const ruleX = align === "center" ? Math.round((width - ruleW) / 2) : align === "right" ? width - ruleW : 0;
       parts.push(
         `<rect x="${ruleX}" y="${Math.round(cursor + ruleGap)}" width="${ruleW}" height="${ruleSize}" fill="${line.rule}"/>`,
       );
@@ -229,7 +229,7 @@ async function buildRichHeadline(options, width, height, basis) {
 
     if (line.swoosh) {
       const sweep = Math.round(widest * SWOOSH_SPAN);
-      const x0 = align === "center" ? Math.round((width - sweep) / 2) : 0;
+      const x0 = align === "center" ? Math.round((width - sweep) / 2) : align === "right" ? width - sweep : 0;
       const stripe = swooshSize / line.swoosh.length;
       line.swoosh.forEach((c, i) => {
         const top = cursor + ruleGap + i * stripe;
@@ -246,12 +246,12 @@ async function buildRichHeadline(options, width, height, basis) {
     const { metrics } = line;
     const boxW = metrics.width + (line.box ? line.fontSize * BOX_PAD_X * 2 : 0);
     const ringInset = line.ring ? Math.round(line.fontSize * (RING_PAD_X + RING_THICK)) : 0;
-    const left = align === "center" ? Math.round((width - boxW) / 2) : ringInset;
+    const left = align === "center" ? Math.round((width - boxW) / 2) : align === "right" ? width - boxW - ringInset : ringInset;
     const baseline = Math.round(
       cursor + metrics.above + (line.box ? line.fontSize * BOX_PAD_Y : 0) + (line.ring ? line.fontSize * RING_PAD_Y : 0),
     );
     const lean = line.italic ? Math.round(line.fontSize * SLANT_ROOM) : 0;
-    const textX = left + (line.box ? line.fontSize * BOX_PAD_X : 0) - (metrics.offset || 0) - (align === "center" ? lean / 2 : 0);
+    const textX = left + (line.box ? line.fontSize * BOX_PAD_X : 0) - (metrics.offset || 0) - (align === "center" ? lean / 2 : align === "right" ? lean : 0);
     const slanted = line.italic
       ? `<g transform="translate(${Math.round(textX)} ${baseline}) skewX(${-ITALIC_SKEW}) translate(${-Math.round(textX)} ${-baseline})">`
       : "";
