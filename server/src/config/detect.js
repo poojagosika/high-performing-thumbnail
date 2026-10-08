@@ -79,6 +79,8 @@ function layoutFrom(detection) {
     panels: detection.panels || 0,
     headlineBand: detection.text.hasText ? detection.text.band : null,
     headlineSide: textSide,
+    headlineSize: detection.text.hasText ? detection.text.size || null : null,
+    headlineBlock: detection.text.hasText ? detection.text.block || null : null,
     font: detection.text.hasText ? detection.text.font || null : null,
     emphasis: detection.text.hasText ? detection.text.emphasis || null : null,
     ink: detection.text.hasText ? detection.text.ink || null : null,

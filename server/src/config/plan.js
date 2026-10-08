@@ -332,6 +332,24 @@ function readingFrom(layout) {
   };
 }
 
+const SIZE_PER_HEIGHT = 0.9;
+const SIZE_RANGE = [0.07, 0.2];
+const SIZE_STEP = [0.6, 1.5];
+
+function sizedLike(lines, size) {
+  const peak = lines ? Math.max(0, ...lines.map((l) => Number(l.scale) || 0)) : 0;
+  if (!peak || !(size > 0)) return lines;
+  const target = clamp(size * SIZE_PER_HEIGHT, ...SIZE_RANGE);
+  const factor = clamp(target / peak, ...SIZE_STEP);
+  return lines.map((l) => (l.scale ? { ...l, scale: Math.round(l.scale * factor * 1000) / 1000 } : l));
+}
+
+function alignLike(side, subjects, fallback) {
+  if (side !== "left" && side !== "right" && side !== "center") return fallback;
+  if (subjects.some((s) => s.position === side)) return fallback;
+  return side;
+}
+
 function planThumbnail(input = {}) {
   const { reference = {}, content = {}, assets = {} } = input;
   const style = reference.style || null;
@@ -354,10 +372,12 @@ function planThumbnail(input = {}) {
     }));
 
   const band = layout && layout.headlineBand ? layout.headlineBand : "top";
-  const lines = stacked
+  const planned = stacked
     ? applyEmphasis(stackFrom(content.headline, template, palette, fonts), layout && layout.emphasis, layout && layout.ink)
     : applyEmphasis(headlineFrom(content.headline, palette, fonts.hero, palette.mood === "light"), layout && layout.emphasis, layout && layout.ink);
   const slotAlign = textSlot && textSlot.defaults && textSlot.defaults.align;
+  const lines = sizedLike(planned, layout && layout.headlineSize);
+  const defaultAlign = stacked && slotAlign ? slotAlign : palette.mood === "light" ? "left" : "center";
 
   return {
     canvas: { width: CANVAS_W, height: CANVAS_H },
@@ -369,7 +389,7 @@ function planThumbnail(input = {}) {
     headline: lines
       ? {
           slot: textSlot ? textSlot.key : "headline",
-          align: stacked && slotAlign ? slotAlign : palette.mood === "light" ? "left" : "center",
+          align: alignLike(layout && layout.headlineSide, subjects, defaultAlign),
           band,
           lines,
         }

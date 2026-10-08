@@ -172,6 +172,9 @@ def detect_text(image):
     across = sum(x * w for x, w in zip(xs, weights)) / sum(weights)
 
     found, base = emphasis.read(image, list(boxes), areas)
+    rects = [emphasis.rect_of(b, width, height) for b, _ in kept]
+    block = [min(r[0] for r in rects) / width, min(r[1] for r in rects) / height,
+             max(r[2] for r in rects) / width, max(r[3] for r in rects) / height]
 
     return {
         "hasText": True,
@@ -182,6 +185,8 @@ def detect_text(image):
         "font": read_font(image, kept),
         "emphasis": found,
         "ink": base,
+        "size": round(float(np.median([(r[3] - r[1]) / height for r in rects])), 4),
+        "block": [round(v, 4) for v in block],
         "coverage": round(coverage * 100, 2),
         "regions": len(kept),
     }
