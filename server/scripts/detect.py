@@ -226,7 +226,33 @@ def run(path):
     }
 
 
+def warm():
+    blank = np.zeros((720, 1280, 3), dtype=np.uint8)
+    detect_faces(blank)
+    text_model().detect(blank)
+    fontread.load()
+    emphasis.load()
+    emphasis.load_ink()
+
+
+def serve():
+    warm()
+    for line in sys.stdin:
+        try:
+            request = json.loads(line)
+        except ValueError:
+            continue
+        try:
+            result = run(request["path"])
+        except Exception as error:
+            result = {"error": str(error)}
+        print(json.dumps({"id": request.get("id"), "result": result}), flush=True)
+
+
 if __name__ == "__main__":
+    if sys.argv[1:] == ["--serve"]:
+        serve()
+        sys.exit(0)
     try:
         print(json.dumps(run(sys.argv[1])))
     except Exception as error:

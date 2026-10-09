@@ -14,6 +14,8 @@ const { serveUploadsGuard, UPLOAD_DIR } = require("./config/upload");
 
 require("./config/fonts").register();
 
+const { warmUp } = require("./config/detect");
+
 const app = express();
 
 app.set("trust proxy", 1);
@@ -91,5 +93,6 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
+  warmUp();
   console.log(`Server running on port ${PORT}`);
 });
