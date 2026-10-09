@@ -52,7 +52,18 @@ const synthesizeFixture = (seedText) => {
     .toBuffer();
 };
 
+const RECENT_IMAGES = 20;
+const recentImages = new Map();
+
 async function fetchReferenceImage(url) {
+  if (recentImages.has(url)) return recentImages.get(url);
+  const buffer = await downloadReference(url);
+  recentImages.set(url, buffer);
+  if (recentImages.size > RECENT_IMAGES) recentImages.delete(recentImages.keys().next().value);
+  return buffer;
+}
+
+async function downloadReference(url) {
   const response = await fetch(url, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
   if (!response.ok) throw new Error(`reference responded ${response.status}`);
 

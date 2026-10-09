@@ -1,4 +1,4 @@
-const { execFile } = require("child_process");
+const { spawn } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 
@@ -25,28 +25,75 @@ const missingPieces = () =>
     fs.existsSync(TEXT_MODEL) ? null : "ppocr_text.onnx",
   ].filter(Boolean);
 
+let worker = null;
+let nextId = 1;
+const pending = new Map();
+
+function settleAll() {
+  for (const finish of pending.values()) finish(null);
+  pending.clear();
+}
+
+function startWorker() {
+  const child = spawn(PYTHON, [SCRIPT, "--serve"], { cwd: ROOT, stdio: ["pipe", "pipe", "ignore"] });
+  let buffered = "";
+
+  child.stdout.setEncoding("utf8");
+  child.stdout.on("data", (chunk) => {
+    buffered += chunk;
+    let end;
+    while ((end = buffered.indexOf("\n")) >= 0) {
+      const line = buffered.slice(0, end);
+      buffered = buffered.slice(end + 1);
+      let reply = null;
+      try {
+        reply = JSON.parse(line);
+      } catch {
+        continue;
+      }
+      const finish = pending.get(reply && reply.id);
+      if (finish) finish(reply.result);
+    }
+  });
+
+  const stop = () => {
+    if (worker !== child) return;
+    worker = null;
+    settleAll();
+  };
+  child.on("exit", stop);
+  child.on("error", stop);
+  child.stdin.on("error", () => {});
+
+  child.unref();
+  child.stdout.unref();
+  child.stdin.unref();
+  return child;
+}
+
+function warmUp() {
+  if (!worker && !missingPieces().length) worker = startWorker();
+}
+
 function analyze(imagePath) {
   if (missingPieces().length) return Promise.resolve({ ...EMPTY });
 
   return new Promise((resolve) => {
-    execFile(
-      PYTHON,
-      [SCRIPT, imagePath],
-      { cwd: ROOT, timeout: TIMEOUT_MS, maxBuffer: 4 * 1024 * 1024 },
-      (error, stdout) => {
-        if (error) return resolve({ ...EMPTY });
+    const id = nextId++;
+    const timer = setTimeout(() => {
+      pending.delete(id);
+      resolve({ ...EMPTY });
+      if (worker) worker.kill();
+    }, TIMEOUT_MS);
 
-        let parsed = null;
-        try {
-          parsed = JSON.parse(String(stdout).trim().split("\n").pop());
-        } catch {
-          parsed = null;
-        }
+    pending.set(id, (result) => {
+      clearTimeout(timer);
+      pending.delete(id);
+      resolve(result && !result.error ? { ...result, available: true } : { ...EMPTY });
+    });
 
-        if (!parsed || parsed.error) return resolve({ ...EMPTY });
-        resolve({ ...parsed, available: true });
-      },
-    );
+    if (!worker) worker = startWorker();
+    worker.stdin.write(`${JSON.stringify({ id, path: path.resolve(imagePath) })}\n`);
   });
 }
 
@@ -90,4 +137,4 @@ function layoutFrom(detection) {
   };
 }
 
-module.exports = { analyze, layoutFrom, missingPieces, SCRIPT, FACE_MODEL, TEXT_MODEL, EMPTY };
+module.exports = { analyze, warmUp, layoutFrom, missingPieces, SCRIPT, FACE_MODEL, TEXT_MODEL, EMPTY };
