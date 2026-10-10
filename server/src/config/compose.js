@@ -471,29 +471,24 @@ async function compose(templateId, assets = {}, overrides = {}, context = {}) {
   const rest = template.slots.filter((s) => s.treat !== "background");
   let subjectTarget = referenceStyle;
 
-  for (const slot of [...backgrounds, ...rest]) {
+  const layersFor = async (slot) => {
     if (slot.type === "text") {
       const layer = await textLayer(slot, overrides[slot.key]);
-      if (layer) {
-        if (slot.scrim) layers.push(textScrimLayer(slot));
-        layers.push(layer);
-      }
-      continue;
+      if (!layer) return [];
+      return slot.scrim ? [textScrimLayer(slot), layer] : [layer];
     }
 
     const source = assets[slot.key];
 
     if (!source) {
-      layers.push(
+      return [
         slot.treat === "background" && referenceStyle
           ? backdropLayer(slot, referenceStyle)
           : placeholderLayer(slot),
-      );
-      continue;
+      ];
     }
 
-    if (slot.cutout) layers.push(scrimLayer(slot, depth));
-
+    const out = slot.cutout ? [scrimLayer(slot, depth)] : [];
     let prepared = source;
 
     if (slot.treat === "background") {
@@ -502,8 +497,12 @@ async function compose(templateId, assets = {}, overrides = {}, context = {}) {
       if (measured) subjectTarget = measured;
     }
 
-    layers.push(...(await imageLayer(slot, prepared, overrides[slot.key], subjectTarget, depth)));
-  }
+    out.push(...(await imageLayer(slot, prepared, overrides[slot.key], subjectTarget, depth)));
+    return out;
+  };
+
+  for (const slot of backgrounds) layers.push(...(await layersFor(slot)));
+  for (const group of await Promise.all(rest.map(layersFor))) layers.push(...group);
 
   for (const decor of template.decor || []) layers.push(decorLayer(decor));
 
