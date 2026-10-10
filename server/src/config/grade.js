@@ -34,8 +34,35 @@ const inside = (rects, x, y, w, h) =>
       y >= (r.y - PAD) * h && y <= (r.y + r.h + PAD) * h,
   );
 
+const isPixels = (input) => Boolean(input && input.pixels);
+const open = (input) =>
+  isPixels(input) ? sharp(input.pixels, { raw: { width: input.width, height: input.height, channels: 4 } }) : sharp(input);
+
+async function pixelsOf(input) {
+  const { data, info } = await sharp(input).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+  return { pixels: data, width: info.width, height: info.height };
+}
+
+async function rawOp(img, apply) {
+  return { ...img, pixels: await apply(open(img)).raw().toBuffer() };
+}
+
+const linearPixels = (img, gains, offsets) => rawOp(img, (s) => s.linear([...gains, 1], [...offsets, 0]));
+
+const saturatePixels = (img, saturation) => rawOp(img, (s) => s.modulate({ saturation }));
+
+function curvePixels(img, lut) {
+  const data = Buffer.from(img.pixels);
+  for (let i = 0; i < data.length; i += 4) {
+    data[i] = lut[data[i]];
+    data[i + 1] = lut[data[i + 1]];
+    data[i + 2] = lut[data[i + 2]];
+  }
+  return { ...img, pixels: data };
+}
+
 async function measure(input, options = {}) {
-  const { data, info } = await sharp(input)
+  const { data, info } = await open(input)
     .resize(SAMPLE, SAMPLE, { fit: "fill" })
     .ensureAlpha()
     .raw()
@@ -206,7 +233,7 @@ async function toneRange(current, stats, target, kind, strength) {
   const exponent = toward(exponentFor(stats[key], target[key]), 1, strength);
   if (Math.abs(exponent - 1) < 0.02) return current;
 
-  return applyCurve(current, curveFor(kind, exponent));
+  return curvePixels(current, curveFor(kind, exponent));
 }
 
 const isFlat = (stats) => Number.isFinite(stats.contrast) && stats.contrast < FLAT_CONTRAST;
@@ -239,7 +266,7 @@ async function balance(input, mine, target, strength) {
     const scaled = coefficients.map((c) => toward(c, 1, strength));
     if (scaled.every((c) => Math.abs(c - 1) < 0.01)) break;
 
-    const next = await linearRGB(current, scaled, [0, 0, 0]);
+    const next = await linearPixels(current, scaled, [0, 0, 0]);
     const measured = await measure(next);
     if (!measured) break;
 
@@ -266,7 +293,7 @@ async function saturate(input, mine, target, strength, options = {}) {
     const saturation = toward(wanted, 1, strength);
     if (Math.abs(saturation - 1) < 0.01) break;
 
-    const next = await sharp(current).modulate({ saturation }).png().toBuffer();
+    const next = await saturatePixels(current, saturation);
     const measured = await measure(next);
     if (!measured) break;
 
@@ -286,23 +313,26 @@ async function grade(input, target, options = {}) {
   const strength = clamp(Number.isFinite(options.strength) ? options.strength : 1, 0, 1);
 
   const flat = isFlat(mine);
+  const start = await pixelsOf(input);
   const whiteBalance = options.whiteBalance !== false;
   const balanced = whiteBalance
-    ? await balance(input, mine, target, strength)
-    : { buffer: input, stats: mine, applied: false };
+    ? await balance(start, mine, target, strength)
+    : { buffer: start, stats: mine, applied: false };
 
   let current = balanced.buffer;
   let stats = balanced.stats;
 
   const plan = planGrade(stats, target, strength);
-  current = await linearRGB(
+  current = await linearPixels(
     current,
     [plan.gain, plan.gain, plan.gain],
     [plan.lift, plan.lift, plan.lift],
   );
 
+  const encode = (img) => open(img).png().toBuffer();
+
   stats = await measure(current);
-  if (!stats) return current;
+  if (!stats) return encode(current);
 
   if (!balanced.applied) {
     const shift = Math.round(
@@ -310,7 +340,7 @@ async function grade(input, target, options = {}) {
     );
 
     if (shift !== 0) {
-      current = await linearRGB(current, [1, 1, 1], [shift, 0, -shift]);
+      current = await linearPixels(current, [1, 1, 1], [shift, 0, -shift]);
       stats = (await measure(current)) || stats;
     }
   }
@@ -331,7 +361,7 @@ async function grade(input, target, options = {}) {
   }
 
   const settled = await saturate(current, stats, target, strength, { flat });
-  return settled.buffer;
+  return encode(settled.buffer);
 }
 
 const axisGap = (a, b) => {
