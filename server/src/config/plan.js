@@ -344,6 +344,11 @@ function sizedLike(lines, size) {
   return lines.map((l) => (l.scale ? { ...l, scale: Math.round(l.scale * factor * 1000) / 1000 } : l));
 }
 
+function centreOf(block) {
+  if (!Array.isArray(block) || block.length !== 4 || !block.every(Number.isFinite)) return null;
+  return Math.round(((block[1] + block[3]) / 2) * 1000) / 1000;
+}
+
 function alignLike(side, subjects, fallback) {
   if (side !== "left" && side !== "right" && side !== "center") return fallback;
   if (subjects.some((s) => s.position === side)) return fallback;
@@ -391,6 +396,7 @@ function planThumbnail(input = {}) {
           slot: textSlot ? textSlot.key : "headline",
           align: alignLike(layout && layout.headlineSide, subjects, defaultAlign),
           band,
+          ...(centreOf(layout && layout.headlineBlock) !== null ? { centre: centreOf(layout.headlineBlock) } : {}),
           lines,
         }
       : null,
@@ -463,6 +469,7 @@ function overridesFrom(spec) {
     [spec.headline.slot]: {
       align: spec.headline.align,
       band: spec.headline.band,
+      ...(Number.isFinite(spec.headline.centre) ? { centre: spec.headline.centre } : {}),
       lines,
       text: lines.filter((l) => l.text).map((l) => l.text).join(" "),
       font: lead.font,

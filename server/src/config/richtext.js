@@ -211,7 +211,10 @@ async function buildRichHeadline(options, width, height, basis) {
         (m.ring ? m.fontSize * RING_PAD_Y * 2 : 0);
 
   const total = measured.reduce((sum, m) => sum + heightOf(m), 0);
-  let cursor = Math.max(0, (height - total) / 2);
+  const room = Math.max(0, height - total);
+  let cursor = Number.isFinite(options.centreY)
+    ? Math.max(0, Math.min(room, options.centreY * height - total / 2))
+    : room / 2;
 
   const parts = [];
   const defs = [];
