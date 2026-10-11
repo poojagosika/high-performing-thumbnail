@@ -382,13 +382,21 @@ const BANDS = {
   bottom: 0.54,
 };
 
-function bandRect(slot, band) {
+function bandRect(slot, band, centre) {
   const base = pixelRect(slot.rect);
-  if (!band || !(band in BANDS)) return base;
-
   const height = Math.min(base.height, Math.round(CANVAS_H * 0.42));
+
+  if (Number.isFinite(centre)) {
+    const top = Math.round(centre * CANVAS_H - height / 2);
+    return { ...base, top: Math.max(base.top, Math.min(base.top + base.height - height, top)), height };
+  }
+
+  if (!band || !(band in BANDS)) return base;
   return { ...base, top: Math.round(CANVAS_H * BANDS[band]), height };
 }
+
+const centreWithin = (centre, placed) =>
+  Number.isFinite(centre) ? Math.max(0, Math.min(1, (centre * CANVAS_H - placed.top) / placed.height)) : undefined;
 
 async function textLayer(slot, override) {
   const settings = { ...(slot.defaults || {}), ...(override || {}) };
@@ -399,20 +407,21 @@ async function textLayer(slot, override) {
 
   if (slot.style === "stack") {
     const placed = pixelRect(slot.rect);
-    const svg = await buildRichHeadline(rich ? settings : { ...settings, lines: null }, placed.width, placed.height, CANVAS_H);
+    const options = { ...settings, centreY: centreWithin(settings.centre, placed) };
+    const svg = await buildRichHeadline(rich ? options : { ...options, lines: null }, placed.width, placed.height, CANVAS_H);
     return svg ? { input: svg, left: placed.left, top: placed.top, z: slot.z } : null;
   }
 
   if (rich) {
-    const placed = bandRect(slot, settings.band);
-    const svg = await buildRichHeadline(settings, placed.width, placed.height, CANVAS_H);
+    const placed = bandRect(slot, settings.band, settings.centre);
+    const svg = await buildRichHeadline({ ...settings, centreY: centreWithin(settings.centre, placed) }, placed.width, placed.height, CANVAS_H);
     return svg ? { input: svg, left: placed.left, top: placed.top, z: slot.z } : null;
   }
 
   const rect = pixelRect(slot.rect);
 
   if (slot.style === "headline") {
-    const placed = bandRect(slot, settings.band);
+    const placed = bandRect(slot, settings.band, settings.centre);
     const svg = buildHeadline({ ...settings, text }, placed.width, placed.height);
     return svg ? { input: svg, left: placed.left, top: placed.top, z: slot.z } : null;
   }
