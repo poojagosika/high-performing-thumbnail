@@ -202,7 +202,7 @@ function emphasise(next, read, used) {
 
     if (words.length > 1 && word.length > 2) {
       const remaining = first ? words.slice(1) : words.slice(0, -1);
-      const rebuilt = balance(remaining, Math.max(1, heroes.length)).map((text) => ({ ...line, text }));
+      const rebuilt = balance(remaining, Math.max(1, Math.min(heroes.length, linesFor(remaining.length)))).map((text) => ({ ...line, text }));
       const circled = { ...line, text: word, ring };
       next.splice(heroes[0], heroes.length, ...(first ? [circled, ...rebuilt] : [...rebuilt, circled]));
     } else {

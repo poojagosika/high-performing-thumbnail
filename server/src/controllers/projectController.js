@@ -16,7 +16,7 @@ const { renderCaption } = require("../config/caption");
 const { detectText } = require("../config/textLayout");
 const { analyze, layoutFrom } = require("../config/detect");
 const { byId, DEFAULT_TEMPLATE } = require("../config/templates");
-const { planThumbnail, overridesFrom, withoutOff, readingFrom } = require("../config/plan");
+const { planThumbnail, overridesFrom, withoutOff, readingFrom, restyleLines } = require("../config/plan");
 const { compose } = require("../config/compose");
 const { removeUpload, writeUpload, uploadPath } = require("../config/upload");
 
@@ -354,7 +354,10 @@ const chooseReference = async (req, res) => {
         : null;
     }
 
-    if (changed) project.copyOff = [];
+    if (changed) {
+      project.copyOff = [];
+      project.slotTweaks = {};
+    }
 
     if (changed || !project.referenceLayout) {
       project.referenceLayout = await detectLayout(
@@ -412,7 +415,16 @@ async function rebuild(project, { keepWords = false } = {}) {
     content: { headline: words || project.title, template: project.templateId, seed: project.chosenVideoId },
   });
 
-  project.slotOverrides = { ...(project.slotOverrides || {}), ...overridesFrom(plan) };
+  const planned = overridesFrom(plan);
+  if (keepWords) {
+    for (const [key, tweaks] of Object.entries(project.slotTweaks || {})) {
+      if (!planned[key] || !tweaks) continue;
+      planned[key] = { ...planned[key], ...tweaks, lines: restyleLines(planned[key].lines || [], tweaks) };
+    }
+  } else {
+    project.slotTweaks = {};
+  }
+  project.slotOverrides = { ...(project.slotOverrides || {}), ...planned };
 
   removeUpload(project.composedUrl);
   project.composedUrl = null;

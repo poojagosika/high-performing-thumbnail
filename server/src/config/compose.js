@@ -94,7 +94,10 @@ async function toneBackground(buffer, referenceStyle) {
 }
 
 async function treatBackground(source, referenceStyle, depth) {
-  const framed = await frameBackground(source, referenceStyle);
+  const framed = await sharp(await frameBackground(source, referenceStyle))
+    .resize(CANVAS_W, CANVAS_H, { fit: "outside", withoutEnlargement: true })
+    .png()
+    .toBuffer();
   const buffer = await toneBackground(framed, referenceStyle);
   const meta = await sharp(buffer).metadata();
   const edge = depth ? depth.vignette : VIGNETTE_MAX;
