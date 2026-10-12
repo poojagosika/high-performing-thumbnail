@@ -199,6 +199,14 @@ const editSlot = async (req, res) => {
 
     project.slotOverrides = { ...(project.slotOverrides || {}), [req.params.key]: merged };
 
+    if (slot.type === "text" && changes.lines === undefined) {
+      const { text, ...styling } = changes;
+      if (Object.keys(styling).length) {
+        const tweaks = project.slotTweaks || {};
+        project.slotTweaks = { ...tweaks, [req.params.key]: { ...(tweaks[req.params.key] || {}), ...styling } };
+      }
+    }
+
     await rebuild(project);
     await project.save();
 
@@ -225,6 +233,9 @@ const clearSlot = async (req, res) => {
 
     project.slots = slots;
     project.slotOverrides = overrides;
+    project.slotTweaks = Object.fromEntries(
+      Object.entries(project.slotTweaks || {}).filter(([key]) => key !== req.params.key),
+    );
 
     await rebuild(project);
     await project.save();
