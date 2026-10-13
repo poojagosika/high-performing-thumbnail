@@ -67,8 +67,9 @@ app.use("/api/comparisons", require("./routes/comparisons"));
 app.use("/api/collections", require("./routes/collections"));
 
 // Sweep thumbnails that have outlived the trash retention window
-const { purgeExpired } = require("./controllers/thumbnailController");
+const { purgeExpired, clearEmptyShareTokens } = require("./controllers/thumbnailController");
 purgeExpired().catch(() => {});
+clearEmptyShareTokens().catch((error) => console.error("[startup] clearing empty share tokens failed", error));
 
 // Health check route
 app.get("/api/health", (req, res) => {

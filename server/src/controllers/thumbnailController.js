@@ -36,6 +36,9 @@ const purgeExpired = async (user) => {
   return expired.length;
 };
 
+const clearEmptyShareTokens = () =>
+  Thumbnail.updateMany({ shareToken: null }, { $unset: { shareToken: 1 } });
+
 const createThumbnail = async (req, res) => {
   try {
     if (!req.file) {
@@ -361,7 +364,7 @@ const toggleShare = async (req, res) => {
     }
 
     if (thumbnail.shareToken) {
-      thumbnail.shareToken = null;
+      thumbnail.shareToken = undefined;
       thumbnail.shareExpiresAt = null;
     } else {
       thumbnail.shareToken = crypto.randomBytes(16).toString("hex");
@@ -893,6 +896,7 @@ const bulkPurge = async (req, res) => {
 };
 
 module.exports = {
+  clearEmptyShareTokens,
   createThumbnail,
   getThumbnails,
   getThumbnail,
