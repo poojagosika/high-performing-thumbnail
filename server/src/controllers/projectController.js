@@ -275,6 +275,7 @@ const createProject = async (req, res) => {
     if (error instanceof YoutubeError) {
       return res.status(error.status).json({ message: error.message });
     }
+    console.error(`[${req.method} ${req.originalUrl}]`, error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -286,6 +287,7 @@ const getProjects = async (req, res) => {
       .limit(50);
     res.json(projects.map(summarize));
   } catch (error) {
+    console.error(`[${req.method} ${req.originalUrl}]`, error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -299,6 +301,7 @@ const getProject = async (req, res) => {
     if (!project) return res.status(404).json({ message: "Project not found" });
     res.json(shape(project));
   } catch (error) {
+    console.error(`[${req.method} ${req.originalUrl}]`, error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -398,6 +401,7 @@ const chooseReference = async (req, res) => {
 
     res.json(shape(project));
   } catch (error) {
+    console.error(`[${req.method} ${req.originalUrl}]`, error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -459,6 +463,7 @@ const replan = async (req, res) => {
     await project.save();
     res.json(shape(project));
   } catch (error) {
+    console.error(`[${req.method} ${req.originalUrl}]`, error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -482,6 +487,7 @@ const toggleCopy = async (req, res) => {
     await project.save();
     res.json(shape(project));
   } catch (error) {
+    console.error(`[${req.method} ${req.originalUrl}]`, error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -495,6 +501,7 @@ const deleteProject = async (req, res) => {
     if (!project) return res.status(404).json({ message: "Project not found" });
     res.json({ message: "Project deleted" });
   } catch (error) {
+    console.error(`[${req.method} ${req.originalUrl}]`, error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -550,6 +557,7 @@ const uploadThumbnail = async (req, res) => {
 
     res.json(shape(project));
   } catch (error) {
+    console.error(`[${req.method} ${req.originalUrl}]`, error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -602,6 +610,7 @@ const recomposeThumbnail = async (req, res) => {
 
     res.json(shape(project));
   } catch (error) {
+    console.error(`[${req.method} ${req.originalUrl}]`, error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -634,6 +643,7 @@ const gradeThumbnail = async (req, res) => {
 
     res.json(shape(project));
   } catch (error) {
+    console.error(`[${req.method} ${req.originalUrl}]`, error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -675,6 +685,7 @@ const setCaption = async (req, res) => {
 
     res.json(shape(project));
   } catch (error) {
+    console.error(`[${req.method} ${req.originalUrl}]`, error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -702,6 +713,7 @@ const removeCaption = async (req, res) => {
 
     res.json(shape(project));
   } catch (error) {
+    console.error(`[${req.method} ${req.originalUrl}]`, error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -731,6 +743,7 @@ const clearUpload = async (req, res) => {
 
     res.json(shape(project));
   } catch (error) {
+    console.error(`[${req.method} ${req.originalUrl}]`, error);
     res.status(500).json({ message: "Server error" });
   }
 };

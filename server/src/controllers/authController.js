@@ -69,6 +69,7 @@ const register = async (req, res) => {
         },
       });
   } catch (error) {
+    console.error(`[${req.method} ${req.originalUrl}]`, error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -122,6 +123,7 @@ const login = async (req, res) => {
       },
     });
   } catch (error) {
+    console.error(`[${req.method} ${req.originalUrl}]`, error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -167,6 +169,7 @@ const updateProfile = async (req, res) => {
       },
     });
   } catch (error) {
+    console.error(`[${req.method} ${req.originalUrl}]`, error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -204,6 +207,7 @@ const changePassword = async (req, res) => {
       message: "Password updated. Other sessions have been signed out.",
     });
   } catch (error) {
+    console.error(`[${req.method} ${req.originalUrl}]`, error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -280,6 +284,7 @@ const resetPassword = async (req, res) => {
 
     res.json({ message: "Password updated. You can log in now." });
   } catch (error) {
+    console.error(`[${req.method} ${req.originalUrl}]`, error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -307,6 +312,7 @@ const uploadAvatar = async (req, res) => {
       },
     });
   } catch (error) {
+    console.error(`[${req.method} ${req.originalUrl}]`, error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -318,6 +324,7 @@ const logoutAll = async (req, res) => {
       .clearCookie("token", clearCookieOptions)
       .json({ message: "Signed out of all sessions" });
   } catch (error) {
+    console.error(`[${req.method} ${req.originalUrl}]`, error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -372,6 +379,7 @@ const deleteAccount = async (req, res) => {
       .clearCookie("token", clearCookieOptions)
       .json({ message: "Account deleted" });
   } catch (error) {
+    console.error(`[${req.method} ${req.originalUrl}]`, error);
     res.status(500).json({ message: "Server error" });
   }
 };

@@ -75,6 +75,10 @@ app.get("/api/health", (req, res) => {
   res.json({ status: "ok", message: "Server is running" });
 });
 
+app.get("/api/health/engine", (req, res) => {
+  res.json(require("./config/engine").engineStatus());
+});
+
 app.use((req, res) => {
   res.status(404).json({ message: "Not found" });
 });
