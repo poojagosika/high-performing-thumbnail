@@ -96,6 +96,7 @@ const chooseTemplate = async (req, res) => {
 
     res.json(shape(project));
   } catch (error) {
+    console.error(`[${req.method} ${req.originalUrl}]`, error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -156,6 +157,7 @@ const uploadSlot = async (req, res) => {
     res.json(shape(project));
   } catch (error) {
     removeUpload(rawUrl);
+    console.error(`[${req.method} ${req.originalUrl}]`, error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -212,6 +214,7 @@ const editSlot = async (req, res) => {
 
     res.json(shape(project));
   } catch (error) {
+    console.error(`[${req.method} ${req.originalUrl}]`, error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -242,6 +245,7 @@ const clearSlot = async (req, res) => {
 
     res.json(shape(project));
   } catch (error) {
+    console.error(`[${req.method} ${req.originalUrl}]`, error);
     res.status(500).json({ message: "Server error" });
   }
 };

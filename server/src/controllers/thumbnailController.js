@@ -36,6 +36,9 @@ const purgeExpired = async (user) => {
   return expired.length;
 };
 
+const clearEmptyShareTokens = () =>
+  Thumbnail.updateMany({ shareToken: null }, { $unset: { shareToken: 1 } });
+
 const createThumbnail = async (req, res) => {
   try {
     if (!req.file) {
@@ -58,6 +61,7 @@ const createThumbnail = async (req, res) => {
     logActivity(req.user._id, "uploaded", thumbnail.title, thumbnail._id);
     res.status(201).json(thumbnail);
   } catch (error) {
+    console.error(`[${req.method} ${req.originalUrl}]`, error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -70,6 +74,7 @@ const getThumbnails = async (req, res) => {
 
     res.json(thumbnails);
   } catch (error) {
+    console.error(`[${req.method} ${req.originalUrl}]`, error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -87,6 +92,7 @@ const getThumbnail = async (req, res) => {
 
     res.json(thumbnail);
   } catch (error) {
+    console.error(`[${req.method} ${req.originalUrl}]`, error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -127,6 +133,7 @@ const updateThumbnail = async (req, res) => {
     }
     res.json(thumbnail);
   } catch (error) {
+    console.error(`[${req.method} ${req.originalUrl}]`, error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -146,6 +153,7 @@ const deleteThumbnail = async (req, res) => {
     logActivity(req.user._id, "trashed", thumbnail.title, thumbnail._id);
     res.json({ message: "Thumbnail moved to trash", thumbnail });
   } catch (error) {
+    console.error(`[${req.method} ${req.originalUrl}]`, error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -166,6 +174,7 @@ const bulkDelete = async (req, res) => {
     logActivity(req.user._id, "trashed", `${result.modifiedCount} thumbnails`, null);
     res.json({ message: `${result.modifiedCount} thumbnails moved to trash` });
   } catch (error) {
+    console.error(`[${req.method} ${req.originalUrl}]`, error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -199,6 +208,7 @@ const bulkTag = async (req, res) => {
 
     res.json(updated);
   } catch (error) {
+    console.error(`[${req.method} ${req.originalUrl}]`, error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -242,6 +252,7 @@ const duplicateThumbnail = async (req, res) => {
     logActivity(req.user._id, "duplicated", original.title, duplicate._id);
     res.status(201).json(duplicate);
   } catch (error) {
+    console.error(`[${req.method} ${req.originalUrl}]`, error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -268,6 +279,7 @@ const toggleStar = async (req, res) => {
     );
     res.json(thumbnail);
   } catch (error) {
+    console.error(`[${req.method} ${req.originalUrl}]`, error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -291,6 +303,7 @@ const reorder = async (req, res) => {
 
     res.json({ message: "Order updated" });
   } catch (error) {
+    console.error(`[${req.method} ${req.originalUrl}]`, error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -334,6 +347,7 @@ const trackEvent = async (req, res) => {
     await thumbnail.save();
     res.json(thumbnail);
   } catch (error) {
+    console.error(`[${req.method} ${req.originalUrl}]`, error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -350,7 +364,7 @@ const toggleShare = async (req, res) => {
     }
 
     if (thumbnail.shareToken) {
-      thumbnail.shareToken = null;
+      thumbnail.shareToken = undefined;
       thumbnail.shareExpiresAt = null;
     } else {
       thumbnail.shareToken = crypto.randomBytes(16).toString("hex");
@@ -370,6 +384,7 @@ const toggleShare = async (req, res) => {
     );
     res.json(thumbnail);
   } catch (error) {
+    console.error(`[${req.method} ${req.originalUrl}]`, error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -406,6 +421,7 @@ const getPublicThumbnail = async (req, res) => {
       shareToken: thumbnail.shareToken,
     });
   } catch (error) {
+    console.error(`[${req.method} ${req.originalUrl}]`, error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -438,6 +454,7 @@ const reuploadVersion = async (req, res) => {
     logActivity(req.user._id, "reuploaded", thumbnail.title, thumbnail._id);
     res.json(thumbnail);
   } catch (error) {
+    console.error(`[${req.method} ${req.originalUrl}]`, error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -474,6 +491,7 @@ const restoreVersion = async (req, res) => {
     logActivity(req.user._id, "restored", thumbnail.title, thumbnail._id);
     res.json(thumbnail);
   } catch (error) {
+    console.error(`[${req.method} ${req.originalUrl}]`, error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -533,6 +551,7 @@ const logPerformance = async (req, res) => {
     logActivity(req.user._id, "logged", thumbnail.title, thumbnail._id);
     res.status(201).json(thumbnail);
   } catch (error) {
+    console.error(`[${req.method} ${req.originalUrl}]`, error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -560,6 +579,7 @@ const deletePerformance = async (req, res) => {
 
     res.json(thumbnail);
   } catch (error) {
+    console.error(`[${req.method} ${req.originalUrl}]`, error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -584,6 +604,7 @@ const updateShareExpiry = async (req, res) => {
 
     res.json(thumbnail);
   } catch (error) {
+    console.error(`[${req.method} ${req.originalUrl}]`, error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -623,6 +644,7 @@ const renameTags = async (req, res) => {
       thumbnails: updated,
     });
   } catch (error) {
+    console.error(`[${req.method} ${req.originalUrl}]`, error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -641,6 +663,7 @@ const deleteTag = async (req, res) => {
       modifiedCount: result.modifiedCount,
     });
   } catch (error) {
+    console.error(`[${req.method} ${req.originalUrl}]`, error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -683,6 +706,7 @@ const bulkExport = async (req, res) => {
     await archive.finalize();
   } catch (error) {
     if (!res.headersSent) {
+      console.error(`[${req.method} ${req.originalUrl}]`, error);
       res.status(500).json({ message: "Server error" });
     }
   }
@@ -720,6 +744,7 @@ const analyzeThumbnail = async (req, res) => {
     logActivity(req.user._id, "analyzed", thumbnail.title, thumbnail._id);
     res.json(thumbnail);
   } catch (error) {
+    console.error(`[${req.method} ${req.originalUrl}]`, error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -754,6 +779,7 @@ const bulkCollection = async (req, res) => {
 
     res.json(updated);
   } catch (error) {
+    console.error(`[${req.method} ${req.originalUrl}]`, error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -771,6 +797,7 @@ const getTrash = async (req, res) => {
 
     res.json(thumbnails);
   } catch (error) {
+    console.error(`[${req.method} ${req.originalUrl}]`, error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -790,6 +817,7 @@ const restoreThumbnail = async (req, res) => {
     logActivity(req.user._id, "restored", thumbnail.title, thumbnail._id);
     res.json(thumbnail);
   } catch (error) {
+    console.error(`[${req.method} ${req.originalUrl}]`, error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -812,6 +840,7 @@ const purgeThumbnail = async (req, res) => {
     logActivity(req.user._id, "purged", thumbnail.title, null);
     res.json({ message: "Thumbnail permanently deleted" });
   } catch (error) {
+    console.error(`[${req.method} ${req.originalUrl}]`, error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -832,6 +861,7 @@ const bulkRestore = async (req, res) => {
     logActivity(req.user._id, "restored", `${result.modifiedCount} thumbnails`, null);
     res.json({ message: `${result.modifiedCount} thumbnails restored` });
   } catch (error) {
+    console.error(`[${req.method} ${req.originalUrl}]`, error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -860,11 +890,13 @@ const bulkPurge = async (req, res) => {
     logActivity(req.user._id, "purged", `${thumbnails.length} thumbnails`, null);
     res.json({ message: `${thumbnails.length} thumbnails permanently deleted` });
   } catch (error) {
+    console.error(`[${req.method} ${req.originalUrl}]`, error);
     res.status(500).json({ message: "Server error" });
   }
 };
 
 module.exports = {
+  clearEmptyShareTokens,
   createThumbnail,
   getThumbnails,
   getThumbnail,

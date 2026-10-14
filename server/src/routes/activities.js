@@ -15,6 +15,7 @@ router.get("/", async (req, res) => {
 
     res.json(activities);
   } catch (error) {
+    console.error(`[${req.method} ${req.originalUrl}]`, error);
     res.status(500).json({ message: "Server error" });
   }
 });
@@ -31,6 +32,7 @@ router.get("/thumbnail/:id", async (req, res) => {
 
     res.json(activities);
   } catch (error) {
+    console.error(`[${req.method} ${req.originalUrl}]`, error);
     res.status(500).json({ message: "Server error" });
   }
 });
